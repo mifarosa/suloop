@@ -2,7 +2,7 @@
 
 Renkli suları tüplere ayırdığın 3B bulmaca oyunu. Tarayıcıda çalışır, kurulum ya da hesap gerektirmez.
 
-**Oyna:** https://mifarosa.github.io/suloop/
+**Oyna:** https://mifarosa.com/suloop/
 
 ## Nasıl oynanır
 
