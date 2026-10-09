@@ -2,7 +2,7 @@
   "name": "suloop",
   "version": "1.0.0",
   "private": true,
-  "description": "Renkli suları tüplere ayırdığın 3B bulmaca oyunu.",
+  "description": "Renkli suları tüplere ayırdığın bulmaca oyunu.",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -15,9 +15,6 @@
   },
   "engines": {
     "node": ">=22.13"
-  },
-  "dependencies": {
-    "three": "^0.186.1"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

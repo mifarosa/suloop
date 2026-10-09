@@ -24,13 +24,13 @@ export function bodyKey(tube) {
  * @param {boolean} lifted
  */
 export function lift(animator, tube, lifted) {
-  const { position } = tube.body;
-  const from = position.y;
+  const { body } = tube;
+  const from = body.y;
   const to = TUBE_HEIGHT + (lifted ? LIFT_HEIGHT : 0);
   return animator.run(
     DURATION_MS.lift,
     (t) => {
-      position.y = from + (to - from) * t;
+      body.y = from + (to - from) * t;
     },
     { key: bodyKey(tube) }
   );
@@ -38,11 +38,11 @@ export function lift(animator, tube, lifted) {
 
 /** A quick sideways wobble that says "not here". */
 export function shake(animator, tube) {
-  const { position } = tube.body;
+  const { body } = tube;
   return animator.run(
     DURATION_MS.shake,
     (t) => {
-      position.x = Math.sin(t * Math.PI * 6) * 0.08 * (1 - t);
+      body.x = Math.sin(t * Math.PI * 6) * 0.08 * (1 - t);
     },
     { ease: linear, key: `shake-${tube.index}` }
   );
@@ -77,11 +77,11 @@ export function celebrate(animator, tubes) {
 }
 
 function jump(animator, tube, height, duration) {
-  const { position } = tube.body;
+  const { body } = tube;
   return animator.run(
     duration,
     (t) => {
-      position.y = TUBE_HEIGHT + Math.sin(t * Math.PI) * height;
+      body.y = TUBE_HEIGHT + Math.sin(t * Math.PI) * height;
     },
     { ease: linear, key: bodyKey(tube) }
   );

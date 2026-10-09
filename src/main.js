@@ -5,7 +5,9 @@ import { loadProgress, saveProgress } from './app/progress.js';
 import { watchGlassColor } from './app/theme.js';
 import { TubeScene } from './scene/tubeScene.js';
 
-const scene = new TubeScene(document.querySelector('#scene'));
+const scene = new TubeScene(document.querySelector('#scene'), {
+  getTopInset: () => document.querySelector('.hud').getBoundingClientRect().bottom
+});
 const hud = new Hud(document);
 const controller = new GameController({ scene, hud, progress: loadProgress(), saveProgress });
 

@@ -1,63 +1,47 @@
-import {
-  ACESFilmicToneMapping,
-  Color,
-  DirectionalLight,
-  Group,
-  HemisphereLight,
-  Mesh,
-  PerspectiveCamera,
-  PMREMGenerator,
-  Raycaster,
-  Scene,
-  Vector2,
-  WebGLRenderer
-} from 'three';
-import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { Animator } from './animator.js';
-import { createStreamGeometry } from './geometry.js';
-import { arrangeTubes, frameCamera } from './layout.js';
-import { createStreamMaterial } from './materials.js';
+import { LIFT_HEIGHT, TUBE_HEIGHT, TUBE_RADIUS } from './dimensions.js';
+import { arrangeTubes, fitToView } from './layout.js';
 import * as motions from './motions.js';
 import { animatePour } from './pour.js';
-import { createTubeResources, TubeView } from './tubeView.js';
+import { drawScene } from './renderer.js';
+import { TubeView } from './tubeView.js';
 
-const CAMERA_FOV = 35;
 const DEFAULT_GLASS_COLOR = '#ffffff';
-// Phones have 2x or 3x screens. Above 1.5x the extra sharpness is hard to see, but every
-// step up costs a lot of GPU time and makes animations stutter.
-const MAX_PIXEL_RATIO = 1.5;
+// Sharp on 2x screens; 3x would more than double the pixels to fill for no visible gain.
+const MAX_PIXEL_RATIO = 2;
+// Taps count a little around a tube and above it, where a lifted tube floats.
+const TAP_HALF_WIDTH = TUBE_RADIUS * 1.5;
+const TAP_MARGIN = 0.2;
 
 /**
- * The 3D view of the board. It knows how to show and animate tubes, and reports taps;
- * it knows nothing about the rules of the game.
+ * The board, drawn on a 2D canvas. It knows how to show and animate tubes, and reports
+ * taps; it knows nothing about the rules of the game.
  */
 export class TubeScene {
   #canvas;
-  #renderer;
-  #scene;
-  #camera = new PerspectiveCamera(CAMERA_FOV, 1, 0.1, 200);
-  #root = new Group();
-  #resources = createTubeResources();
-  #stream = new Mesh(createStreamGeometry(), createStreamMaterial());
-  #glassColor = new Color(DEFAULT_GLASS_COLOR);
+  #context;
+  #getTopInset;
   #animator = new Animator(() => this.#requestRender());
-  #raycaster = new Raycaster();
-  #pointer = new Vector2();
   /** @type {TubeView[]} */
   #tubes = [];
+  #stream = { visible: false, color: 0, x: 0, top: 0, bottom: 0 };
+  #glassColor = DEFAULT_GLASS_COLOR;
+  #size = { width: 0, height: 0 };
+  #view = { scale: 1, originX: 0, originY: 0 };
   #bounds = null;
   #pouring = false;
   #layoutPending = false;
-  #onTubeTap = () => {};
   #frameRequested = false;
+  #onTubeTap = () => {};
 
-  /** @param {HTMLCanvasElement} canvas */
-  constructor(canvas) {
+  /**
+   * @param {HTMLCanvasElement} canvas
+   * @param {{ getTopInset?: () => number }} [options] pixels at the top covered by the HUD
+   */
+  constructor(canvas, { getTopInset = () => 0 } = {}) {
     this.#canvas = canvas;
-    this.#renderer = createRenderer(canvas);
-    this.#scene = createLitScene(this.#renderer);
-    this.#stream.visible = false;
-    this.#scene.add(this.#root, this.#stream);
+    this.#context = canvas.getContext('2d');
+    this.#getTopInset = getTopInset;
 
     canvas.addEventListener('pointerdown', (event) => this.#handlePointerDown(event));
     new ResizeObserver(() => this.#resize()).observe(canvas);
@@ -72,15 +56,9 @@ export class TubeScene {
   /** Replaces every tube, e.g. for a new puzzle. */
   showPuzzle(tubes) {
     this.#animator.stopAll();
-    for (const tube of this.#tubes) {
-      this.#root.remove(tube.group);
-      tube.dispose();
-    }
-
     this.#tubes = tubes.map((colors, index) => {
-      const tube = new TubeView(index, this.#resources, this.#glassColor);
+      const tube = new TubeView(index);
       tube.showColors(colors);
-      this.#root.add(tube.group);
       return tube;
     });
     this.#layout();
@@ -100,8 +78,7 @@ export class TubeScene {
 
   /** @param {string} color any CSS color */
   setGlassColor(color) {
-    this.#glassColor.set(color || DEFAULT_GLASS_COLOR);
-    for (const tube of this.#tubes) tube.setGlassColor(this.#glassColor);
+    this.#glassColor = color || DEFAULT_GLASS_COLOR;
     this.#requestRender();
   }
 
@@ -157,20 +134,21 @@ export class TubeScene {
   #layout() {
     if (this.#tubes.length === 0) return;
 
-    const { positions, bounds } = arrangeTubes(this.#tubes.length, this.#camera.aspect);
-    this.#tubes.forEach((tube, index) =>
-      tube.group.position.set(positions[index].x, positions[index].y, 0)
-    );
+    const { width, height } = this.#size;
+    const { positions, bounds } = arrangeTubes(this.#tubes.length, width / height);
+    this.#tubes.forEach((tube, index) => {
+      tube.x = positions[index].x;
+      tube.y = positions[index].y;
+    });
     this.#bounds = bounds;
-    this.#fitCamera();
+    this.#fitView();
   }
 
-  #fitCamera() {
+  #fitView() {
     if (!this.#bounds) return;
 
-    const { position, target } = frameCamera(this.#bounds, this.#camera.fov, this.#camera.aspect);
-    this.#camera.position.set(position.x, position.y, position.z);
-    this.#camera.lookAt(target.x, target.y, target.z);
+    const { width, height } = this.#size;
+    this.#view = fitToView(this.#bounds, width, height, this.#getTopInset());
   }
 
   #resize() {
@@ -178,14 +156,16 @@ export class TubeScene {
     const height = this.#canvas.clientHeight;
     if (!width || !height) return;
 
-    this.#renderer.setSize(width, height, false);
-    this.#camera.aspect = width / height;
-    this.#camera.updateProjectionMatrix();
+    const pixelRatio = Math.min(window.devicePixelRatio || 1, MAX_PIXEL_RATIO);
+    this.#canvas.width = Math.round(width * pixelRatio);
+    this.#canvas.height = Math.round(height * pixelRatio);
+    this.#context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+    this.#size = { width, height };
 
     // Moving tubes in the middle of a pour would break its path; rearrange them afterwards.
     if (this.#pouring) {
       this.#layoutPending = true;
-      this.#fitCamera();
+      this.#fitView();
     } else {
       this.#layout();
     }
@@ -194,17 +174,18 @@ export class TubeScene {
 
   #handlePointerDown(event) {
     const rect = this.#canvas.getBoundingClientRect();
-    this.#pointer.set(
-      ((event.clientX - rect.left) / rect.width) * 2 - 1,
-      -((event.clientY - rect.top) / rect.height) * 2 + 1
-    );
-    this.#raycaster.setFromCamera(this.#pointer, this.#camera);
+    const { scale, originX, originY } = this.#view;
+    const x = (event.clientX - rect.left - originX) / scale;
+    const y = (originY - (event.clientY - rect.top)) / scale;
 
-    const hits = this.#raycaster.intersectObjects(
-      this.#tubes.map((tube) => tube.hitArea),
-      false
-    );
-    if (hits.length > 0) this.#onTubeTap(hits[0].object.userData.tubeIndex);
+    const tapped = this.#tubes.find((tube) => {
+      const dx = Math.abs(x - tube.x);
+      const dy = y - tube.y;
+      return (
+        dx <= TAP_HALF_WIDTH && dy >= -TAP_MARGIN && dy <= TUBE_HEIGHT + LIFT_HEIGHT + TAP_MARGIN
+      );
+    });
+    if (tapped) this.#onTubeTap(tapped.index);
   }
 
   /**
@@ -220,33 +201,13 @@ export class TubeScene {
   #renderFrame() {
     this.#frameRequested = false;
     this.#animator.tick();
-    this.#renderer.render(this.#scene, this.#camera);
+    drawScene(this.#context, {
+      ...this.#size,
+      tubes: this.#tubes,
+      stream: this.#stream,
+      view: this.#view,
+      glassColor: this.#glassColor
+    });
     if (this.#animator.isRunning) this.#requestRender();
   }
-}
-
-function createRenderer(canvas) {
-  // On 2x and denser screens pixels are too small for jagged edges to show, and edge
-  // smoothing is one of the most expensive parts of a frame on phones.
-  const antialias = window.devicePixelRatio < 2;
-  const renderer = new WebGLRenderer({ canvas, antialias, alpha: true });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, MAX_PIXEL_RATIO));
-  renderer.toneMapping = ACESFilmicToneMapping;
-  return renderer;
-}
-
-/** A soft studio room for the glass to reflect, plus a key light and a sky fill. */
-function createLitScene(renderer) {
-  const scene = new Scene();
-
-  const pmrem = new PMREMGenerator(renderer);
-  const room = new RoomEnvironment();
-  scene.environment = pmrem.fromScene(room, 0.04).texture;
-  room.dispose();
-  pmrem.dispose();
-
-  const keyLight = new DirectionalLight(0xffffff, 1.4);
-  keyLight.position.set(3, 8, 6);
-  scene.add(keyLight, new HemisphereLight(0xdde6ff, 0x202030, 0.5));
-  return scene;
 }

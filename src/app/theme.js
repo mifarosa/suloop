@@ -1,6 +1,6 @@
 /**
  * Reports the `--glass` color from the stylesheet now and whenever the system switches
- * between light and dark, so the 3D glass always matches the page.
+ * between light and dark, so the drawn glass always matches the page.
  * @param {(color: string) => void} onChange
  */
 export function watchGlassColor(onChange) {

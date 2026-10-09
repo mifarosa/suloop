@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { MAX_COLOR_COUNT } from '../src/game/levels.js';
 import { Animator, easeInOutCubic, linear } from '../src/scene/animator.js';
-import { TUBE_SPACING } from '../src/scene/dimensions.js';
-import { arrangeTubes, frameCamera } from '../src/scene/layout.js';
+import { SEGMENT_HEIGHT, TUBE_HEIGHT, TUBE_SPACING } from '../src/scene/dimensions.js';
+import { arrangeTubes, fitToView } from '../src/scene/layout.js';
 import { LIQUID_COLORS } from '../src/scene/palette.js';
+import { animatePour } from '../src/scene/pour.js';
+import { drawScene } from '../src/scene/renderer.js';
+import { TubeView } from '../src/scene/tubeView.js';
 
 describe('palette', () => {
   it('has a distinct color for every color a level can use', () => {
@@ -40,18 +43,113 @@ describe('arrangeTubes', () => {
   });
 });
 
-describe('frameCamera', () => {
-  it('moves back further on a narrow screen to fit the width', () => {
-    const { bounds } = arrangeTubes(5, 1);
-    const narrow = frameCamera(bounds, 35, 0.5);
-    const wide = frameCamera(bounds, 35, 2);
-    expect(narrow.position.z).toBeGreaterThan(wide.position.z);
+describe('fitToView', () => {
+  const { bounds } = arrangeTubes(5, 1);
+  const toScreenY = (view, y) => view.originY - y * view.scale;
+
+  it('keeps the whole arrangement on screen, below the HUD', () => {
+    const view = fitToView(bounds, 390, 844, 110);
+    expect(toScreenY(view, bounds.top)).toBeGreaterThan(110);
+    expect(toScreenY(view, bounds.bottom)).toBeLessThan(844);
+    expect((bounds.width / 2) * view.scale).toBeLessThan(390 / 2);
   });
 
-  it('looks slightly down at the tubes', () => {
-    const { bounds } = arrangeTubes(5, 1);
-    const { position, target } = frameCamera(bounds, 35, 1);
-    expect(position.y).toBeGreaterThan(target.y);
+  it('centers the arrangement horizontally', () => {
+    expect(fitToView(bounds, 800, 600).originX).toBe(400);
+  });
+
+  it('does not blow tubes up on very large screens', () => {
+    const huge = fitToView(bounds, 5000, 4000);
+    const large = fitToView(bounds, 2500, 2000);
+    expect(huge.scale).toBe(large.scale);
+  });
+});
+
+describe('animatePour', () => {
+  // Drives the animator with a fake clock until the pour has finished.
+  async function play(animator, promise) {
+    let done = false;
+    promise.then(() => (done = true));
+    let now = performance.now();
+    for (let i = 0; i < 500 && !done; i++) {
+      now += 50;
+      animator.tick(now);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+    return done;
+  }
+
+  it('moves the liquid, shows a stream while pouring, and puts the tube back', async () => {
+    const animator = new Animator();
+    const stream = { visible: false, color: 0, x: 0, top: 0, bottom: 0 };
+    const source = new TubeView(0);
+    const target = new TubeView(1);
+    source.showColors([0, 1, 1]);
+    target.showColors([1]);
+    target.x = TUBE_SPACING;
+
+    let sawStream = false;
+    const original = animator.tick.bind(animator);
+    animator.tick = (now) => {
+      original(now);
+      if (stream.visible) sawStream = stream.top > stream.bottom;
+    };
+
+    const finished = await play(
+      animator,
+      animatePour({ animator, stream, source, target, amount: 2 })
+    );
+
+    expect(finished).toBe(true);
+    expect(sawStream).toBe(true);
+    expect(stream.visible).toBe(false);
+    expect(source.segments.map((s) => s.fill)).toEqual([1, 0, 0]);
+    expect(target.segments.map((s) => [s.color, s.slot, s.fill])).toEqual([
+      [1, 0, 1],
+      [1, 1, 1],
+      [1, 2, 1]
+    ]);
+    expect(source.body).toEqual({ x: 0, y: TUBE_HEIGHT, tilt: 0 });
+  });
+});
+
+describe('drawScene', () => {
+  // A stand-in canvas context that accepts every drawing call and records fills.
+  function recordingContext() {
+    const fills = [];
+    const ctx = new Proxy(
+      { fills },
+      {
+        get: (target, name) =>
+          name in target
+            ? target[name]
+            : name === 'fillRect'
+              ? (...args) => fills.push({ style: ctx.fillStyle, args })
+              : () => {},
+        set: (target, name, value) => ((target[name] = value), true)
+      }
+    );
+    return ctx;
+  }
+
+  it('draws each liquid segment and the stream in its own color', () => {
+    const tube = new TubeView(0);
+    tube.showColors([2, 5]);
+    tube.setGlow(0.5);
+    const ctx = recordingContext();
+    drawScene(ctx, {
+      width: 400,
+      height: 800,
+      tubes: [tube],
+      stream: { visible: true, color: 7, x: 0, top: 4, bottom: 2 * SEGMENT_HEIGHT },
+      view: { scale: 50, originX: 200, originY: 600 },
+      glassColor: '#ffffff'
+    });
+
+    const styles = ctx.fills.map((fill) => fill.style);
+    expect(styles).toContain(LIQUID_COLORS[2]);
+    expect(styles).toContain(LIQUID_COLORS[5]);
+    expect(styles.at(-1)).toBe(LIQUID_COLORS[7]);
   });
 });
 

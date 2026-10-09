@@ -1,7 +1,7 @@
 const TOAST_DURATION_MS = 2400;
 
 /**
- * The page around the 3D scene: title, move counter, buttons, toast message and win dialog.
+ * The page around the game board: title, move counter, buttons, toast message and win dialog.
  * It only displays what it is given and forwards button clicks.
  */
 export class Hud {

@@ -1,4 +1,3 @@
-import { Vector3 } from 'three';
 import { linear } from './animator.js';
 import { LIQUID_FLOOR, POUR_TILT, SEGMENT_HEIGHT, TUBE_HEIGHT } from './dimensions.js';
 import { bodyKey } from './motions.js';
@@ -8,43 +7,44 @@ const RETURN_MS = 320;
 const FLOW_BASE_MS = 220;
 const FLOW_PER_UNIT_MS = 160;
 
-// A zero scale cannot be inverted by three.js, so an "empty" segment is just very flat.
-const FLAT = 1e-4;
-
 /**
  * Animates pouring `amount` units from `source` into `target` in three steps:
  * the source moves above the target and tilts, the liquid flows through a stream,
- * and the source goes back. Segments are only scaled here; afterwards the caller
- * rebuilds both tubes from the game state.
+ * and the source goes back. Segments are only drained and filled here; afterwards
+ * the caller rebuilds both tubes from the game state.
  *
  * @param {object} pour
  * @param {import('./animator.js').Animator} pour.animator
- * @param {import('three').Mesh} pour.stream the falling liquid, hidden when not pouring
+ * @param {{ visible: boolean, color: number, x: number, top: number, bottom: number }} pour.stream
+ *   the falling liquid, in world units; hidden when not pouring
  * @param {import('./tubeView.js').TubeView} pour.source
  * @param {import('./tubeView.js').TubeView} pour.target
  * @param {number} pour.amount
  */
 export async function animatePour({ animator, stream, source, target, amount }) {
   // Come from the side that faces the screen center, so the tilted tube stays in view.
-  const side = target.group.position.x >= 0 ? 1 : -1;
-  const offset = new Vector3().subVectors(target.group.position, source.group.position);
-  const aboveTarget = new Vector3(offset.x - side * 0.25, offset.y + TUBE_HEIGHT + 0.75, 0.3);
-  const atRest = new Vector3(0, TUBE_HEIGHT, 0);
+  const side = target.x >= 0 ? 1 : -1;
+  const aboveTarget = {
+    x: target.x - source.x - side * 0.25,
+    y: target.y - source.y + TUBE_HEIGHT + 0.75,
+    tilt: -side * POUR_TILT
+  };
+  const atRest = { x: 0, y: TUBE_HEIGHT, tilt: 0 };
 
-  await moveBody(animator, source, aboveTarget, -side * POUR_TILT, APPROACH_MS);
+  await moveBody(animator, source, aboveTarget, APPROACH_MS);
   await flow({ animator, stream, source, target, amount, side });
-  await moveBody(animator, source, atRest, 0, RETURN_MS);
+  await moveBody(animator, source, atRest, RETURN_MS);
 }
 
-function moveBody(animator, tube, toPosition, toTilt, duration) {
+function moveBody(animator, tube, to, duration) {
   const { body } = tube;
-  const fromPosition = body.position.clone();
-  const fromTilt = body.rotation.z;
+  const from = { ...body };
   return animator.run(
     duration,
     (t) => {
-      body.position.lerpVectors(fromPosition, toPosition, t);
-      body.rotation.z = fromTilt + (toTilt - fromTilt) * t;
+      body.x = from.x + (to.x - from.x) * t;
+      body.y = from.y + (to.y - from.y) * t;
+      body.tilt = from.tilt + (to.tilt - from.tilt) * t;
     },
     { key: bodyKey(tube) }
   );
@@ -56,14 +56,13 @@ async function flow({ animator, stream, source, target, amount, side }) {
   const incoming = [];
   for (let i = 0; i < amount; i++) {
     const segment = target.addSegment(source.topColor, firstFreeSlot + i);
-    segment.scale.y = FLAT;
+    segment.fill = 0;
     incoming.push(segment);
   }
 
   // The body's origin is the tube mouth, where the stream starts.
-  const mouth = source.body.getWorldPosition(new Vector3());
-  const targetBase = target.group.position;
-  stream.material.color.copy(outgoing[outgoing.length - 1].material.color);
+  const mouth = { x: source.x + source.body.x, y: source.y + source.body.y };
+  stream.color = source.topColor;
   stream.visible = true;
 
   await animator.run(
@@ -73,18 +72,17 @@ async function flow({ animator, stream, source, target, amount, side }) {
 
       // The source empties from the top down while the target fills from the bottom up.
       outgoing.forEach((segment, i) => {
-        const order = amount - 1 - i;
-        segment.scale.y = Math.max(FLAT, 1 - clamp01(poured - order));
+        segment.fill = 1 - clamp01(poured - (amount - 1 - i));
       });
       incoming.forEach((segment, i) => {
-        segment.scale.y = Math.max(FLAT, clamp01(poured - i));
+        segment.fill = clamp01(poured - i);
       });
 
       // The stream reaches from the mouth down to the rising liquid surface in the target.
-      const surface = targetBase.y + LIQUID_FLOOR + (firstFreeSlot + poured) * SEGMENT_HEIGHT;
-      const length = Math.max(0.01, mouth.y - 0.05 - surface);
-      stream.scale.set(1, length, 1);
-      stream.position.set(mouth.x + side * 0.1, surface + length / 2, targetBase.z + 0.05);
+      const surface = target.y + LIQUID_FLOOR + (firstFreeSlot + poured) * SEGMENT_HEIGHT;
+      stream.x = mouth.x + side * 0.1;
+      stream.bottom = surface;
+      stream.top = Math.max(surface + 0.01, mouth.y - 0.05);
     },
     { ease: linear, key: bodyKey(source) }
   );

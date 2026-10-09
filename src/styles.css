@@ -9,7 +9,7 @@
   --accent: #7dd3fc;
   --accent-ink: #0b1430;
   --scrim: #0b0e1d8c;
-  /* Read by the 3D scene to tint the glass tubes. */
+  /* Read by the scene to tint the glass tubes. */
   --glass: #ffffff;
   --font-display: 'Bricolage Grotesque', 'Segoe UI', system-ui, sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, 'Cascadia Mono', monospace;

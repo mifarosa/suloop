@@ -2,10 +2,8 @@ import { LIFT_HEIGHT, ROW_SPACING, TUBE_HEIGHT, TUBE_RADIUS, TUBE_SPACING } from
 
 /** Empty space kept around the tubes, in world units. */
 const FRAME_MARGIN = 0.9;
-/** Extra room above the tubes so the top row stays clear of the HUD. */
-const HUD_ROOM = 1;
-/** How much the camera looks down at the tubes, as a share of its distance. */
-const CAMERA_RISE = 0.18;
+/** Largest size of one world unit in pixels, so tubes do not get huge on big screens. */
+const MAX_SCALE = 150;
 
 /** Narrow screens get shorter rows, so the tubes stay large enough to tap. */
 function maxTubesPerRow(aspect) {
@@ -41,20 +39,24 @@ export function arrangeTubes(count, aspect) {
 }
 
 /**
- * Places the camera so the whole arrangement fits the view, looking slightly down.
- * @param {{ width: number, top: number, bottom: number }} bounds
- * @param {number} fov vertical field of view, in degrees
- * @param {number} aspect
+ * Fits the arrangement into a view, centered in the area below the HUD.
+ * @param {{ width: number, top: number, bottom: number }} bounds in world units
+ * @param {number} width view size in pixels
+ * @param {number} height
+ * @param {number} [topInset] pixels at the top kept free for the HUD
+ * @returns {{ scale: number, originX: number, originY: number }} pixels per world unit, and
+ *   where the world origin lands on screen (screen y grows downwards, world y upwards)
  */
-export function frameCamera(bounds, fov, aspect) {
-  const width = bounds.width + FRAME_MARGIN * 2;
-  const height = bounds.top - bounds.bottom + FRAME_MARGIN * 2 + HUD_ROOM;
-  const tanHalfFov = Math.tan((fov * Math.PI) / 360);
-  const distance = Math.max(height / 2 / tanHalfFov, width / 2 / (tanHalfFov * aspect));
-  const centerY = (bounds.top + bounds.bottom) / 2 + HUD_ROOM / 2;
+export function fitToView(bounds, width, height, topInset = 0) {
+  const worldWidth = bounds.width + FRAME_MARGIN * 2;
+  const worldHeight = bounds.top - bounds.bottom + FRAME_MARGIN * 2;
+  const freeHeight = Math.max(1, height - topInset);
+  const scale = Math.min(width / worldWidth, freeHeight / worldHeight, MAX_SCALE);
+  const centerY = (bounds.top + bounds.bottom) / 2;
 
   return {
-    position: { x: 0, y: centerY + distance * CAMERA_RISE, z: distance },
-    target: { x: 0, y: centerY, z: 0 }
+    scale,
+    originX: width / 2,
+    originY: topInset + freeHeight / 2 + centerY * scale
   };
 }

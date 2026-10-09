@@ -1,6 +1,6 @@
 # suloop
 
-Renkli suları tüplere ayırdığın 3B bulmaca oyunu. Tarayıcıda çalışır, kurulum ya da hesap gerektirmez.
+Renkli suları tüplere ayırdığın bulmaca oyunu. Tarayıcıda çalışır, kurulum ya da hesap gerektirmez.
 
 **Oyna:** https://mifarosa.com/suloop/
 
@@ -17,27 +17,28 @@ Renkli suları tüplere ayırdığın 3B bulmaca oyunu. Tarayıcıda çalışır
 - Her seviye üretilirken çözücüyle denenir; çözülemeyen seviye çıkmaz
 - Geri al, baştan başla ve ipucu ("2. tüpten 5. tüpe dök")
 - Kaldığın seviye tarayıcıda saklanır
-- three.js ile 3B cam tüpler, döküm animasyonu, açık/koyu tema
+- Canvas 2D ile çizilen cam tüpler, döküm animasyonu, açık/koyu tema; ek kütüphane yok, oyun 16 KB
 
 ## Proje yapısı
 
 ```text
 src/
-  game/           Oyun kuralları. Saf JavaScript: DOM ya da three.js bilmez, testlerle korunur
+  game/           Oyun kuralları. Saf JavaScript: DOM ya da çizim bilmez, testlerle korunur
     rules.js      Tüp kuralları: dökme, tamamlanma, çözülme
     solver.js     Derinlik öncelikli çözücü (seviye doğrulama ve ipucu)
     generator.js  Tohumlu, çözülebilir bulmaca üretimi
     levels.js     Zorluk eğrisi, seviye ve günlük bulmaca
     random.js     Tohumlu rastgele sayı üretici ve metin hash'i
     session.js    Bir oyunun durumu: seçim, hamle geçmişi, geri alma
-  scene/          3B görünüm (three.js). Oyun kurallarını bilmez
-    tubeScene.js  Sahne, kamera, ışık, dokunma algılama
-    tubeView.js   Tek bir tüpün modelleri
+  scene/          Görünüm (Canvas 2D). Oyun kurallarını bilmez
+    tubeScene.js  Tuval, ekrana sığdırma, dokunma algılama, kare çizim döngüsü
+    renderer.js   Tüplerin ve döküm akıntısının çizimi
+    tubeView.js   Tek bir tüpün o anki görünümü (konum, eğim, sıvı seviyeleri)
     pour.js       Döküm animasyonu
     motions.js    Kaldırma, sallama, zıplama, parlama
-    layout.js     Tüplerin ekrana dizilişi ve kamera konumu
+    layout.js     Tüplerin dizilişi ve ekrana ölçeklenmesi
     animator.js   Zamana bağlı animasyon altyapısı
-    geometry.js, materials.js, dimensions.js, palette.js
+    dimensions.js, palette.js
   app/            Parçaları birleştiren katman
     controller.js Oyuncu hareketlerini oyuna ve animasyonlara bağlar
     hud.js        Başlık, butonlar, bildirim ve tebrik penceresi
