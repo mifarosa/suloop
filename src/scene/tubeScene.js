@@ -23,8 +23,9 @@ import { createTubeResources, TubeView } from './tubeView.js';
 
 const CAMERA_FOV = 35;
 const DEFAULT_GLASS_COLOR = '#ffffff';
-// Rendering above 2x costs battery on phones without a visible difference.
-const MAX_PIXEL_RATIO = 2;
+// Phones have 2x or 3x screens. Above 1.5x the extra sharpness is hard to see, but every
+// step up costs a lot of GPU time and makes animations stutter.
+const MAX_PIXEL_RATIO = 1.5;
 
 /**
  * The 3D view of the board. It knows how to show and animate tubes, and reports taps;
@@ -39,7 +40,7 @@ export class TubeScene {
   #resources = createTubeResources();
   #stream = new Mesh(createStreamGeometry(), createStreamMaterial());
   #glassColor = new Color(DEFAULT_GLASS_COLOR);
-  #animator = new Animator();
+  #animator = new Animator(() => this.#requestRender());
   #raycaster = new Raycaster();
   #pointer = new Vector2();
   /** @type {TubeView[]} */
@@ -48,6 +49,7 @@ export class TubeScene {
   #pouring = false;
   #layoutPending = false;
   #onTubeTap = () => {};
+  #frameRequested = false;
 
   /** @param {HTMLCanvasElement} canvas */
   constructor(canvas) {
@@ -60,7 +62,6 @@ export class TubeScene {
     canvas.addEventListener('pointerdown', (event) => this.#handlePointerDown(event));
     new ResizeObserver(() => this.#resize()).observe(canvas);
     this.#resize();
-    this.#renderer.setAnimationLoop(() => this.#renderFrame());
   }
 
   /** @param {(index: number) => void} listener called with the index of the tapped tube */
@@ -83,6 +84,7 @@ export class TubeScene {
       return tube;
     });
     this.#layout();
+    this.#requestRender();
   }
 
   /** Shows new contents at once, without animation, e.g. after an undo or a restart. */
@@ -93,12 +95,14 @@ export class TubeScene {
       tube.resetPose();
       tube.setGlow(0);
     });
+    this.#requestRender();
   }
 
   /** @param {string} color any CSS color */
   setGlassColor(color) {
     this.#glassColor.set(color || DEFAULT_GLASS_COLOR);
     for (const tube of this.#tubes) tube.setGlassColor(this.#glassColor);
+    this.#requestRender();
   }
 
   setLifted(index, lifted) {
@@ -147,6 +151,7 @@ export class TubeScene {
       this.#layoutPending = false;
       this.#layout();
     }
+    this.#requestRender();
   }
 
   #layout() {
@@ -184,6 +189,7 @@ export class TubeScene {
     } else {
       this.#layout();
     }
+    this.#requestRender();
   }
 
   #handlePointerDown(event) {
@@ -201,14 +207,29 @@ export class TubeScene {
     if (hits.length > 0) this.#onTubeTap(hits[0].object.userData.tubeIndex);
   }
 
+  /**
+   * Draws a frame on the next display refresh. Frames keep coming only while something
+   * animates, so a board that is just sitting there costs no battery.
+   */
+  #requestRender() {
+    if (this.#frameRequested) return;
+    this.#frameRequested = true;
+    requestAnimationFrame(() => this.#renderFrame());
+  }
+
   #renderFrame() {
+    this.#frameRequested = false;
     this.#animator.tick();
     this.#renderer.render(this.#scene, this.#camera);
+    if (this.#animator.isRunning) this.#requestRender();
   }
 }
 
 function createRenderer(canvas) {
-  const renderer = new WebGLRenderer({ canvas, antialias: true, alpha: true });
+  // On 2x and denser screens pixels are too small for jagged edges to show, and edge
+  // smoothing is one of the most expensive parts of a frame on phones.
+  const antialias = window.devicePixelRatio < 2;
+  const renderer = new WebGLRenderer({ canvas, antialias, alpha: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, MAX_PIXEL_RATIO));
   renderer.toneMapping = ACESFilmicToneMapping;
   return renderer;

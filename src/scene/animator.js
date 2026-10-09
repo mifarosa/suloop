@@ -10,6 +10,16 @@ export const easeInOutCubic = (t) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2)
 export class Animator {
   #tweens = new Map();
   #nextId = 0;
+  #onStart;
+
+  /** @param {() => void} [onStart] called whenever a tween starts, e.g. to wake the render loop */
+  constructor(onStart = () => {}) {
+    this.#onStart = onStart;
+  }
+
+  get isRunning() {
+    return this.#tweens.size > 0;
+  }
 
   /**
    * Calls `update` with the eased progress (0 to 1) on every frame for `duration` ms.
@@ -20,9 +30,11 @@ export class Animator {
    */
   run(duration, update, { ease = easeInOutCubic, key = `tween-${this.#nextId++}` } = {}) {
     this.#tweens.get(key)?.resolve();
-    return new Promise((resolve) => {
+    const finished = new Promise((resolve) => {
       this.#tweens.set(key, { start: performance.now(), duration, update, ease, resolve });
     });
+    this.#onStart();
+    return finished;
   }
 
   /** Advances every tween to `now`. */

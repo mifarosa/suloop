@@ -90,5 +90,25 @@ describe('Animator', () => {
     const tweens = [animator.run(1000, () => {}), animator.run(1000, () => {})];
     animator.stopAll();
     await expect(Promise.all(tweens)).resolves.toBeDefined();
+    expect(animator.isRunning).toBe(false);
+  });
+
+  // The scene only draws while something moves, so it must hear about every new tween,
+  // including ones started after an earlier tween finished.
+  it('reports each tween that starts, and whether any is still running', async () => {
+    let starts = 0;
+    const animator = new Animator(() => starts++);
+    const start = performance.now();
+
+    const first = animator.run(100, () => {});
+    expect(animator.isRunning).toBe(true);
+
+    animator.tick(start + 1000);
+    expect(animator.isRunning).toBe(false);
+
+    await first;
+    animator.run(100, () => {});
+    expect(starts).toBe(2);
+    expect(animator.isRunning).toBe(true);
   });
 });
