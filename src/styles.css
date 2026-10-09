@@ -1,0 +1,222 @@
+:root {
+  --bg-top: #1b2142;
+  --bg-bottom: #0b0e1d;
+  --glow: #7dd3fc1a;
+  --ink: #eef2ff;
+  --muted: #9aa5c9;
+  --panel: #141932b8;
+  --line: #dfe6ff24;
+  --accent: #7dd3fc;
+  --accent-ink: #0b1430;
+  --scrim: #0b0e1d8c;
+  /* Read by the 3D scene to tint the glass tubes. */
+  --glass: #ffffff;
+  --font-display: 'Bricolage Grotesque', 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'Cascadia Mono', monospace;
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg-top: #f3f6fc;
+    --bg-bottom: #d6deef;
+    --glow: #0369a114;
+    --ink: #141a33;
+    --muted: #55607f;
+    --panel: #ffffffbd;
+    --line: #141a331f;
+    --accent: #0369a1;
+    --accent-ink: #ffffff;
+    --scrim: #d6deef8c;
+    --glass: #5a6a99;
+    color-scheme: light;
+  }
+}
+
+[hidden] {
+  display: none !important;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  overflow: hidden;
+  background-color: var(--bg-bottom);
+  background-image:
+    radial-gradient(ellipse 70% 45% at 50% 55%, var(--glow), transparent 70%),
+    linear-gradient(var(--bg-top), var(--bg-bottom));
+  color: var(--ink);
+  font-family: var(--font-display);
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+#scene {
+  position: fixed;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: manipulation;
+}
+
+/* Heads-up display: the title and move count on the left, actions on the right. */
+.hud {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px 16px;
+  padding: calc(env(safe-area-inset-top, 0px) + 12px) 16px 12px;
+  /* Let taps between the HUD items reach the tubes underneath. */
+  pointer-events: none;
+}
+
+.hud > * {
+  pointer-events: auto;
+}
+
+.hud-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+#title {
+  font-size: 1.35rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+
+#moves {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.hud-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+button {
+  padding: 8px 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    transform 0.12s,
+    opacity 0.12s;
+}
+
+button:active {
+  transform: scale(0.96);
+}
+
+button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+button.primary {
+  border-color: transparent;
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+#toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 24px);
+  max-width: calc(100% - 32px);
+  padding: 10px 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  font-size: 0.92rem;
+  opacity: 0;
+  transform: translate(-50%, 12px);
+  transition:
+    opacity 0.2s,
+    transform 0.2s;
+  pointer-events: none;
+}
+
+#toast.show {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: var(--scrim);
+}
+
+.card {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  width: min(320px, 100%);
+  padding: 28px 24px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: var(--panel);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  text-align: center;
+}
+
+.card h2 {
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.card p {
+  margin: 0;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button,
+  #toast {
+    transition: none;
+  }
+}

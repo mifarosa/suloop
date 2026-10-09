@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="dark light" />
+    <meta name="theme-color" content="#0b0e1d" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#d6deef" media="(prefers-color-scheme: light)" />
+    <meta name="description" content="Renkli suları tüplere ayırdığın 3B bulmaca oyunu." />
+    <title>suloop · Su sıralama oyunu</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=IBM+Plex+Mono:wght@500&display=swap"
+    />
+  </head>
+  <body>
+    <canvas id="scene" aria-label="Oyun alanı"></canvas>
+
+    <header class="hud">
+      <div class="hud-info">
+        <strong id="title">Seviye 1</strong>
+        <span id="moves">0 hamle</span>
+      </div>
+      <nav class="hud-actions">
+        <button id="undo" type="button">Geri al</button>
+        <button id="hint" type="button">İpucu</button>
+        <button id="restart" type="button">Baştan</button>
+        <button id="mode" type="button" class="primary">Günlük</button>
+      </nav>
+    </header>
+
+    <div id="toast" role="status" aria-live="polite"></div>
+
+    <div id="win" class="overlay" hidden>
+      <div class="card" role="dialog" aria-modal="true" aria-labelledby="win-title">
+        <h2 id="win-title">Tebrikler!</h2>
+        <p id="win-text"></p>
+        <button id="next" type="button" class="primary">Sonraki seviye</button>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
