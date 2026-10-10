@@ -1,15 +1,30 @@
 import { describe, expect, it } from 'vitest';
 import { generatePuzzle } from '../src/game/generator.js';
 import {
-  colorCountForLevel,
+  chapterIndexOfLevel,
+  CHAPTERS,
   createDailyPuzzle,
   createLevelPuzzle,
   DAILY_COLOR_COUNT,
+  LEVEL_COUNT,
+  levelSettings,
+  LEVELS_PER_CHAPTER,
   MAX_COLOR_COUNT
 } from '../src/game/levels.js';
 import { createRandom, hashString } from '../src/game/random.js';
 import { topRun, TUBE_CAPACITY } from '../src/game/rules.js';
 import { solve } from '../src/game/solver.js';
+
+// The first expert level, written out by hand so a change to the dealing shows up here.
+const PINNED_LEVEL_46 = [
+  [2, 4, 2, 5],
+  [0, 1, 1, 4],
+  [0, 2, 2, 1],
+  [3, 0, 5, 4],
+  [5, 3, 0, 1],
+  [3, 5, 4, 3],
+  []
+];
 
 function countUnits(tubes) {
   const counts = new Map();
@@ -38,13 +53,38 @@ describe('random', () => {
   });
 });
 
-describe('colorCountForLevel', () => {
-  it('starts with three colors and adds one every two levels', () => {
-    expect([1, 2, 3, 4, 5].map(colorCountForLevel)).toEqual([3, 3, 4, 4, 5]);
+describe('levelSettings', () => {
+  const colorsOf = (levels) => levels.map((level) => levelSettings(level).colorCount);
+
+  it('raises the color count in equal steps within a chapter', () => {
+    expect(colorsOf([1, 5, 6, 10, 11, 15])).toEqual([3, 3, 4, 4, 5, 5]);
+    expect(colorsOf([31, 38, 39, 45])).toEqual([9, 9, 10, 10]);
   });
 
-  it('stops at the maximum', () => {
-    expect(colorCountForLevel(500)).toBe(MAX_COLOR_COUNT);
+  it('starts every chapter at its lowest color count and ends at its highest', () => {
+    CHAPTERS.forEach((chapter, index) => {
+      const first = index * LEVELS_PER_CHAPTER + 1;
+      const last = first + LEVELS_PER_CHAPTER - 1;
+      expect(colorsOf([first, last])).toEqual([chapter.minColors, chapter.maxColors]);
+      expect(levelSettings(last).emptyTubeCount).toBe(chapter.emptyTubeCount);
+    });
+  });
+
+  it('leaves a single empty tube only in the expert chapter', () => {
+    expect(levelSettings(45).emptyTubeCount).toBe(2);
+    expect(levelSettings(46).emptyTubeCount).toBe(1);
+  });
+
+  it('never needs more colors than the maximum', () => {
+    for (let level = 1; level <= LEVEL_COUNT; level++) {
+      expect(levelSettings(level).colorCount).toBeLessThanOrEqual(MAX_COLOR_COUNT);
+    }
+  });
+});
+
+describe('chapterIndexOfLevel', () => {
+  it('groups the levels in chapters', () => {
+    expect([1, 15, 16, 30, 46, LEVEL_COUNT].map(chapterIndexOfLevel)).toEqual([0, 0, 1, 1, 3, 3]);
   });
 });
 
@@ -74,15 +114,17 @@ describe('level and daily puzzles', () => {
   // Players share and compare levels, so a release must never change an existing level.
   it('keeps level layouts stable across releases', () => {
     expect(createLevelPuzzle(1)).toEqual([[1, 0, 1, 2], [0, 2, 1, 2], [1, 0, 0, 2], [], []]);
-    expect(createLevelPuzzle(5)).toEqual([
-      [2, 4, 2, 1],
-      [4, 2, 4, 1],
-      [4, 0, 3, 3],
-      [1, 2, 3, 1],
-      [0, 0, 0, 3],
-      [],
-      []
-    ]);
+    expect(createLevelPuzzle(46)).toEqual(PINNED_LEVEL_46);
+  });
+
+  it('deals every level with its settings, and every level can be solved', () => {
+    for (let level = 1; level <= LEVEL_COUNT; level++) {
+      const tubes = createLevelPuzzle(level);
+      const { colorCount, emptyTubeCount } = levelSettings(level);
+      expect(countUnits(tubes).size).toBe(colorCount);
+      expect(tubes.filter((tube) => tube.length === 0)).toHaveLength(emptyTubeCount);
+      expect(solve(tubes)).not.toBeNull();
+    }
   });
 
   it('keeps daily layouts stable across releases', () => {

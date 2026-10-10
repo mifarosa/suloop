@@ -1,20 +1,31 @@
-import { createDailyPuzzle, createLevelPuzzle } from '../game/levels.js';
+import {
+  CHAPTERS,
+  chapterIndexOfLevel,
+  createDailyPuzzle,
+  createLevelPuzzle,
+  LEVEL_COUNT,
+  LEVELS_PER_CHAPTER
+} from '../game/levels.js';
 import { GameSession } from '../game/session.js';
 import { localDateKey } from './calendar.js';
+import { lastOpenLevel } from './progress.js';
 import { texts } from './texts.js';
 
 /**
  * Runs the game: applies the player's actions to the session, plays the matching
- * animations, keeps the HUD up to date and saves progress.
+ * animations, keeps the HUD and the level list up to date and saves progress.
  */
 export class GameController {
   #scene;
   #hud;
+  #menu;
   #progress;
   #saveProgress;
   #now;
   /** @type {GameSession} */
   #session;
+  /** The numbered level on the board; null while the daily puzzle is played. */
+  #level = null;
   /** The calendar day of the daily puzzle being played. */
   #puzzleDay;
   /** Set while a pour or the win celebration plays; input waits until it is over. */
@@ -24,28 +35,32 @@ export class GameController {
    * @param {object} deps
    * @param {import('../scene/tubeScene.js').TubeScene} deps.scene
    * @param {import('./hud.js').Hud} deps.hud
+   * @param {import('./levelMenu.js').LevelMenu} deps.menu
    * @param {import('./progress.js').Progress} deps.progress
    * @param {(progress: import('./progress.js').Progress) => void} deps.saveProgress
    * @param {() => Date} [deps.now]
    */
-  constructor({ scene, hud, progress, saveProgress, now = () => new Date() }) {
+  constructor({ scene, hud, menu, progress, saveProgress, now = () => new Date() }) {
     this.#scene = scene;
     this.#hud = hud;
+    this.#menu = menu;
     this.#progress = { ...progress };
     this.#saveProgress = saveProgress;
     this.#now = now;
   }
 
-  /** Starts the puzzle for the current mode: today's daily puzzle or the next level. */
+  /** Starts the puzzle for the current mode: today's daily puzzle or the current level. */
   start() {
     this.#puzzleDay = this.#now();
+    this.#level = this.#isDaily() ? null : this.#progress.current;
     const tubes = this.#isDaily()
       ? createDailyPuzzle(localDateKey(this.#puzzleDay))
-      : createLevelPuzzle(this.#progress.level);
+      : createLevelPuzzle(this.#level);
 
     this.#session = new GameSession(tubes);
     this.#scene.showPuzzle(this.#session.tubes);
     this.#hud.hideWin();
+    this.#menu.hide();
     this.#refreshHud();
   }
 
@@ -104,11 +119,30 @@ export class GameController {
     this.#hud.showToast(texts.hintMove(from, to));
   }
 
-  /** Switches between the numbered levels and the daily puzzle. */
-  toggleMode() {
+  /** Opens the level list over the board. */
+  showLevels() {
     if (this.#animating) return;
 
-    this.#updateProgress({ mode: this.#isDaily() ? 'level' : 'daily' });
+    this.#putSelectionDown();
+    this.#menu.show(this.#levelMenuModel());
+  }
+
+  closeLevels() {
+    this.#menu.hide();
+  }
+
+  /** Plays a level picked from the list; levels that are still locked are ignored. */
+  playLevel(level) {
+    if (this.#animating || level < 1 || level > lastOpenLevel(this.#progress)) return;
+
+    this.#updateProgress({ mode: 'level', current: level });
+    this.start();
+  }
+
+  playDaily() {
+    if (this.#animating) return;
+
+    this.#updateProgress({ mode: 'daily' });
     this.start();
   }
 
@@ -116,6 +150,12 @@ export class GameController {
   continueAfterWin() {
     if (this.#isDaily()) this.#updateProgress({ mode: 'level' });
     this.start();
+  }
+
+  /** Moves on as after a win, but lets the player pick from the level list first. */
+  continueToLevels() {
+    this.continueAfterWin();
+    this.showLevels();
   }
 
   async #playPour({ from, to, amount, filled, solved }) {
@@ -131,18 +171,79 @@ export class GameController {
   }
 
   async #celebrateWin() {
-    const wasDaily = this.#isDaily();
-    if (wasDaily) {
+    const solvedIn = texts.solvedIn(this.#session.moveCount);
+    let win;
+    if (this.#isDaily()) {
       this.#updateProgress({ dailyDone: localDateKey(this.#puzzleDay) });
+      win = { message: solvedIn, continueLabel: texts.backToLevels };
     } else {
-      this.#updateProgress({ level: this.#progress.level + 1 });
+      win = this.#recordSolvedLevel(this.#level, solvedIn);
     }
 
     await this.#scene.celebrate();
-    this.#hud.showWin({
-      message: texts.solvedIn(this.#session.moveCount),
-      continueLabel: wasDaily ? texts.backToLevels : texts.nextLevel
+    this.#hud.showWin(win);
+  }
+
+  /** Saves a solved level and says what it opened up. */
+  #recordSolvedLevel(level, solvedIn) {
+    const firstSolve = level > this.#progress.solved;
+    const isLastLevel = level === LEVEL_COUNT;
+    this.#updateProgress({
+      solved: Math.max(this.#progress.solved, level),
+      current: Math.min(level + 1, LEVEL_COUNT)
     });
+
+    if (isLastLevel) {
+      return {
+        message: `${texts.allLevelsSolved} ${solvedIn}`,
+        continueLabel: texts.playAgain
+      };
+    }
+    const opensChapter = firstSolve && level % LEVELS_PER_CHAPTER === 0;
+    const nextChapter = CHAPTERS[chapterIndexOfLevel(level + 1)];
+    return {
+      message: opensChapter ? `${solvedIn} ${texts.chapterOpened(nextChapter.id)}` : solvedIn,
+      continueLabel: texts.nextLevel
+    };
+  }
+
+  #levelMenuModel() {
+    const { solved, dailyDone } = this.#progress;
+    const lastOpen = lastOpenLevel(this.#progress);
+    const today = this.#now();
+    const dailySolved = dailyDone === localDateKey(today);
+
+    return {
+      daily: {
+        title: texts.dailyCardTitle,
+        date: texts.dailyCardDate(today),
+        action: texts.dailyCardAction(dailySolved),
+        solved: dailySolved,
+        playing: this.#isDaily()
+      },
+      chapters: CHAPTERS.map((chapter, index) => {
+        const first = index * LEVELS_PER_CHAPTER + 1;
+        const levels = Array.from({ length: LEVELS_PER_CHAPTER }, (_, i) => {
+          const level = first + i;
+          const state = level <= solved ? 'solved' : level <= lastOpen ? 'open' : 'locked';
+          return {
+            level,
+            state,
+            playing: level === this.#level,
+            label: texts.levelTileLabel(level, state)
+          };
+        });
+        const solvedHere = levels.filter((level) => level.state === 'solved').length;
+        return {
+          id: chapter.id,
+          name: texts.chapterName(chapter.id),
+          detail: texts.chapterDetail(chapter),
+          progress: texts.chapterProgress(solvedHere, LEVELS_PER_CHAPTER),
+          difficulty: index + 1,
+          levels
+        };
+      })
+    };
   }
 
   #putSelectionDown() {
@@ -160,15 +261,19 @@ export class GameController {
   }
 
   #refreshHud() {
-    const { level, dailyDone } = this.#progress;
+    const moveCount = this.#session.moveCount;
     const daily = this.#isDaily();
     this.#hud.render({
       title: daily
-        ? texts.dailyTitle(this.#puzzleDay, dailyDone === localDateKey(this.#puzzleDay))
-        : texts.levelTitle(level),
-      moves: texts.moves(this.#session.moveCount),
-      canUndo: this.#session.canUndo,
-      modeLabel: daily ? texts.showLevels : texts.showDaily
+        ? texts.dailyTitle(
+            this.#puzzleDay,
+            this.#progress.dailyDone === localDateKey(this.#puzzleDay)
+          )
+        : texts.levelTitle(this.#level),
+      subtitle: daily
+        ? texts.moves(moveCount)
+        : texts.levelSubtitle(CHAPTERS[chapterIndexOfLevel(this.#level)].id, moveCount),
+      canUndo: this.#session.canUndo
     });
   }
 }

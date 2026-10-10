@@ -5,10 +5,18 @@
   --ink: #eef2ff;
   --muted: #9aa5c9;
   --panel: #141932b8;
+  --panel-solid: #141932;
   --line: #dfe6ff24;
   --accent: #7dd3fc;
   --accent-ink: #0b1430;
   --scrim: #0b0e1d8c;
+  /* Difficulty colors of the level chapters, from easy to expert. */
+  --easy: #22c55e;
+  --medium: #eab308;
+  --hard: #f97316;
+  --expert: #ef4444;
+  /* Text on a tile filled with a difficulty color; dark in both themes. */
+  --on-difficulty: #0b1430;
   /* Read by the scene to tint the glass tubes. */
   --glass: #ffffff;
   --font-display: 'Bricolage Grotesque', 'Segoe UI', system-ui, sans-serif;
@@ -24,10 +32,15 @@
     --ink: #141a33;
     --muted: #55607f;
     --panel: #ffffffbd;
+    --panel-solid: #f6f8fd;
     --line: #141a331f;
     --accent: #0369a1;
     --accent-ink: #ffffff;
     --scrim: #d6deef8c;
+    --easy: #16a34a;
+    --medium: #ca8a04;
+    --hard: #ea580c;
+    --expert: #dc2626;
     --glass: #5a6a99;
     color-scheme: light;
   }
@@ -99,7 +112,7 @@ body {
   text-wrap: balance;
 }
 
-#moves {
+#subtitle {
   color: var(--muted);
   font-family: var(--font-mono);
   font-size: 0.78rem;
@@ -210,6 +223,233 @@ button.primary {
   font-family: var(--font-mono);
   font-size: 0.85rem;
   font-variant-numeric: tabular-nums;
+}
+
+.card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+/* The level list: a scrolling panel with today's puzzle and the chapters of levels. It is
+   opaque, since tubes showing through would compete with the colored tiles. */
+#levels {
+  background: color-mix(in srgb, var(--bg-bottom) 80%, transparent);
+}
+
+.level-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  width: min(440px, 100%);
+  max-height: calc(100dvh - 32px);
+  padding: 0;
+  overflow: hidden;
+  background: var(--panel-solid);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  text-align: left;
+}
+
+.level-menu-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 18px 16px 12px 20px;
+  border-bottom: 1px solid var(--line);
+}
+
+.level-menu-header h2 {
+  font-size: 1.5rem;
+}
+
+button.icon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  font-size: 0.95rem;
+}
+
+.level-menu-body {
+  display: grid;
+  gap: 22px;
+  padding: 16px 20px 24px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.daily-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  text-align: left;
+}
+
+.daily-text {
+  display: grid;
+  gap: 2px;
+}
+
+.daily-text strong {
+  font-size: 1.05rem;
+}
+
+.daily-date,
+.chapter-detail,
+.chapter-progress {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+}
+
+.daily-action {
+  flex: none;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 0.85rem;
+}
+
+.daily-card.solved .daily-action {
+  background: transparent;
+  color: var(--muted);
+}
+
+.chapter {
+  display: grid;
+  gap: 4px;
+}
+
+.chapter[data-chapter='easy'] {
+  --difficulty: var(--easy);
+}
+.chapter[data-chapter='medium'] {
+  --difficulty: var(--medium);
+}
+.chapter[data-chapter='hard'] {
+  --difficulty: var(--hard);
+}
+.chapter[data-chapter='expert'] {
+  --difficulty: var(--expert);
+}
+
+.chapter-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.chapter-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.chapter h3 {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 800;
+}
+
+/* Four rising bars, filled up to the chapter's difficulty. */
+.difficulty {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 12px;
+}
+
+.difficulty i {
+  width: 4px;
+  border-radius: 1px;
+  background: var(--line);
+}
+
+.difficulty i:nth-child(1) {
+  height: 40%;
+}
+.difficulty i:nth-child(2) {
+  height: 60%;
+}
+.difficulty i:nth-child(3) {
+  height: 80%;
+}
+.difficulty i:nth-child(4) {
+  height: 100%;
+}
+
+.difficulty i.on {
+  background: var(--difficulty);
+}
+
+.chapter-detail {
+  margin: 0 0 8px;
+}
+
+.level-grid {
+  display: grid;
+  /* minmax(0, …): the thicker border of the open tile must not widen its column. */
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.level-tile {
+  position: relative;
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  aspect-ratio: 1;
+  padding: 0;
+  border-radius: 14px;
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* A solved level looks like a filled tube: the tile is full of the chapter's color. */
+.level-tile.solved {
+  border-color: transparent;
+  background: var(--difficulty);
+  color: var(--on-difficulty);
+}
+
+/* The next level to solve: an empty glass outlined in the chapter's color. */
+.level-tile.open {
+  border: 2px solid var(--difficulty);
+}
+
+.level-tile.locked:disabled {
+  opacity: 0.35;
+}
+
+.level-tile.locked .level-number {
+  font-size: 0.8rem;
+}
+
+.level-tile svg {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  width: 11px;
+  height: 11px;
+  fill: currentColor;
+}
+
+/* The puzzle that is on the board right now. */
+.level-tile[aria-current='true'],
+.daily-card[aria-current='true'] {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
 }
 
 @media (prefers-reduced-motion: reduce) {
