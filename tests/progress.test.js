@@ -2,10 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { localDateKey } from '../src/app/calendar.js';
 import {
   INITIAL_PROGRESS,
+  lastOpenLevel,
   loadProgress,
   normalizeProgress,
   saveProgress
 } from '../src/app/progress.js';
+import { LEVEL_COUNT } from '../src/game/levels.js';
 
 function memoryStorage() {
   const items = new Map();
@@ -17,22 +19,50 @@ function memoryStorage() {
 
 describe('normalizeProgress', () => {
   it('keeps valid progress', () => {
-    const progress = { mode: 'daily', level: 7, dailyDone: '2026-10-09' };
+    const progress = { mode: 'daily', solved: 7, current: 3, dailyDone: '2026-10-09' };
     expect(normalizeProgress(progress)).toEqual(progress);
   });
 
   it('replaces invalid fields with the initial values', () => {
-    expect(normalizeProgress({ mode: 'race', level: -2, dailyDone: 5 })).toEqual(INITIAL_PROGRESS);
-    expect(normalizeProgress({ level: 2.5 }).level).toBe(1);
+    expect(normalizeProgress({ mode: 'race', solved: -2, current: 'x', dailyDone: 5 })).toEqual(
+      INITIAL_PROGRESS
+    );
+    expect(normalizeProgress({ solved: 2.5 }).solved).toBe(0);
     expect(normalizeProgress(null)).toEqual(INITIAL_PROGRESS);
+  });
+
+  it('never lets the current level be a locked one', () => {
+    expect(normalizeProgress({ solved: 4, current: 9 }).current).toBe(5);
+    expect(normalizeProgress({ solved: LEVEL_COUNT + 5, current: LEVEL_COUNT + 5 })).toMatchObject({
+      solved: LEVEL_COUNT,
+      current: LEVEL_COUNT
+    });
+  });
+
+  it('reads saves from before the level list, which kept only the next level', () => {
+    expect(normalizeProgress({ mode: 'level', level: 7, dailyDone: null })).toEqual({
+      mode: 'level',
+      solved: 6,
+      current: 7,
+      dailyDone: null
+    });
+  });
+});
+
+describe('lastOpenLevel', () => {
+  it('opens one level past the solved ones, up to the last level', () => {
+    expect(lastOpenLevel({ solved: 0 })).toBe(1);
+    expect(lastOpenLevel({ solved: 12 })).toBe(13);
+    expect(lastOpenLevel({ solved: LEVEL_COUNT })).toBe(LEVEL_COUNT);
   });
 });
 
 describe('loadProgress and saveProgress', () => {
   it('round-trips progress through storage', () => {
     const storage = memoryStorage();
-    saveProgress({ mode: 'level', level: 12, dailyDone: '2026-10-08' }, storage);
-    expect(loadProgress(storage)).toEqual({ mode: 'level', level: 12, dailyDone: '2026-10-08' });
+    const progress = { mode: 'level', solved: 12, current: 4, dailyDone: '2026-10-08' };
+    saveProgress(progress, storage);
+    expect(loadProgress(storage)).toEqual(progress);
   });
 
   it('starts fresh when nothing or something unreadable is stored', () => {

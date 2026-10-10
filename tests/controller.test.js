@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { GameController } from '../src/app/controller.js';
-import { createLevelPuzzle } from '../src/game/levels.js';
+import { createLevelPuzzle, LEVEL_COUNT, LEVELS_PER_CHAPTER } from '../src/game/levels.js';
 import { solve } from '../src/game/solver.js';
 
 function fakeScene() {
@@ -25,18 +25,24 @@ function fakeHud() {
   };
 }
 
+function fakeMenu() {
+  return { show: vi.fn(), hide: vi.fn() };
+}
+
 const TODAY = new Date(2026, 9, 9, 12, 0);
 
 describe('GameController', () => {
   let scene;
   let hud;
+  let menu;
   let saved;
 
-  function createController(progress = { mode: 'level', level: 1, dailyDone: null }) {
+  function createController(progress = {}) {
     const controller = new GameController({
       scene,
       hud,
-      progress,
+      menu,
+      progress: { mode: 'level', solved: 0, current: 1, dailyDone: null, ...progress },
       saveProgress: (value) => saved.push(value),
       now: () => TODAY
     });
@@ -52,22 +58,24 @@ describe('GameController', () => {
   }
 
   const lastRender = () => hud.render.mock.lastCall[0];
+  const lastMenu = () => menu.show.mock.lastCall[0];
+  const tile = (level) => lastMenu().chapters.flatMap((chapter) => chapter.levels)[level - 1];
 
   beforeEach(() => {
     scene = fakeScene();
     hud = fakeHud();
+    menu = fakeMenu();
     saved = [];
   });
 
   it('starts the saved level', () => {
-    createController({ mode: 'level', level: 3, dailyDone: null });
+    createController({ solved: 5, current: 3 });
 
     expect(scene.showPuzzle).toHaveBeenCalledWith(createLevelPuzzle(3));
     expect(lastRender()).toEqual({
       title: 'Seviye 3',
-      moves: '0 hamle',
-      canUndo: false,
-      modeLabel: 'Günlük'
+      subtitle: 'Kolay · 0 hamle',
+      canUndo: false
     });
   });
 
@@ -80,7 +88,7 @@ describe('GameController', () => {
 
     await controller.tapTube(to);
     expect(scene.pour).toHaveBeenCalledWith(from, to, expect.any(Number), expect.any(Array));
-    expect(lastRender()).toMatchObject({ moves: '1 hamle', canUndo: true });
+    expect(lastRender()).toMatchObject({ subtitle: 'Kolay · 1 hamle', canUndo: true });
   });
 
   it('advances to the next level after a win', async () => {
@@ -88,7 +96,7 @@ describe('GameController', () => {
     await playSolution(controller, createLevelPuzzle(1));
 
     expect(scene.celebrate).toHaveBeenCalledOnce();
-    expect(saved.at(-1)).toMatchObject({ mode: 'level', level: 2 });
+    expect(saved.at(-1)).toMatchObject({ mode: 'level', solved: 1, current: 2 });
     expect(hud.showWin).toHaveBeenCalledWith({
       message: expect.stringMatching(/^\d+ hamlede çözdün\.$/),
       continueLabel: 'Sonraki seviye'
@@ -100,17 +108,49 @@ describe('GameController', () => {
   });
 
   it('marks the daily puzzle as solved and returns to the levels', async () => {
-    const controller = createController({ mode: 'daily', level: 4, dailyDone: null });
+    const controller = createController({ mode: 'daily', solved: 3, current: 4 });
     expect(lastRender().title).toBe('Günün bulmacası · 9 Ekim');
 
     await playSolution(controller, scene.showPuzzle.mock.lastCall[0]);
-    expect(saved.at(-1)).toEqual({ mode: 'daily', level: 4, dailyDone: '2026-10-09' });
+    expect(saved.at(-1)).toEqual({
+      mode: 'daily',
+      solved: 3,
+      current: 4,
+      dailyDone: '2026-10-09'
+    });
     expect(hud.showWin).toHaveBeenCalledWith(
-      expect.objectContaining({ continueLabel: 'Seviyelere dön' })
+      expect.objectContaining({ continueLabel: 'Devam et' })
     );
 
     controller.continueAfterWin();
-    expect(saved.at(-1)).toMatchObject({ mode: 'level', level: 4 });
+    expect(saved.at(-1)).toMatchObject({ mode: 'level', current: 4 });
+    expect(scene.showPuzzle).toHaveBeenLastCalledWith(createLevelPuzzle(4));
+  });
+
+  it('announces the next chapter after its last level', async () => {
+    const controller = createController({ solved: 14, current: LEVELS_PER_CHAPTER });
+    await playSolution(controller, createLevelPuzzle(LEVELS_PER_CHAPTER));
+
+    expect(hud.showWin.mock.lastCall[0].message).toMatch(/Orta seviyeler açıldı!$/);
+  });
+
+  it('does not announce a chapter again when an old level is replayed', async () => {
+    const controller = createController({ solved: 20, current: LEVELS_PER_CHAPTER });
+    await playSolution(controller, createLevelPuzzle(LEVELS_PER_CHAPTER));
+
+    expect(hud.showWin.mock.lastCall[0].message).toMatch(/^\d+ hamlede çözdün\.$/);
+    expect(saved.at(-1)).toMatchObject({ solved: 20, current: LEVELS_PER_CHAPTER + 1 });
+  });
+
+  it('offers to play the last level again once every level is solved', async () => {
+    const controller = createController({ solved: LEVEL_COUNT - 1, current: LEVEL_COUNT });
+    await playSolution(controller, createLevelPuzzle(LEVEL_COUNT));
+
+    expect(saved.at(-1)).toMatchObject({ solved: LEVEL_COUNT, current: LEVEL_COUNT });
+    expect(hud.showWin).toHaveBeenCalledWith({
+      message: expect.stringMatching(/^Bütün seviyeleri bitirdin!/),
+      continueLabel: 'Tekrar oyna'
+    });
   });
 
   it('ignores restart once the puzzle is solved', async () => {
@@ -145,7 +185,7 @@ describe('GameController', () => {
 
     controller.undo();
     expect(scene.showContents).toHaveBeenLastCalledWith(createLevelPuzzle(1));
-    expect(lastRender()).toMatchObject({ moves: '0 hamle', canUndo: false });
+    expect(lastRender()).toMatchObject({ subtitle: 'Kolay · 0 hamle', canUndo: false });
   });
 
   it('points out the next move as a hint', () => {
@@ -157,11 +197,66 @@ describe('GameController', () => {
     expect(hud.showToast).toHaveBeenCalledWith(`${from + 1}. tüpten ${to + 1}. tüpe dök.`);
   });
 
-  it('switches to the daily puzzle and saves the choice', () => {
+  it('lists the levels as solved, open or locked', () => {
+    const controller = createController({ solved: 3, current: 2 });
+    controller.showLevels();
+
+    expect(lastMenu().chapters.map((chapter) => chapter.name)).toEqual([
+      'Kolay',
+      'Orta',
+      'Zor',
+      'Uzman'
+    ]);
+    expect(lastMenu().chapters[0]).toMatchObject({ detail: '3–5 renk', progress: '3/15' });
+    expect(lastMenu().chapters[3].detail).toBe('6–7 renk · tek boş tüp');
+    expect([1, 3, 4, 5].map((level) => tile(level).state)).toEqual([
+      'solved',
+      'solved',
+      'open',
+      'locked'
+    ]);
+    expect(tile(2)).toMatchObject({ playing: true, label: 'Seviye 2, çözüldü' });
+    expect(tile(5).label).toBe('Seviye 5, kilitli');
+    expect(lastMenu().daily).toMatchObject({ solved: false, playing: false, action: 'Oyna' });
+  });
+
+  it('plays a level picked from the list', () => {
+    const controller = createController({ solved: 3, current: 4 });
+    controller.showLevels();
+    controller.playLevel(2);
+
+    expect(saved.at(-1)).toMatchObject({ mode: 'level', current: 2 });
+    expect(scene.showPuzzle).toHaveBeenLastCalledWith(createLevelPuzzle(2));
+    expect(menu.hide).toHaveBeenCalled();
+    expect(lastRender().title).toBe('Seviye 2');
+  });
+
+  it('keeps locked levels closed', () => {
+    const controller = createController({ solved: 3, current: 4 });
+    scene.showPuzzle.mockClear();
+
+    controller.playLevel(5);
+    expect(scene.showPuzzle).not.toHaveBeenCalled();
+    expect(saved).toEqual([]);
+  });
+
+  it('switches to the daily puzzle from the list and saves the choice', () => {
     const controller = createController();
-    controller.toggleMode();
+    controller.playDaily();
 
     expect(saved.at(-1)).toMatchObject({ mode: 'daily' });
-    expect(lastRender().modeLabel).toBe('Seviyeler');
+    expect(lastRender().title).toBe('Günün bulmacası · 9 Ekim');
+    controller.showLevels();
+    expect(lastMenu().daily.playing).toBe(true);
+  });
+
+  it('moves on after a win and then shows the list with the next level current', async () => {
+    const controller = createController();
+    await playSolution(controller, createLevelPuzzle(1));
+
+    controller.continueToLevels();
+    expect(scene.showPuzzle).toHaveBeenLastCalledWith(createLevelPuzzle(2));
+    expect(tile(1).state).toBe('solved');
+    expect(tile(2)).toMatchObject({ state: 'open', playing: true });
   });
 });

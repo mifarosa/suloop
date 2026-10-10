@@ -1,16 +1,32 @@
+import { LEVEL_COUNT } from '../game/levels.js';
+
 /**
  * The player's progress, kept in the browser's localStorage.
  *
+ * Levels unlock in order, so the solved levels are always 1 to `solved` and the next one
+ * after them is the furthest the player can go.
+ *
  * @typedef {object} Progress
  * @property {'level' | 'daily'} mode which puzzle is being played
- * @property {number} level the next numbered level to play (1 or more)
+ * @property {number} solved how many levels are solved (0 to LEVEL_COUNT)
+ * @property {number} current the level to play, at most one past the solved ones
  * @property {string | null} dailyDone date key of the last solved daily puzzle
  */
 
 const STORAGE_KEY = 'suloop:progress:v1';
 
 /** @type {Readonly<Progress>} */
-export const INITIAL_PROGRESS = Object.freeze({ mode: 'level', level: 1, dailyDone: null });
+export const INITIAL_PROGRESS = Object.freeze({
+  mode: 'level',
+  solved: 0,
+  current: 1,
+  dailyDone: null
+});
+
+/** The highest level the player may open. */
+export function lastOpenLevel({ solved }) {
+  return Math.min(solved + 1, LEVEL_COUNT);
+}
 
 /**
  * Turns whatever was stored into valid progress; anything unexpected falls back to the
@@ -19,9 +35,16 @@ export const INITIAL_PROGRESS = Object.freeze({ mode: 'level', level: 1, dailyDo
  */
 export function normalizeProgress(saved) {
   const data = saved && typeof saved === 'object' ? saved : {};
+  // Saves from before the level list only kept `level`, the next level to play.
+  const legacyLevel = Number.isInteger(data.level) && data.level > 0 ? data.level : null;
+
+  const solvedValue = Number.isInteger(data.solved) ? data.solved : (legacyLevel ?? 1) - 1;
+  const solved = clamp(solvedValue, 0, LEVEL_COUNT);
+  const currentValue = Number.isInteger(data.current) ? data.current : (legacyLevel ?? 1);
   return {
     mode: data.mode === 'daily' ? 'daily' : 'level',
-    level: Number.isInteger(data.level) && data.level > 0 ? data.level : INITIAL_PROGRESS.level,
+    solved,
+    current: clamp(currentValue, 1, lastOpenLevel({ solved })),
     dailyDone: typeof data.dailyDone === 'string' ? data.dailyDone : null
   };
 }
@@ -48,6 +71,10 @@ export function saveProgress(progress, storage = browserStorage()) {
   } catch {
     // Storage can be full or blocked (e.g. private browsing); progress then lasts for this visit only.
   }
+}
+
+function clamp(value, min, max) {
+  return Math.min(Math.max(value, min), max);
 }
 
 /** Even reading `localStorage` throws when the browser blocks site data. */

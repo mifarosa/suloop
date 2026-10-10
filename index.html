@@ -22,13 +22,13 @@
     <header class="hud">
       <div class="hud-info">
         <strong id="title">Seviye 1</strong>
-        <span id="moves">0 hamle</span>
+        <span id="subtitle">Kolay · 0 hamle</span>
       </div>
       <nav class="hud-actions">
         <button id="undo" type="button">Geri al</button>
         <button id="hint" type="button">İpucu</button>
         <button id="restart" type="button">Baştan</button>
-        <button id="mode" type="button" class="primary">Günlük</button>
+        <button id="levels-open" type="button" class="primary">Seviyeler</button>
       </nav>
     </header>
 
@@ -38,7 +38,20 @@
       <div class="card" role="dialog" aria-modal="true" aria-labelledby="win-title">
         <h2 id="win-title">Tebrikler!</h2>
         <p id="win-text"></p>
-        <button id="next" type="button" class="primary">Sonraki seviye</button>
+        <div class="card-actions">
+          <button id="win-levels" type="button">Seviyeler</button>
+          <button id="next" type="button" class="primary">Sonraki seviye</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="levels" class="overlay" hidden>
+      <div class="card level-menu" role="dialog" aria-modal="true" aria-labelledby="levels-title">
+        <header class="level-menu-header">
+          <h2 id="levels-title">Seviyeler</h2>
+          <button id="levels-close" type="button" class="icon" aria-label="Kapat">✕</button>
+        </header>
+        <div id="levels-body" class="level-menu-body"></div>
       </div>
     </div>
 

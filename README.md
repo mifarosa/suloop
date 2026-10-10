@@ -12,12 +12,22 @@ Renkli suları tüplere ayırdığın bulmaca oyunu. Tarayıcıda çalışır, k
 
 ## Özellikler
 
-- Sonsuz seviye: 3 renkle başlar, her iki seviyede bir renk eklenir (en fazla 10)
+- Kolaydan zora 60 seviye, dört bölümde:
+
+  | Bölüm | Seviyeler | Tahta                        |
+  | ----- | --------- | ---------------------------- |
+  | Kolay | 1–15      | 3–5 renk, 2 boş tüp          |
+  | Orta  | 16–30     | 6–8 renk, 2 boş tüp          |
+  | Zor   | 31–45     | 9–10 renk, 2 boş tüp         |
+  | Uzman | 46–60     | 6–7 renk, yalnızca 1 boş tüp |
+
+- Seviyeler ekranı: çözülen seviyeler bölümün rengiyle dolar, sıradaki seviye açık, ötesi kilitli.
+  Çözülmüş bir seviyeye dönüp tekrar oynanabilir
 - Günün bulmacası: herkes aynı gün aynı bulmacayı oynar
 - Her seviye üretilirken çözücüyle denenir; çözülemeyen seviye çıkmaz
 - Geri al, baştan başla ve ipucu ("2. tüpten 5. tüpe dök")
 - Kaldığın seviye tarayıcıda saklanır
-- Canvas 2D ile çizilen cam tüpler, döküm animasyonu, açık/koyu tema; ek kütüphane yok, oyun 16 KB
+- Canvas 2D ile çizilen cam tüpler, döküm animasyonu, açık/koyu tema; ek kütüphane yok, oyun 21 KB
 
 ## Proje yapısı
 
@@ -27,7 +37,7 @@ src/
     rules.js      Tüp kuralları: dökme, tamamlanma, çözülme
     solver.js     Derinlik öncelikli çözücü (seviye doğrulama ve ipucu)
     generator.js  Tohumlu, çözülebilir bulmaca üretimi
-    levels.js     Zorluk eğrisi, seviye ve günlük bulmaca
+    levels.js     Bölümler, zorluk eğrisi, seviye ve günlük bulmaca
     random.js     Tohumlu rastgele sayı üretici ve metin hash'i
     session.js    Bir oyunun durumu: seçim, hamle geçmişi, geri alma
   scene/          Görünüm (Canvas 2D). Oyun kurallarını bilmez
@@ -42,6 +52,7 @@ src/
   app/            Parçaları birleştiren katman
     controller.js Oyuncu hareketlerini oyuna ve animasyonlara bağlar
     hud.js        Başlık, butonlar, bildirim ve tebrik penceresi
+    levelMenu.js  Seviyeler ekranı
     progress.js   İlerlemenin kaydı
     texts.js      Oyuncunun gördüğü tüm metinler
   main.js         Giriş noktası

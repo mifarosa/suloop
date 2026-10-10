@@ -13,15 +13,16 @@ export class Hud {
     const find = (selector) => root.querySelector(selector);
     this.#elements = {
       title: find('#title'),
-      moves: find('#moves'),
+      subtitle: find('#subtitle'),
       undo: find('#undo'),
       hint: find('#hint'),
       restart: find('#restart'),
-      mode: find('#mode'),
+      levels: find('#levels-open'),
       toast: find('#toast'),
       win: find('#win'),
       winText: find('#win-text'),
-      next: find('#next')
+      next: find('#next'),
+      winLevels: find('#win-levels')
     };
   }
 
@@ -30,26 +31,27 @@ export class Hud {
    * @param {() => void} actions.onUndo
    * @param {() => void} actions.onHint
    * @param {() => void} actions.onRestart
-   * @param {() => void} actions.onToggleMode
+   * @param {() => void} actions.onShowLevels
    * @param {() => void} actions.onContinue
+   * @param {() => void} actions.onContinueToLevels
    */
-  bindActions({ onUndo, onHint, onRestart, onToggleMode, onContinue }) {
-    const { undo, hint, restart, mode, next } = this.#elements;
+  bindActions({ onUndo, onHint, onRestart, onShowLevels, onContinue, onContinueToLevels }) {
+    const { undo, hint, restart, levels, next, winLevels } = this.#elements;
     undo.addEventListener('click', onUndo);
     hint.addEventListener('click', onHint);
     restart.addEventListener('click', onRestart);
-    mode.addEventListener('click', onToggleMode);
+    levels.addEventListener('click', onShowLevels);
     next.addEventListener('click', onContinue);
+    winLevels.addEventListener('click', onContinueToLevels);
   }
 
   /**
-   * @param {{ title: string, moves: string, canUndo: boolean, modeLabel: string }} state
+   * @param {{ title: string, subtitle: string, canUndo: boolean }} state
    */
-  render({ title, moves, canUndo, modeLabel }) {
+  render({ title, subtitle, canUndo }) {
     this.#elements.title.textContent = title;
-    this.#elements.moves.textContent = moves;
+    this.#elements.subtitle.textContent = subtitle;
     this.#elements.undo.disabled = !canUndo;
-    this.#elements.mode.textContent = modeLabel;
   }
 
   /** Shows a short message for a few seconds. */
