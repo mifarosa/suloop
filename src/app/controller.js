@@ -1,9 +1,10 @@
 import {
+  CHAPTER_LEVEL_COUNT,
+  chapterIdOfLevel,
   CHAPTERS,
-  chapterIndexOfLevel,
   createDailyPuzzle,
   createLevelPuzzle,
-  LEVEL_COUNT,
+  isMasterLevel,
   LEVELS_PER_CHAPTER
 } from '../game/levels.js';
 import { GameSession } from '../game/session.js';
@@ -187,31 +188,51 @@ export class GameController {
   /** Saves a solved level and says what it opened up. */
   #recordSolvedLevel(level, solvedIn) {
     const firstSolve = level > this.#progress.solved;
-    const isLastLevel = level === LEVEL_COUNT;
-    this.#updateProgress({
-      solved: Math.max(this.#progress.solved, level),
-      current: Math.min(level + 1, LEVEL_COUNT)
-    });
+    this.#updateProgress({ solved: Math.max(this.#progress.solved, level), current: level + 1 });
 
-    if (isLastLevel) {
-      return {
-        message: `${texts.allLevelsSolved} ${solvedIn}`,
-        continueLabel: texts.playAgain
-      };
-    }
-    const opensChapter = firstSolve && level % LEVELS_PER_CHAPTER === 0;
-    const nextChapter = CHAPTERS[chapterIndexOfLevel(level + 1)];
+    // Master levels run on without chapters, so only the chapters announce what comes next.
+    const opensChapter = firstSolve && !isMasterLevel(level) && level % LEVELS_PER_CHAPTER === 0;
     return {
-      message: opensChapter ? `${solvedIn} ${texts.chapterOpened(nextChapter.id)}` : solvedIn,
+      message: opensChapter
+        ? `${solvedIn} ${texts.chapterOpened(chapterIdOfLevel(level + 1))}`
+        : solvedIn,
       continueLabel: texts.nextLevel
     };
   }
 
   #levelMenuModel() {
-    const { solved, dailyDone } = this.#progress;
-    const lastOpen = lastOpenLevel(this.#progress);
+    const { dailyDone } = this.#progress;
     const today = this.#now();
     const dailySolved = dailyDone === localDateKey(today);
+
+    const chapters = CHAPTERS.map((chapter, index) => {
+      const levels = this.#levelTiles(index * LEVELS_PER_CHAPTER + 1, LEVELS_PER_CHAPTER);
+      return {
+        id: chapter.id,
+        name: texts.chapterName(chapter.id),
+        detail: texts.chapterDetail(chapter),
+        progress: texts.chapterProgress(countSolved(levels), LEVELS_PER_CHAPTER),
+        difficulty: index + 1,
+        levels
+      };
+    });
+
+    // The master levels never end, so the list shows them a block at a time: up to the end of
+    // the block holding the furthest open level, and at least the first block.
+    const openMasterLevels = lastOpenLevel(this.#progress) - CHAPTER_LEVEL_COUNT;
+    const shownBlocks = Math.max(1, Math.ceil(openMasterLevels / LEVELS_PER_CHAPTER));
+    const masterLevels = this.#levelTiles(
+      CHAPTER_LEVEL_COUNT + 1,
+      shownBlocks * LEVELS_PER_CHAPTER
+    );
+    chapters.push({
+      id: 'master',
+      name: texts.chapterName('master'),
+      detail: texts.masterDetail,
+      progress: texts.masterProgress(countSolved(masterLevels)),
+      difficulty: CHAPTERS.length,
+      levels: masterLevels
+    });
 
     return {
       daily: {
@@ -221,29 +242,24 @@ export class GameController {
         solved: dailySolved,
         playing: this.#isDaily()
       },
-      chapters: CHAPTERS.map((chapter, index) => {
-        const first = index * LEVELS_PER_CHAPTER + 1;
-        const levels = Array.from({ length: LEVELS_PER_CHAPTER }, (_, i) => {
-          const level = first + i;
-          const state = level <= solved ? 'solved' : level <= lastOpen ? 'open' : 'locked';
-          return {
-            level,
-            state,
-            playing: level === this.#level,
-            label: texts.levelTileLabel(level, state)
-          };
-        });
-        const solvedHere = levels.filter((level) => level.state === 'solved').length;
-        return {
-          id: chapter.id,
-          name: texts.chapterName(chapter.id),
-          detail: texts.chapterDetail(chapter),
-          progress: texts.chapterProgress(solvedHere, LEVELS_PER_CHAPTER),
-          difficulty: index + 1,
-          levels
-        };
-      })
+      chapters
     };
+  }
+
+  /** Tiles for `count` levels starting at `first`. */
+  #levelTiles(first, count) {
+    const { solved } = this.#progress;
+    const lastOpen = lastOpenLevel(this.#progress);
+    return Array.from({ length: count }, (_, i) => {
+      const level = first + i;
+      const state = level <= solved ? 'solved' : level <= lastOpen ? 'open' : 'locked';
+      return {
+        level,
+        state,
+        playing: level === this.#level,
+        label: texts.levelTileLabel(level, state)
+      };
+    });
   }
 
   #putSelectionDown() {
@@ -272,8 +288,12 @@ export class GameController {
         : texts.levelTitle(this.#level),
       subtitle: daily
         ? texts.moves(moveCount)
-        : texts.levelSubtitle(CHAPTERS[chapterIndexOfLevel(this.#level)].id, moveCount),
+        : texts.levelSubtitle(chapterIdOfLevel(this.#level), moveCount),
       canUndo: this.#session.canUndo
     });
   }
+}
+
+function countSolved(levels) {
+  return levels.filter((level) => level.state === 'solved').length;
 }

@@ -13,7 +13,8 @@ const TOO_EASY_TOP_RUN = 3;
  * @param {number} seed
  * @param {number} colorCount number of colors, and so the number of filled tubes
  * @param {number} [emptyTubeCount]
- * @returns {number[][]}
+ * @returns {number[][] | null} null when no solvable deal turned up, which happens now and then
+ *   with a single empty tube
  */
 export function generatePuzzle(seed, colorCount, emptyTubeCount = 2) {
   const random = createRandom(seed);
@@ -24,7 +25,7 @@ export function generatePuzzle(seed, colorCount, emptyTubeCount = 2) {
 
     if (!tubes.some(startsTooEasy) && solve(tubes)) return tubes;
   }
-  throw new Error(`Could not generate a solvable puzzle (seed ${seed})`);
+  return null;
 }
 
 /** Shuffles TUBE_CAPACITY units of every color and splits them into full tubes. */

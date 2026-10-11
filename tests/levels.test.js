@@ -1,14 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { generatePuzzle } from '../src/game/generator.js';
 import {
-  chapterIndexOfLevel,
+  CHAPTER_LEVEL_COUNT,
+  chapterIdOfLevel,
   CHAPTERS,
   createDailyPuzzle,
   createLevelPuzzle,
   DAILY_COLOR_COUNT,
-  LEVEL_COUNT,
   levelSettings,
   LEVELS_PER_CHAPTER,
+  MASTER_SETTINGS,
   MAX_COLOR_COUNT
 } from '../src/game/levels.js';
 import { createRandom, hashString } from '../src/game/random.js';
@@ -23,6 +24,21 @@ const PINNED_LEVEL_46 = [
   [3, 0, 5, 4],
   [5, 3, 0, 1],
   [3, 5, 4, 3],
+  []
+];
+
+// The first master level.
+const PINNED_LEVEL_61 = [
+  [8, 2, 7, 6],
+  [6, 7, 3, 1],
+  [5, 5, 0, 8],
+  [1, 8, 4, 0],
+  [1, 3, 7, 2],
+  [2, 0, 7, 3],
+  [0, 6, 8, 3],
+  [1, 5, 5, 2],
+  [4, 4, 4, 6],
+  [],
   []
 ];
 
@@ -75,16 +91,32 @@ describe('levelSettings', () => {
     expect(levelSettings(46).emptyTubeCount).toBe(1);
   });
 
+  it('cycles through the hardest settings after the chapters, forever', () => {
+    const afterChapters = (offset) => levelSettings(CHAPTER_LEVEL_COUNT + offset);
+    expect([1, 2, 3, 4].map(afterChapters)).toEqual(MASTER_SETTINGS);
+    expect(afterChapters(5)).toEqual(MASTER_SETTINGS[0]);
+    expect(levelSettings(100_000)).toEqual(MASTER_SETTINGS[(100_000 - 61) % 4]);
+  });
+
   it('never needs more colors than the maximum', () => {
-    for (let level = 1; level <= LEVEL_COUNT; level++) {
+    for (let level = 1; level <= CHAPTER_LEVEL_COUNT + MASTER_SETTINGS.length; level++) {
       expect(levelSettings(level).colorCount).toBeLessThanOrEqual(MAX_COLOR_COUNT);
     }
   });
 });
 
-describe('chapterIndexOfLevel', () => {
-  it('groups the levels in chapters', () => {
-    expect([1, 15, 16, 30, 46, LEVEL_COUNT].map(chapterIndexOfLevel)).toEqual([0, 0, 1, 1, 3, 3]);
+describe('chapterIdOfLevel', () => {
+  it('groups the levels in chapters, then master levels', () => {
+    expect([1, 15, 16, 30, 46, 60, 61, 5000].map(chapterIdOfLevel)).toEqual([
+      'easy',
+      'easy',
+      'medium',
+      'medium',
+      'expert',
+      'expert',
+      'master',
+      'master'
+    ]);
   });
 });
 
@@ -115,16 +147,29 @@ describe('level and daily puzzles', () => {
   it('keeps level layouts stable across releases', () => {
     expect(createLevelPuzzle(1)).toEqual([[1, 0, 1, 2], [0, 2, 1, 2], [1, 0, 0, 2], [], []]);
     expect(createLevelPuzzle(46)).toEqual(PINNED_LEVEL_46);
+    expect(createLevelPuzzle(61)).toEqual(PINNED_LEVEL_61);
   });
 
   it('deals every level with its settings, and every level can be solved', () => {
-    for (let level = 1; level <= LEVEL_COUNT; level++) {
+    // All chapter levels and the first few blocks of master levels.
+    for (let level = 1; level <= CHAPTER_LEVEL_COUNT + 40; level++) {
       const tubes = createLevelPuzzle(level);
       const { colorCount, emptyTubeCount } = levelSettings(level);
       expect(countUnits(tubes).size).toBe(colorCount);
       expect(tubes.filter((tube) => tube.length === 0)).toHaveLength(emptyTubeCount);
       expect(solve(tubes)).not.toBeNull();
     }
+  });
+
+  it("moves on to another seed when a level's own seed deals no solvable puzzle", () => {
+    // Level 924 has seven colors and one empty tube, and its own seed deals no solvable board.
+    expect(levelSettings(924)).toEqual({ colorCount: 7, emptyTubeCount: 1 });
+    expect(generatePuzzle(hashString('level-924'), 7, 1)).toBeNull();
+
+    const tubes = createLevelPuzzle(924);
+    expect(tubes).toEqual(createLevelPuzzle(924));
+    expect(countUnits(tubes).size).toBe(7);
+    expect(solve(tubes)).not.toBeNull();
   });
 
   it('keeps daily layouts stable across releases', () => {
