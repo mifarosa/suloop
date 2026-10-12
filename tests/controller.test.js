@@ -270,7 +270,8 @@ describe('GameController', () => {
     controller.showLevels();
     expect(masterLevels()).toEqual(range(61, 75));
     expect(lastMenu().chapters.at(-1)).toMatchObject({
-      detail: 'Sonsuz · 3 geri alma · gizli renk, uzun ve yarım tüp',
+      detail:
+        'Sonsuz · 3 geri alma · gizli renk, yağ, kilitli, çatlak, tek yönlü, uzun ve yarım tüp',
       progress: '0 çözüldü'
     });
 
@@ -425,7 +426,7 @@ describe('GameController', () => {
       });
 
       hud.showToast.mockClear();
-      createController({ solved: 80, current: 73 });
+      createController({ solved: 80, current: 77 });
       expect(hud.showToast).not.toHaveBeenCalled();
     });
 

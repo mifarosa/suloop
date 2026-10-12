@@ -130,6 +130,11 @@ describe('levelSettings', () => {
     expect(MASTER_SETTINGS.every((settings) => settings.undoLimit === 3)).toBe(true);
   });
 
+  it('never hides colors on a board with oil', () => {
+    // Water sinking under oil would move units that are still hidden.
+    expect(MASTER_SETTINGS.some((s) => s.oilColorCount > 0 && s.hiddenColors)).toBe(false);
+  });
+
   it('never needs more colors than the maximum', () => {
     for (let level = 1; level <= CHAPTER_LEVEL_COUNT + MASTER_SETTINGS.length; level++) {
       expect(levelSettings(level).colorCount).toBeLessThanOrEqual(MAX_COLOR_COUNT);
@@ -143,7 +148,11 @@ describe('rulesFirstUsedAt', () => {
     expect(rulesFirstUsedAt(65)).toEqual(['hiddenColors']);
     expect(rulesFirstUsedAt(66)).toEqual(['tallTubes']);
     expect(rulesFirstUsedAt(67)).toEqual(['halfTube']);
-    for (const level of [1, 60, 62, 68, 70, 72, 73, 77, 79]) {
+    expect(rulesFirstUsedAt(73)).toEqual(['oneWayTube']);
+    expect(rulesFirstUsedAt(74)).toEqual(['crackedTube']);
+    expect(rulesFirstUsedAt(75)).toEqual(['lockedTube']);
+    expect(rulesFirstUsedAt(76)).toEqual(['oil']);
+    for (const level of [1, 60, 62, 68, 70, 72, 77, 79, 81, 93]) {
       expect(rulesFirstUsedAt(level)).toEqual([]);
     }
   });
@@ -202,24 +211,24 @@ describe('level and daily puzzles', () => {
       const { tubes, board } = createLevelPuzzle(level);
       const settings = levelSettings(level);
       const { colorCount, emptyTubeCount, halfTubeCount, capacity } = settings;
+      const emptyCount =
+        emptyTubeCount + halfTubeCount + settings.oneWayTubeCount + settings.crackedTubeCount;
       expect(countUnits(tubes).size).toBe(colorCount);
       expect(new Set(countUnits(tubes).values())).toEqual(new Set([capacity]));
-      expect(tubes.filter((tube) => tube.length === 0)).toHaveLength(
-        emptyTubeCount + halfTubeCount
-      );
+      expect(tubes.filter((tube) => tube.length === 0)).toHaveLength(emptyCount);
       expect(tubes.map((_, i) => board.sizeOf(i))).toEqual(tubeSizes(settings));
       expect(solve(tubes, { board })).not.toBeNull();
     }
   });
 
   it("moves on to another seed when a level's own seed deals no solvable puzzle", () => {
-    // Level 7888 has seven colors and one empty tube, and its own seed deals no solvable board.
-    const settings = levelSettings(7888);
+    // Level 924 has seven colors and one empty tube, and its own seed deals no solvable board.
+    const settings = levelSettings(924);
     expect(settings).toMatchObject({ colorCount: 7, emptyTubeCount: 1, capacity: 4 });
-    expect(generatePuzzle(hashString('level-7888'), settings)).toBeNull();
+    expect(generatePuzzle(hashString('level-924'), settings)).toBeNull();
 
-    const { tubes } = createLevelPuzzle(7888);
-    expect(tubes).toEqual(createLevelPuzzle(7888).tubes);
+    const { tubes } = createLevelPuzzle(924);
+    expect(tubes).toEqual(createLevelPuzzle(924).tubes);
     expect(countUnits(tubes).size).toBe(7);
     expect(solve(tubes)).not.toBeNull();
   });

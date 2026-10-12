@@ -11,13 +11,25 @@ const chapterNames = {
 };
 const moves = (count) => `${count} hamle`;
 // Rules that change the board get a word in the subtitle; the undo limit shows on its button.
-const ruleTags = { hiddenColors: 'Gizli renk', tallTubes: 'Uzun tüp', halfTube: 'Yarım tüp' };
+const ruleTags = {
+  hiddenColors: 'Gizli renk',
+  tallTubes: 'Uzun tüp',
+  halfTube: 'Yarım tüp',
+  oneWayTube: 'Tek yönlü',
+  crackedTube: 'Çatlak tüp',
+  lockedTube: 'Kilitli tüp',
+  oil: 'Yağ'
+};
 const ruleIntros = {
   limitedUndo: ({ undoLimit }) =>
     `Usta seviyelerinde ${undoLimit} geri alma hakkın var; baştan başlayınca yenilenir.`,
   hiddenColors: () => 'Gizli renkler: alttaki renkler, üstündekiler döküldükçe görünür.',
   tallTubes: ({ capacity }) => `Uzun tüpler: her tüp ${capacity} birim alır.`,
-  halfTube: () => 'Yarım tüp yalnızca 2 birim alır; bitirmek için boş kalmalı.'
+  halfTube: () => 'Yarım tüp yalnızca 2 birim alır; bitirmek için boş kalmalı.',
+  oneWayTube: () => 'Tek yönlü tüp: içine dökebilirsin ama dışına dökemezsin.',
+  crackedTube: () => 'Çatlak tüp: içine yalnızca 3 kez dökebilirsin, dışına her zaman.',
+  lockedTube: () => 'Kilitli tüp: kilidindeki renkte bir tüp tamamlanınca buzu çözülür.',
+  oil: () => 'Yağ suyun üstünde durur: su yağın altına geçer, yağ kalkmadan altındaki su dökülmez.'
 };
 
 export const texts = {
@@ -48,7 +60,8 @@ export const texts = {
   dailyCardAction: (solved) => (solved ? 'Çözüldü ✓' : 'Oyna'),
   chapterDetail: ({ minColors, maxColors, emptyTubeCount }) =>
     `${minColors}–${maxColors} renk${emptyTubeCount === 1 ? ' · tek boş tüp' : ''}`,
-  masterDetail: 'Sonsuz · 3 geri alma · gizli renk, uzun ve yarım tüp',
+  masterDetail:
+    'Sonsuz · 3 geri alma · gizli renk, yağ, kilitli, çatlak, tek yönlü, uzun ve yarım tüp',
   chapterProgress: (solved, total) => `${solved}/${total}`,
   masterProgress: (solved) => `${solved} çözüldü`,
   // Carrying progress to another device
