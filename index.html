@@ -52,6 +52,42 @@
           <button id="levels-close" type="button" class="icon" aria-label="Kapat">✕</button>
         </header>
         <div id="levels-body" class="level-menu-body"></div>
+        <footer class="level-menu-footer">
+          <button id="transfer-open" type="button">İlerlemeyi taşı</button>
+        </footer>
+      </div>
+    </div>
+
+    <div id="transfer" class="overlay" hidden>
+      <div class="card transfer" role="dialog" aria-modal="true" aria-labelledby="transfer-title">
+        <header class="dialog-header">
+          <h2 id="transfer-title">İlerlemeyi taşı</h2>
+          <button id="transfer-close" type="button" class="icon" aria-label="Kapat">✕</button>
+        </header>
+        <p>
+          Bu bağlantıyı diğer cihazında aç ya da kodu orada gir. Kodu bir yere not edersen ilerlemen
+          silinse bile geri alırsın.
+        </p>
+        <output id="transfer-code" class="transfer-code" aria-label="İlerleme kodun"></output>
+        <div class="card-actions">
+          <button id="transfer-copy" type="button" class="primary">Bağlantıyı kopyala</button>
+          <button id="transfer-share" type="button" hidden>Paylaş</button>
+        </div>
+        <form id="transfer-form" class="transfer-form">
+          <label for="transfer-input">Başka cihazdan kodun mu var?</label>
+          <div class="transfer-row">
+            <input
+              id="transfer-input"
+              type="text"
+              autocomplete="off"
+              autocapitalize="characters"
+              spellcheck="false"
+              placeholder="Kodu yaz"
+            />
+            <button type="submit">Yükle</button>
+          </div>
+          <p id="transfer-message" class="transfer-message" role="alert" hidden></p>
+        </form>
       </div>
     </div>
 

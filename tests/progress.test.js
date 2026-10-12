@@ -67,6 +67,20 @@ describe('loadProgress and saveProgress', () => {
     expect(loadProgress(storage)).toEqual(progress);
   });
 
+  it('never lowers the solved levels another tab has saved', () => {
+    const storage = memoryStorage();
+    saveProgress({ mode: 'level', solved: 90, current: 91, dailyDone: null }, storage);
+    // A tab that was opened earlier still thinks 79 levels are solved.
+    saveProgress({ mode: 'level', solved: 79, current: 12, dailyDone: '2026-10-12' }, storage);
+
+    expect(loadProgress(storage)).toEqual({
+      mode: 'level',
+      solved: 90,
+      current: 12,
+      dailyDone: '2026-10-12'
+    });
+  });
+
   it('starts fresh when nothing or something unreadable is stored', () => {
     const storage = memoryStorage();
     expect(loadProgress(storage)).toEqual(INITIAL_PROGRESS);

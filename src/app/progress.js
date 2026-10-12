@@ -64,8 +64,11 @@ export function loadProgress(storage = browserStorage()) {
  * @param {Storage | null} [storage]
  */
 export function saveProgress(progress, storage = browserStorage()) {
+  // Another tab of the game may have solved more levels meanwhile; never write fewer.
+  const next = normalizeProgress(progress);
+  const solved = Math.max(next.solved, loadProgress(storage).solved);
   try {
-    storage?.setItem(STORAGE_KEY, JSON.stringify(normalizeProgress(progress)));
+    storage?.setItem(STORAGE_KEY, JSON.stringify({ ...next, solved }));
   } catch {
     // Storage can be full or blocked (e.g. private browsing); progress then lasts for this visit only.
   }

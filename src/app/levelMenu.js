@@ -11,6 +11,8 @@
  * }>} chapters
  */
 
+import { Overlay } from './overlay.js';
+
 const LOCK_ICON = `<svg viewBox="0 0 16 16" aria-hidden="true"><rect x="3" y="7" width="10" height="7" rx="1.5"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>`;
 
 /**
@@ -21,23 +23,23 @@ export class LevelMenu {
   #overlay;
   #body;
   #closeButton;
-  #returnFocusTo = null;
-  #actions = { onPickLevel: () => {}, onPickDaily: () => {}, onClose: () => {} };
+  #actions = {
+    onPickLevel: () => {},
+    onPickDaily: () => {},
+    onTransfer: () => {},
+    onClose: () => {}
+  };
 
   /** @param {ParentNode} root */
   constructor(root) {
-    this.#overlay = root.querySelector('#levels');
+    this.#overlay = new Overlay(root.querySelector('#levels'), () => this.#actions.onClose());
     this.#body = root.querySelector('#levels-body');
     this.#closeButton = root.querySelector('#levels-close');
 
     this.#closeButton.addEventListener('click', () => this.#actions.onClose());
-    // A tap on the dimmed area around the panel closes it, like the close button.
-    this.#overlay.addEventListener('click', (event) => {
-      if (event.target === this.#overlay) this.#actions.onClose();
-    });
-    this.#overlay.addEventListener('keydown', (event) => {
-      if (event.key === 'Escape') this.#actions.onClose();
-    });
+    root
+      .querySelector('#transfer-open')
+      .addEventListener('click', () => this.#actions.onTransfer());
     this.#body.addEventListener('click', (event) => this.#handlePick(event));
   }
 
@@ -45,6 +47,7 @@ export class LevelMenu {
    * @param {object} actions
    * @param {(level: number) => void} actions.onPickLevel
    * @param {() => void} actions.onPickDaily
+   * @param {() => void} actions.onTransfer opens the dialog that carries progress to another device
    * @param {() => void} actions.onClose
    */
   bindActions(actions) {
@@ -53,22 +56,15 @@ export class LevelMenu {
 
   /** @param {LevelMenuModel} model */
   show(model) {
-    if (this.#overlay.hidden) this.#returnFocusTo = document.activeElement;
-
     this.#body.replaceChildren(dailyCard(model.daily), ...model.chapters.map(chapterSection));
-    this.#overlay.hidden = false;
 
     const playing = this.#body.querySelector('[aria-current="true"]') ?? this.#closeButton;
+    this.#overlay.open(playing);
     playing.scrollIntoView({ block: 'center' });
-    playing.focus({ preventScroll: true });
   }
 
   hide() {
-    if (this.#overlay.hidden) return;
-
-    this.#overlay.hidden = true;
-    this.#returnFocusTo?.focus?.();
-    this.#returnFocusTo = null;
+    this.#overlay.close();
   }
 
   #handlePick(event) {

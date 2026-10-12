@@ -10,6 +10,7 @@ import {
 import { GameSession } from '../game/session.js';
 import { localDateKey } from './calendar.js';
 import { lastOpenLevel } from './progress.js';
+import { decodeProgressCode, encodeProgressCode } from './progressCode.js';
 import { texts } from './texts.js';
 
 /**
@@ -20,6 +21,7 @@ export class GameController {
   #scene;
   #hud;
   #menu;
+  #transfer;
   #progress;
   #saveProgress;
   #now;
@@ -37,14 +39,16 @@ export class GameController {
    * @param {import('../scene/tubeScene.js').TubeScene} deps.scene
    * @param {import('./hud.js').Hud} deps.hud
    * @param {import('./levelMenu.js').LevelMenu} deps.menu
+   * @param {import('./transferDialog.js').TransferDialog} deps.transfer
    * @param {import('./progress.js').Progress} deps.progress
    * @param {(progress: import('./progress.js').Progress) => void} deps.saveProgress
    * @param {() => Date} [deps.now]
    */
-  constructor({ scene, hud, menu, progress, saveProgress, now = () => new Date() }) {
+  constructor({ scene, hud, menu, transfer, progress, saveProgress, now = () => new Date() }) {
     this.#scene = scene;
     this.#hud = hud;
     this.#menu = menu;
+    this.#transfer = transfer;
     this.#progress = { ...progress };
     this.#saveProgress = saveProgress;
     this.#now = now;
@@ -130,6 +134,44 @@ export class GameController {
 
   closeLevels() {
     this.#menu.hide();
+  }
+
+  /** Opens the dialog that carries progress to another device, in place of the level list. */
+  showTransfer() {
+    if (this.#animating) return;
+
+    this.#menu.hide();
+    this.#transfer.show({ code: encodeProgressCode(this.#progress.solved) });
+  }
+
+  closeTransfer() {
+    this.#transfer.hide();
+  }
+
+  /**
+   * Takes over the progress in a code, typed into the dialog or opened as a link. Progress only
+   * ever moves forward, so an old code or one from a device that is behind changes nothing.
+   * @param {string} code
+   * @param {{ fromLink?: boolean }} [options] a link has no dialog to show an error in
+   */
+  importProgress(code, { fromLink = false } = {}) {
+    if (this.#animating) return;
+
+    const solved = decodeProgressCode(code);
+    if (solved === null) {
+      if (fromLink) this.#hud.showToast(texts.transferInvalid);
+      else this.#transfer.showError(texts.transferInvalid);
+      return;
+    }
+
+    this.#transfer.hide();
+    if (solved <= this.#progress.solved) {
+      this.#hud.showToast(texts.transferUnchanged(this.#progress.solved));
+      return;
+    }
+    this.#updateProgress({ mode: 'level', solved, current: solved + 1 });
+    this.start();
+    this.#hud.showToast(texts.transferLoaded(solved));
   }
 
   /** Plays a level picked from the list; levels that are still locked are ignored. */
