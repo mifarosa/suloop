@@ -1,24 +1,34 @@
 import './styles.css';
 import { GameController } from './app/controller.js';
+import { createFewestMovesFinder } from './app/fewestMoves.js';
 import { Hud } from './app/hud.js';
 import { LevelMenu } from './app/levelMenu.js';
 import { loadProgress, saveProgress } from './app/progress.js';
 import { codeInLink } from './app/progressCode.js';
+import { RulesDialog } from './app/rulesDialog.js';
 import { watchGlassColor } from './app/theme.js';
 import { TransferDialog } from './app/transferDialog.js';
+import { Confetti } from './scene/confetti.js';
 import { TubeScene } from './scene/tubeScene.js';
 
 const scene = new TubeScene(document.querySelector('#scene'), {
-  getTopInset: () => document.querySelector('.hud').getBoundingClientRect().bottom
+  getTopInset: () => document.querySelector('.hud').getBoundingClientRect().bottom,
+  getBottomInset: () =>
+    innerHeight - document.querySelector('.toolbar').getBoundingClientRect().top,
+  confetti: new Confetti(document.querySelector('#confetti'))
 });
+let glassColor = '';
 const hud = new Hud(document);
 const menu = new LevelMenu(document);
 const transfer = new TransferDialog(document);
+const rules = new RulesDialog(document, { getGlassColor: () => glassColor });
 const controller = new GameController({
   scene,
   hud,
   menu,
   transfer,
+  rules,
+  findFewestMoves: createFewestMovesFinder(),
   progress: loadProgress(),
   saveProgress
 });
@@ -28,8 +38,10 @@ hud.bindActions({
   onUndo: () => controller.undo(),
   onHint: () => controller.showHint(),
   onRestart: () => controller.restart(),
+  onInfo: () => controller.showInfo(),
   onShowLevels: () => controller.showLevels(),
   onContinue: () => controller.continueAfterWin(),
+  onReplay: () => controller.replay(),
   onContinueToLevels: () => controller.continueToLevels()
 });
 menu.bindActions({
@@ -42,8 +54,11 @@ transfer.bindActions({
   onImport: (code) => controller.importProgress(code),
   onClose: () => controller.closeTransfer()
 });
-watchGlassColor((color) => scene.setGlassColor(color));
-
+rules.bindActions({ onClose: () => controller.closeRules() });
+watchGlassColor((color) => {
+  glassColor = color;
+  scene.setGlassColor(color);
+});
 controller.start();
 
 /** Takes the progress from a link like "…/suloop/#ilerleme=2FQ7M", opened here or pasted in. */

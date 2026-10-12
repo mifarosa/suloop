@@ -7,11 +7,18 @@
  *   detail: string,
  *   progress: string,
  *   difficulty: number,
- *   levels: Array<{ level: number, state: 'solved' | 'open' | 'locked', playing: boolean, label: string }>
+ *   levels: Array<{
+ *     level: number,
+ *     state: 'solved' | 'open' | 'locked',
+ *     stars: number,
+ *     playing: boolean,
+ *     label: string
+ *   }>
  * }>} chapters
  */
 
 import { Overlay } from './overlay.js';
+import { starRow } from './starIcons.js';
 
 const LOCK_ICON = `<svg viewBox="0 0 16 16" aria-hidden="true"><rect x="3" y="7" width="10" height="7" rx="1.5"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>`;
 
@@ -114,7 +121,7 @@ function difficultyBars(difficulty) {
   return bars;
 }
 
-function levelTile({ level, state, playing, label }) {
+function levelTile({ level, state, stars, playing, label }) {
   const tile = element('button', `level-tile ${state}`);
   tile.type = 'button';
   tile.dataset.level = String(level);
@@ -124,6 +131,8 @@ function levelTile({ level, state, playing, label }) {
 
   tile.append(element('span', 'level-number', String(level)));
   if (state === 'locked') tile.insertAdjacentHTML('beforeend', LOCK_ICON);
+  // Levels solved before stars were counted have none to show.
+  if (state === 'solved' && stars > 0) tile.append(starRow(stars, 'stars tile-stars'));
   return tile;
 }
 

@@ -13,10 +13,17 @@ import {
   STAGES
 } from '../game/levels.js';
 import { GameSession } from '../game/session.js';
+import { starsFor, twoStarLimit } from '../game/stars.js';
 import { localDateKey } from './calendar.js';
+import { recordDailyWin, recordLevelWin, spendHint, spendSpareUndo } from './economy.js';
 import { lastOpenLevel } from './progress.js';
 import { decodeProgressCode, encodeProgressCode } from './progressCode.js';
 import { texts } from './texts.js';
+
+/**
+ * @typedef {{ moves: number, proven: boolean } | null} Fewest the fewest moves of a puzzle
+ *   (see fewestMoves in shortest.js)
+ */
 
 /**
  * Runs the game: applies the player's actions to the session, plays the matching
@@ -27,6 +34,8 @@ export class GameController {
   #hud;
   #menu;
   #transfer;
+  #rules;
+  #findFewestMoves;
   #progress;
   #saveProgress;
   #now;
@@ -36,6 +45,12 @@ export class GameController {
   #level = null;
   /** The calendar day of the daily puzzle being played. */
   #puzzleDay;
+  /** @type {Promise<Fewest>} the fewest moves of the puzzle on the board, once worked out */
+  #fewest;
+  /** @type {Fewest | undefined} the same, as soon as it is known */
+  #fewestKnown;
+  /** The last hint and the position it was for: asking again there costs nothing. */
+  #lastHint = null;
   /** Set while the win celebration plays; input waits until it is over. Pours do not block. */
   #animating = false;
 
@@ -45,15 +60,29 @@ export class GameController {
    * @param {import('./hud.js').Hud} deps.hud
    * @param {import('./levelMenu.js').LevelMenu} deps.menu
    * @param {import('./transferDialog.js').TransferDialog} deps.transfer
+   * @param {import('./rulesDialog.js').RulesDialog} deps.rules
+   * @param {(puzzle: { level: number } | { day: string }) => Promise<Fewest>} deps.findFewestMoves
    * @param {import('./progress.js').Progress} deps.progress
    * @param {(progress: import('./progress.js').Progress) => void} deps.saveProgress
    * @param {() => Date} [deps.now]
    */
-  constructor({ scene, hud, menu, transfer, progress, saveProgress, now = () => new Date() }) {
+  constructor({
+    scene,
+    hud,
+    menu,
+    transfer,
+    rules,
+    findFewestMoves,
+    progress,
+    saveProgress,
+    now = () => new Date()
+  }) {
     this.#scene = scene;
     this.#hud = hud;
     this.#menu = menu;
     this.#transfer = transfer;
+    this.#rules = rules;
+    this.#findFewestMoves = findFewestMoves;
     this.#progress = { ...progress };
     this.#saveProgress = saveProgress;
     this.#now = now;
@@ -70,6 +99,8 @@ export class GameController {
     const { hiddenColors, undoLimit } = settings;
 
     this.#session = new GameSession(board, tubes, { hiddenColors, undoLimit });
+    this.#lastHint = null;
+    this.#watchFewestMoves();
     this.#scene.showPuzzle(this.#session.visibleTubes, {
       sizes: tubes.map((_, index) => board.sizeOf(index)),
       oilColors: [...board.oilColors],
@@ -81,13 +112,82 @@ export class GameController {
     });
     this.#hud.hideWin();
     this.#menu.hide();
+    this.#rules.hide();
     this.#refreshHud();
+    this.#introduceNewRules();
+  }
 
-    const newRules = this.#isDaily() ? [] : rulesFirstUsedAt(this.#level);
-    if (newRules.length > 0) {
-      const intro = newRules.map((rule) => texts.ruleIntro(rule, settings)).join(' ');
-      this.#hud.showToast(intro, { long: true });
-    }
+  /**
+   * Works out the fewest moves of the new puzzle in the background. A puzzle replaced
+   * meanwhile drops its answer.
+   */
+  #watchFewestMoves() {
+    const session = this.#session;
+    const puzzle = this.#isDaily()
+      ? { day: localDateKey(this.#puzzleDay) }
+      : { level: this.#level };
+    this.#fewestKnown = undefined;
+    this.#fewest = this.#findFewestMoves(puzzle);
+    this.#fewest.then((fewest) => {
+      if (this.#session !== session) return;
+      this.#fewestKnown = fewest;
+      // The rules dialog may be waiting for it to show the stars.
+      if (this.#rules.isShowingInfo) this.showInfo();
+    });
+  }
+
+  /**
+   * On a level that brings in new rules, shows them before the player starts; only until the
+   * level is solved, so a replay goes straight to the board. The very first level explains
+   * the game.
+   */
+  #introduceNewRules() {
+    if (this.#isDaily() || this.#level <= this.#progress.solved) return;
+
+    const newRules = this.#level === 1 ? ['basics'] : rulesFirstUsedAt(this.#level);
+    if (newRules.length === 0) return;
+    this.#rules.show({
+      title: texts.newRulesTitle(newRules.length),
+      rules: newRules.map((rule) => this.#describeRule(rule)),
+      action: texts.gotIt
+    });
+  }
+
+  /** Shows every rule of the puzzle on the board, the stars it can earn and how it went. */
+  showInfo() {
+    if (this.#animating) return;
+
+    this.#putSelectionDown();
+    const settings = this.#settings();
+    const fewest = this.#fewestKnown;
+    const attempts = this.#isDaily() ? null : (this.#progress.records[this.#level]?.attempts ?? []);
+    this.#rules.show({
+      title: this.#title(),
+      info: true,
+      rules: ['basics', ...specialRules(settings)].map((rule) => this.#describeRule(rule)),
+      stars: fewest
+        ? [3, 2, 1].map((stars) => ({
+            stars,
+            text: texts.starRule(stars, fewest.moves, twoStarLimit(fewest.moves))
+          }))
+        : null,
+      starsPending: texts.fewestPending,
+      supplies: [
+        texts.undoSupply(settings.undoLimit, this.#session.undosLeft),
+        ...(settings.undoLimit === null ? [] : [texts.spareUndoSupply(this.#progress.spareUndos)]),
+        texts.hintSupply(this.#progress.hints)
+      ],
+      attempts: attempts && attempts.slice().reverse(),
+      action: texts.close
+    });
+  }
+
+  closeRules() {
+    this.#rules.hide();
+  }
+
+  #describeRule(rule) {
+    return { id: rule, name: texts.ruleName(rule), text: texts.ruleText(rule, this.#settings()) };
   }
 
   /** @param {number} index */
@@ -115,31 +215,69 @@ export class GameController {
     }
   }
 
+  /**
+   * Takes the last move back: the pour plays in reverse, after the cap comes off a tube the
+   * move completed. Once the level's undos are used up, the player's spare undos pay.
+   */
   undo() {
-    if (this.#animating || !this.#session.canUndo) return;
+    const session = this.#session;
+    if (this.#animating || !this.#canUndo()) return;
 
-    this.#session.undo();
-    this.#showBoard();
+    const spare = !session.canUndo;
+    this.#putSelectionDown();
+    const move = session.undo({ spare });
+    if (!move) return;
+    if (spare) {
+      this.#setProgress(spendSpareUndo(this.#progress));
+      this.#hud.showToast(texts.spareUndoUsed(this.#progress.spareUndos));
+    }
     this.#refreshHud();
+
+    if (move.onTop) {
+      // Caps come off and locks freeze again first; the liquid then flows back.
+      this.#scene.showTubeStates(this.#tubeStates());
+      this.#scene.pour(move.to, move.from, move.amount, session.visibleTubes);
+    } else {
+      // Water that sank under oil cannot be seen leaving; the board changes at once.
+      this.#scene.showContents(session.visibleTubes);
+      this.#scene.showTubeStates(this.#tubeStates());
+    }
   }
 
   restart() {
     if (this.#animating || this.#session.solved) return;
 
     this.#session.restart();
-    this.#showBoard();
+    this.#scene.showContents(this.#session.visibleTubes);
+    this.#scene.showTubeStates(this.#tubeStates(), { instant: true });
     this.#refreshHud();
   }
 
+  /**
+   * Points out the next move of the shortest solution from here. A hint costs one of the
+   * player's hints; asking again in the same position shows the same move for free, and a
+   * dead end costs nothing.
+   */
   showHint() {
-    if (this.#animating || this.#session.solved) return;
+    const session = this.#session;
+    if (this.#animating || session.solved) return;
 
     this.#putSelectionDown();
-    const move = this.#session.hint();
+    let move = this.#lastHint?.position === session.position ? this.#lastHint.move : null;
     if (!move) {
-      const outOfUndos = this.#session.undosLeft === 0;
-      this.#hud.showToast(outOfUndos ? texts.hintDeadEndNoUndo : texts.hintDeadEnd);
-      return;
+      if (this.#progress.hints === 0) {
+        this.#hud.showToast(texts.noHints, { long: true });
+        return;
+      }
+      move = session.hint();
+      if (!move) {
+        const outOfUndos = !this.#canUndo();
+        this.#hud.showToast(outOfUndos ? texts.hintDeadEndNoUndo : texts.hintDeadEnd);
+        return;
+      }
+      this.#setProgress(spendHint(this.#progress));
+      this.#lastHint = { position: session.position, move };
+      this.#refreshHud();
     }
     const [from, to] = move;
     this.#scene.highlight([from, to]);
@@ -217,6 +355,12 @@ export class GameController {
     this.start();
   }
 
+  /** Plays the puzzle just solved once more, e.g. to try for more stars. */
+  replay() {
+    if (!this.#isDaily()) this.#updateProgress({ current: this.#level });
+    this.start();
+  }
+
   /** Moves on as after a win, but lets the player pick from the level list first. */
   continueToLevels() {
     this.continueAfterWin();
@@ -227,68 +371,102 @@ export class GameController {
    * Plays a pour. The player can go on with the next move meanwhile; the scene sorts out
    * pours that overlap. Only the win celebration holds input back.
    */
-  async #playPour({ from, to, amount, filled, solved, unlocked }) {
+  async #playPour({ from, to, amount, solved, unlocked }) {
     const session = this.#session;
     if (solved) this.#animating = true;
     this.#refreshHud();
-    // A cracked tube's fill is used up at once; a lock opens once the liquid has landed.
-    this.#scene.showTubeStates(this.#tubeStates(unlocked));
     try {
-      await this.#scene.pour(from, to, amount, session.visibleTubes);
+      const poured = this.#scene.pour(from, to, amount, session.visibleTubes);
+      // A cracked tube's fill is used up at once. The cap of a tube the pour completed goes
+      // on once the liquid has landed (the scene waits for the pour), and a lock opens then.
+      this.#scene.showTubeStates(this.#tubeStates(unlocked));
+      await poured;
       // Undo, restart or another level may have replaced the board meanwhile.
       if (this.#session !== session) return;
       if (unlocked.length > 0) this.#scene.showTubeStates(this.#tubeStates());
-      if (filled) this.#scene.hop(to);
       if (solved) await this.#celebrateWin();
     } finally {
       if (solved) this.#animating = false;
     }
   }
 
-  /** Shows the board as the session has it, at once, e.g. after an undo. */
-  #showBoard() {
-    this.#scene.showContents(this.#session.visibleTubes);
-    this.#scene.showTubeStates(this.#tubeStates());
-  }
-
   /**
-   * Fills left and locks, per tube.
+   * Fills left, locks and caps, per tube.
    * @param {number[]} [stillLocked] tubes to show locked although they just opened
    */
   #tubeStates(stillLocked = []) {
     const session = this.#session;
-    return session.tubes.map((_, index) => ({
+    return session.tubes.map((tube, index) => ({
       fills: session.fills[index],
-      locked: session.isLocked(index) || stillLocked.includes(index)
+      locked: session.isLocked(index) || stillLocked.includes(index),
+      capped: session.board.isComplete(tube)
     }));
   }
 
+  /**
+   * Saves the solution at once, then rates it against the fewest moves while the tubes
+   * celebrate, and shows how it went.
+   */
   async #celebrateWin() {
-    const solvedIn = texts.solvedIn(this.#session.moveCount);
-    let win;
-    if (this.#isDaily()) {
-      this.#updateProgress({ dailyDone: localDateKey(this.#puzzleDay) });
-      win = { message: solvedIn, continueLabel: texts.backToLevels };
-    } else {
-      win = this.#recordSolvedLevel(this.#level, solvedIn);
+    const moves = this.#session.moveCount;
+    const notes = [];
+    if (!this.#isDaily()) {
+      const opened = this.#recordSolvedLevel(this.#level);
+      if (opened) notes.push(texts.stageOpened(opened));
     }
 
-    await this.#scene.celebrate();
-    this.#hud.showWin(win);
+    const [fewest] = await Promise.all([this.#fewest, this.#scene.celebrate()]);
+    const fewestMoves = fewest?.moves ?? moves;
+    const stars = starsFor(moves, fewestMoves);
+    let attempts = null;
+    if (this.#isDaily()) {
+      const { progress, earnedHint } = recordDailyWin(
+        this.#progress,
+        localDateKey(this.#puzzleDay)
+      );
+      this.#setProgress(progress);
+      if (earnedHint) notes.push(texts.earnedHint);
+    } else {
+      const { progress, earnedUndo } = recordLevelWin(this.#progress, this.#level, {
+        moves,
+        stars
+      });
+      this.#setProgress(progress);
+      if (earnedUndo) notes.push(texts.earnedUndo);
+      attempts = progress.records[this.#level].attempts.slice().reverse();
+    }
+    this.#refreshHud();
+
+    this.#hud.showWin({
+      title: texts.winTitle(stars),
+      stars,
+      moves,
+      fewest: fewestMoves,
+      fewestLabel: texts.fewestMoves(fewest?.proven ?? true),
+      notes,
+      attempts,
+      continueLabel: this.#isDaily() ? texts.backToLevels : texts.nextLevel
+    });
   }
 
-  /** Saves a solved level and says what it opened up. */
-  #recordSolvedLevel(level, solvedIn) {
+  /**
+   * Saves a solved level.
+   * @returns {string | null} the stage the solution opened, if any
+   */
+  #recordSolvedLevel(level) {
     const firstSolve = level > this.#progress.solved;
     this.#updateProgress({ solved: Math.max(this.#progress.solved, level), current: level + 1 });
 
     const next = level + 1;
     const opensStage =
       firstSolve && (STAGE_STARTS.includes(next) || next === STAGE_LEVEL_COUNT + 1);
-    return {
-      message: opensStage ? `${solvedIn} ${texts.stageOpened(stageOfLevel(next).id)}` : solvedIn,
-      continueLabel: texts.nextLevel
-    };
+    return opensStage ? stageOfLevel(next).id : null;
+  }
+
+  /** Whether an undo is possible: within the level's limit, or with a spare undo. */
+  #canUndo() {
+    const session = this.#session;
+    return session.canUndo || (session.hasMoves && this.#progress.spareUndos > 0);
   }
 
   #levelMenuModel() {
@@ -338,16 +516,18 @@ export class GameController {
 
   /** Tiles for `count` levels starting at `first`. */
   #levelTiles(first, count) {
-    const { solved } = this.#progress;
+    const { solved, records } = this.#progress;
     const lastOpen = lastOpenLevel(this.#progress);
     return Array.from({ length: count }, (_, i) => {
       const level = first + i;
       const state = level <= solved ? 'solved' : level <= lastOpen ? 'open' : 'locked';
+      const stars = records[level]?.best ?? 0;
       return {
         level,
         state,
+        stars,
         playing: level === this.#level,
-        label: texts.levelTileLabel(level, state)
+        label: texts.levelTileLabel(level, state, stars)
       };
     });
   }
@@ -358,8 +538,12 @@ export class GameController {
   }
 
   #updateProgress(changes) {
-    this.#progress = { ...this.#progress, ...changes };
-    this.#saveProgress(this.#progress);
+    this.#setProgress({ ...this.#progress, ...changes });
+  }
+
+  #setProgress(progress) {
+    this.#progress = progress;
+    this.#saveProgress(progress);
   }
 
   #isDaily() {
@@ -378,19 +562,30 @@ export class GameController {
     return texts.levelSubtitle(stage.id, extras, moveCount);
   }
 
+  #title() {
+    return this.#isDaily()
+      ? texts.dailyTitle(
+          this.#puzzleDay,
+          this.#progress.dailyDone === localDateKey(this.#puzzleDay)
+        )
+      : texts.levelTitle(this.#level);
+  }
+
   #refreshHud() {
-    const moveCount = this.#session.moveCount;
-    const daily = this.#isDaily();
+    const session = this.#session;
+    const { spareUndos, hints } = this.#progress;
+    // Spare undos only matter on levels with a limit.
+    const spare = session.undosLeft === null ? 0 : spareUndos;
     this.#hud.render({
-      title: daily
-        ? texts.dailyTitle(
-            this.#puzzleDay,
-            this.#progress.dailyDone === localDateKey(this.#puzzleDay)
-          )
-        : texts.levelTitle(this.#level),
-      subtitle: daily ? texts.moves(moveCount) : this.#levelSubtitle(moveCount),
-      canUndo: this.#session.canUndo,
-      undoLabel: texts.undo(this.#session.undosLeft)
+      title: this.#title(),
+      subtitle: this.#isDaily()
+        ? texts.moves(session.moveCount)
+        : this.#levelSubtitle(session.moveCount),
+      canUndo: this.#canUndo(),
+      undoCount: texts.undoCount(session.undosLeft, spare),
+      undoLabel: texts.undoLabel(session.undosLeft, spare),
+      hintCount: String(hints),
+      hintLabel: texts.hintLabel(hints)
     });
   }
 }

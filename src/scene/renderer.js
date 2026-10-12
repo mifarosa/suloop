@@ -17,6 +17,16 @@ const MARK_FONT_FAMILY = "'Bricolage Grotesque', 'Segoe UI', system-ui, sans-ser
 const UPRIGHT = 0.001;
 /** Where the badges of special tubes (lock, fills left, one-way arrow) sit above the rim. */
 const BADGE_HEIGHT = 0.26;
+/** The cap of a complete tube: a plug inside the mouth under a lid wider than the rim. */
+const CAP = {
+  plugDepth: 0.12,
+  lidHeight: 0.17,
+  lidOverhang: 0.09,
+  knobWidth: 0.24,
+  knobHeight: 0.07
+};
+/** How far above the mouth a cap starts its drop, and ends up when it comes off. */
+const CAP_DROP = 0.75;
 
 /**
  * Draws the whole board. Everything is described in world units (see dimensions.js);
@@ -62,7 +72,9 @@ function drawTube(ctx, tube, view, glassColor, isOil) {
   else drawTiltedLiquid(ctx, tube);
   drawGlass(ctx, tube, glassColor);
   if (tube.ice > 0) drawIce(ctx, tube);
-  drawBadge(ctx, tube, glassColor);
+  // A cap hides the badge: what made the tube special no longer matters once it is complete.
+  if (tube.cap < 1) drawBadge(ctx, tube, glassColor, 1 - Math.min(1, tube.cap));
+  if (tube.cap > 0) drawCap(ctx, tube);
   ctx.restore();
 }
 
@@ -267,11 +279,12 @@ function drawIce(ctx, tube) {
  * The sign above a special tube: a padlock in the key color on a locked tube, the fills left
  * on a cracked tube, and an arrow pointing in on a one-way tube.
  */
-function drawBadge(ctx, tube, glassColor) {
+function drawBadge(ctx, tube, glassColor, opacity) {
   const y = -tube.height - BADGE_HEIGHT;
   ctx.save();
+  ctx.globalAlpha = opacity;
   if (tube.lockKey !== null && tube.ice > 0) {
-    ctx.globalAlpha = tube.ice;
+    ctx.globalAlpha = opacity * tube.ice;
     ctx.fillStyle = LIQUID_COLORS[tube.lockKey];
     ctx.beginPath();
     ctx.arc(0, y, 0.2, 0, Math.PI * 2);
@@ -281,7 +294,7 @@ function drawBadge(ctx, tube, glassColor) {
     ctx.strokeStyle = glassColor;
     ctx.fillStyle = glassColor;
     ctx.lineWidth = GLASS_LINE_WIDTH;
-    ctx.globalAlpha = 0.8;
+    ctx.globalAlpha = opacity * 0.8;
     const count = tube.maxFills;
     for (let i = 0; i < count; i++) {
       ctx.beginPath();
@@ -291,7 +304,7 @@ function drawBadge(ctx, tube, glassColor) {
     }
   } else if (tube.oneWay) {
     ctx.fillStyle = glassColor;
-    ctx.globalAlpha = 0.7;
+    ctx.globalAlpha = opacity * 0.7;
     ctx.beginPath();
     ctx.moveTo(-0.13, y - 0.08);
     ctx.lineTo(0.13, y - 0.08);
@@ -300,6 +313,62 @@ function drawBadge(ctx, tube, glassColor) {
     ctx.fill();
   }
   ctx.restore();
+}
+
+/**
+ * The cap of a complete tube, in the color it holds. It drops in from above as `tube.cap`
+ * goes from 0 to 1, a little past 1 while it presses in, and lifts away as it goes back.
+ */
+function drawCap(ctx, tube) {
+  const { plugDepth, lidHeight, lidOverhang, knobWidth, knobHeight } = CAP;
+  const lift = (1 - tube.cap) * CAP_DROP;
+  const mouth = -tube.height - lift;
+  const lidHalf = TUBE_RADIUS + lidOverhang;
+  const color = LIQUID_COLORS[tube.topColor] ?? HIDDEN_COLOR;
+
+  ctx.save();
+  ctx.globalAlpha = Math.min(1, tube.cap * 1.6);
+  ctx.lineWidth = GLASS_LINE_WIDTH * 0.8;
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
+
+  // The plug, in the mouth, darker since it sits in the shade of the lid.
+  ctx.fillStyle = color;
+  ctx.fillRect(-LIQUID_RADIUS, mouth, LIQUID_RADIUS * 2, plugDepth);
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
+  ctx.fillRect(-LIQUID_RADIUS, mouth, LIQUID_RADIUS * 2, plugDepth);
+
+  ctx.fillStyle = color;
+  roundedRect(
+    ctx,
+    -knobWidth / 2,
+    mouth - lidHeight - knobHeight,
+    knobWidth,
+    knobHeight + 0.04,
+    0.03
+  );
+  ctx.fill();
+  ctx.stroke();
+  roundedRect(ctx, -lidHalf, mouth - lidHeight, lidHalf * 2, lidHeight, 0.06);
+  ctx.fill();
+  ctx.stroke();
+
+  // Light along the top and shade along the bottom make the lid look solid.
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+  ctx.fillRect(-lidHalf + 0.07, mouth - lidHeight + 0.035, lidHalf * 2 - 0.14, 0.04);
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.18)';
+  ctx.fillRect(-lidHalf + 0.03, mouth - 0.05, lidHalf * 2 - 0.06, 0.04);
+  ctx.restore();
+}
+
+/** A rectangle with rounded corners; drawn by hand, as older browsers lack roundRect. */
+function roundedRect(ctx, x, y, width, height, radius) {
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.arcTo(x + width, y, x + width, y + height, radius);
+  ctx.arcTo(x + width, y + height, x, y + height, radius);
+  ctx.arcTo(x, y + height, x, y, radius);
+  ctx.arcTo(x, y, x + width, y, radius);
+  ctx.closePath();
 }
 
 function drawPadlock(ctx, centerY) {

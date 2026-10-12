@@ -1,9 +1,11 @@
-import { linear } from './animator.js';
+import { easeOutBack, linear } from './animator.js';
 import { LIFT_HEIGHT } from './dimensions.js';
 
 const DURATION_MS = {
   lift: 130,
   melt: 650,
+  capOn: 320,
+  capOff: 200,
   shake: 320,
   hop: 380,
   pulse: 1400,
@@ -46,6 +48,35 @@ export function melt(animator, tube) {
       tube.ice = from * (1 - t);
     },
     { key: `ice-${tube.index}` }
+  );
+}
+
+/** Animation key for a tube's cap. */
+export function capKey(tube) {
+  return `cap-${tube.index}`;
+}
+
+/** Drops the cap onto a tube that became complete; it presses in a little as it lands. */
+export function closeCap(animator, tube) {
+  const from = tube.cap;
+  return animator.run(
+    DURATION_MS.capOn,
+    (t) => {
+      tube.cap = from + (1 - from) * t;
+    },
+    { ease: easeOutBack, key: capKey(tube) }
+  );
+}
+
+/** Lifts the cap off a tube that is no longer complete, e.g. after an undo. */
+export function openCap(animator, tube) {
+  const from = tube.cap;
+  return animator.run(
+    DURATION_MS.capOff,
+    (t) => {
+      tube.cap = from * (1 - t);
+    },
+    { key: capKey(tube) }
   );
 }
 

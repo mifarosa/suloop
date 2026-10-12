@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { MAX_COLOR_COUNT } from '../src/game/levels.js';
 import { Animator, easeInOutCubic, linear } from '../src/scene/animator.js';
+import { advancePieces, launchPieces } from '../src/scene/confetti.js';
 import { HIDDEN } from '../src/game/rules.js';
 import {
   ROW_GAP,
@@ -11,8 +12,10 @@ import {
   tubeHeight
 } from '../src/scene/dimensions.js';
 import { arrangeTubes, fitToView } from '../src/scene/layout.js';
-import { HIDDEN_COLOR, LIQUID_COLORS } from '../src/scene/palette.js';
+import { CONFETTI_COLORS, HIDDEN_COLOR, LIQUID_COLORS } from '../src/scene/palette.js';
+import { closeCap, openCap } from '../src/scene/motions.js';
 import { animatePour } from '../src/scene/pour.js';
+import { createRandom } from '../src/game/random.js';
 import { drawScene } from '../src/scene/renderer.js';
 import { TubeView } from '../src/scene/tubeView.js';
 
@@ -215,28 +218,28 @@ describe('tall tubes', () => {
   });
 });
 
-describe('drawScene', () => {
-  // A stand-in canvas context that accepts every drawing call and records fills and text.
-  function recordingContext() {
-    const fills = [];
-    const texts = [];
-    const strokes = [];
-    const record = {
-      fillRect: (...args) => fills.push({ style: ctx.fillStyle, args }),
-      fill: () => fills.push({ style: ctx.fillStyle }),
-      stroke: () => strokes.push(ctx.strokeStyle),
-      fillText: (text) => texts.push(text)
-    };
-    const ctx = new Proxy(
-      { fills, texts, strokes },
-      {
-        get: (target, name) => (name in target ? target[name] : (record[name] ?? (() => {}))),
-        set: (target, name, value) => ((target[name] = value), true)
-      }
-    );
-    return ctx;
-  }
+// A stand-in canvas context that accepts every drawing call and records fills and text.
+function recordingContext() {
+  const fills = [];
+  const texts = [];
+  const strokes = [];
+  const record = {
+    fillRect: (...args) => fills.push({ style: ctx.fillStyle, args }),
+    fill: () => fills.push({ style: ctx.fillStyle }),
+    stroke: () => strokes.push(ctx.strokeStyle),
+    fillText: (text) => texts.push(text)
+  };
+  const ctx = new Proxy(
+    { fills, texts, strokes },
+    {
+      get: (target, name) => (name in target ? target[name] : (record[name] ?? (() => {}))),
+      set: (target, name, value) => ((target[name] = value), true)
+    }
+  );
+  return ctx;
+}
 
+describe('drawScene', () => {
   const sceneWith = (tubes) => ({
     width: 400,
     height: 800,
@@ -300,6 +303,64 @@ describe('drawScene', () => {
   });
 });
 
+describe('caps', () => {
+  it('drops onto a complete tube, presses in a little and settles', () => {
+    const animator = new Animator();
+    const tube = new TubeView(0);
+    const start = performance.now();
+    const values = [];
+    closeCap(animator, tube);
+    for (let ms = 0; ms <= 400; ms += 20) {
+      animator.tick(start + ms);
+      values.push(tube.cap);
+    }
+    expect(Math.max(...values)).toBeGreaterThan(1);
+    expect(values.at(-1)).toBe(1);
+  });
+
+  it('lifts off from wherever it is', () => {
+    const animator = new Animator();
+    const tube = new TubeView(0);
+    tube.cap = 0.6;
+    const start = performance.now();
+    openCap(animator, tube);
+    animator.tick(start + 100);
+    expect(tube.cap).toBeGreaterThan(0);
+    expect(tube.cap).toBeLessThan(0.6);
+    animator.tick(start + 250);
+    expect(tube.cap).toBe(0);
+  });
+
+  it('is drawn in the color of the tube, and hides the badge of a special tube', () => {
+    const tube = new TubeView(0, 4, { oneWay: true });
+    tube.showColors([4, 4, 4, 4]);
+    const scene = {
+      width: 400,
+      height: 800,
+      tubes: [tube],
+      streams: [],
+      view: { scale: 50, originX: 200, originY: 600 },
+      glassColor: '#ffffff'
+    };
+    const capFills = () => {
+      const ctx = recordingContext();
+      drawScene(ctx, scene);
+      return ctx.fills.filter((fill) => fill.style === LIQUID_COLORS[4]).length;
+    };
+    const glassFills = () => {
+      const ctx = recordingContext();
+      drawScene(ctx, scene);
+      return ctx.fills.filter((fill) => fill.style === '#ffffff').length;
+    };
+
+    const uncapped = { liquid: capFills(), glass: glassFills() };
+    tube.cap = 1;
+    expect(capFills()).toBeGreaterThan(uncapped.liquid);
+    // The one-way arrow is a glass-colored fill; the cap takes its place.
+    expect(glassFills()).toBe(uncapped.glass - 1);
+  });
+});
+
 describe('Animator', () => {
   it('eases from 0 to 1', () => {
     expect([easeInOutCubic(0), easeInOutCubic(0.5), easeInOutCubic(1)]).toEqual([0, 0.5, 1]);
@@ -355,5 +416,63 @@ describe('Animator', () => {
     animator.run(100, () => {});
     expect(starts).toBe(2);
     expect(animator.isRunning).toBe(true);
+  });
+});
+
+describe('confetti', () => {
+  const screen = { width: 390, height: 844 };
+  const burst = () => launchPieces(createRandom(7), screen);
+  /** Runs a burst at 60 frames a second, calling `onFrame` with the time and pieces left. */
+  const play = (pieces, onFrame = () => {}) => {
+    let time = 0;
+    while (pieces.length > 0 && time < 10) {
+      pieces = advancePieces(pieces, 1 / 60, screen);
+      time += 1 / 60;
+      onFrame(time, pieces);
+    }
+    return time;
+  };
+
+  it('shoots half the pieces from each bottom corner, up and toward the middle', () => {
+    const pieces = burst();
+    const left = pieces.filter((piece) => piece.x === 0);
+    const right = pieces.filter((piece) => piece.x === screen.width);
+    expect(left.length).toBe(pieces.length / 2);
+    expect(right.length).toBe(pieces.length / 2);
+    expect(pieces.every((piece) => piece.y === screen.height && piece.vy < 0)).toBe(true);
+    expect(left.every((piece) => piece.vx > 0)).toBe(true);
+    expect(right.every((piece) => piece.vx < 0)).toBe(true);
+    expect(pieces.every((piece) => CONFETTI_COLORS.includes(piece.color))).toBe(true);
+  });
+
+  it('flies up over most of the screen and comes down across all of it', () => {
+    let highest = Infinity;
+    let leftmost = Infinity;
+    let rightmost = -Infinity;
+    play(burst(), (time, pieces) => {
+      for (const piece of pieces) highest = Math.min(highest, piece.y);
+      if (time < 1) return;
+      for (const piece of pieces) {
+        leftmost = Math.min(leftmost, piece.x);
+        rightmost = Math.max(rightmost, piece.x);
+      }
+    });
+    expect(highest).toBeLessThan(screen.height * 0.2);
+    expect(leftmost).toBeLessThan(screen.width * 0.2);
+    expect(rightmost).toBeGreaterThan(screen.width * 0.8);
+  });
+
+  it('is gone within a few seconds', () => {
+    const duration = play(burst());
+    expect(duration).toBeGreaterThan(2);
+    expect(duration).toBeLessThanOrEqual(5);
+  });
+
+  it('keeps a piece in place until its launch', () => {
+    const waiting = burst().filter((piece) => piece.age < -0.05);
+    expect(waiting.length).toBeGreaterThan(0);
+    const before = waiting.map(({ x, y }) => ({ x, y }));
+    advancePieces(waiting, 0.02, screen);
+    expect(waiting.map(({ x, y }) => ({ x, y }))).toEqual(before);
   });
 });

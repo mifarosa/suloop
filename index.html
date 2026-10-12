@@ -25,23 +25,81 @@
         <span id="subtitle">Kolay · 0 hamle</span>
       </div>
       <nav class="hud-actions">
-        <button id="undo" type="button">Geri al</button>
-        <button id="hint" type="button">İpucu</button>
-        <button id="restart" type="button">Baştan</button>
+        <button id="info" type="button" class="icon" aria-label="Bu seviyenin kuralları">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="12" r="9.5" />
+            <path d="M12 11v6M12 7.2v.1" />
+          </svg>
+        </button>
         <button id="levels-open" type="button" class="primary">Seviyeler</button>
       </nav>
     </header>
 
+    <nav class="toolbar" aria-label="Hamleler">
+      <button id="undo" type="button" class="tool">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M9 7 4 12l5 5" />
+          <path d="M4.5 12H14a5.5 5.5 0 0 1 0 11h-2" />
+        </svg>
+        <span>Geri al</span>
+        <span class="count" hidden></span>
+      </button>
+      <button id="hint" type="button" class="tool">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M9 18h6M10 21.5h4" />
+          <path
+            d="M12 2.5a6.5 6.5 0 0 0-3.8 11.8c.5.4.8 1 .8 1.7h6c0-.7.3-1.3.8-1.7A6.5 6.5 0 0 0 12 2.5Z"
+          />
+        </svg>
+        <span>İpucu</span>
+        <span class="count"></span>
+      </button>
+      <button id="restart" type="button" class="tool">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M20 12a8 8 0 1 1-2.3-5.6" />
+          <path d="M20 4v5h-5" />
+        </svg>
+        <span>Baştan</span>
+      </button>
+    </nav>
+
     <div id="toast" role="status" aria-live="polite"></div>
 
     <div id="win" class="overlay" hidden>
-      <div class="card" role="dialog" aria-modal="true" aria-labelledby="win-title">
+      <div class="card win" role="dialog" aria-modal="true" aria-labelledby="win-title">
+        <div id="win-stars" class="win-stars" role="img"></div>
         <h2 id="win-title">Tebrikler!</h2>
-        <p id="win-text"></p>
+        <dl class="win-stats">
+          <div>
+            <dt>Hamlen</dt>
+            <dd id="win-moves"></dd>
+          </div>
+          <div>
+            <dt id="win-fewest-label">En az</dt>
+            <dd id="win-fewest"></dd>
+          </div>
+        </dl>
+        <ul id="win-notes" class="win-notes"></ul>
+        <section id="win-attempts-section" class="attempts-section">
+          <h3>Son denemeler</h3>
+          <ol id="win-attempts" class="attempts"></ol>
+        </section>
         <div class="card-actions">
-          <button id="win-levels" type="button">Seviyeler</button>
+          <button id="replay" type="button">Tekrar et</button>
           <button id="next" type="button" class="primary">Sonraki seviye</button>
         </div>
+        <button id="win-levels" type="button" class="link">Seviyeler</button>
+      </div>
+    </div>
+
+    <div id="rules" class="overlay" hidden>
+      <div class="card rules" role="dialog" aria-modal="true" aria-labelledby="rules-title">
+        <header class="dialog-header">
+          <h2 id="rules-title">Kurallar</h2>
+          <button id="rules-close" type="button" class="icon" aria-label="Kapat">✕</button>
+        </header>
+        <div id="rules-body" class="rules-body"></div>
+        <button id="rules-action" type="button" class="primary">Anladım</button>
       </div>
     </div>
 
@@ -54,6 +112,13 @@
         <div id="levels-body" class="level-menu-body"></div>
         <footer class="level-menu-footer">
           <button id="transfer-open" type="button">İlerlemeyi taşı</button>
+          <a
+            class="button coffee"
+            href="https://buymeacoffee.com/mifarosa"
+            target="_blank"
+            rel="noopener"
+            >☕ Kahve ısmarla</a
+          >
         </footer>
       </div>
     </div>
@@ -90,6 +155,9 @@
         </form>
       </div>
     </div>
+
+    <!-- Last, so it falls over the win dialog too. -->
+    <canvas id="confetti" aria-hidden="true" hidden></canvas>
 
     <script type="module" src="/src/main.js"></script>
   </body>

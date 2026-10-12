@@ -22,6 +22,8 @@ export class TubeScene {
   #canvas;
   #context;
   #getTopInset;
+  #getBottomInset;
+  #confetti;
   #animator = new Animator(() => this.#requestRender());
   /** @type {TubeView[]} */
   #tubes = [];
@@ -40,12 +42,17 @@ export class TubeScene {
 
   /**
    * @param {HTMLCanvasElement} canvas
-   * @param {{ getTopInset?: () => number }} [options] pixels at the top covered by the HUD
+   * @param {object} [options]
+   * @param {() => number} [options.getTopInset] pixels at the top covered by the HUD
+   * @param {() => number} [options.getBottomInset] pixels at the bottom covered by the toolbar
+   * @param {{ burst: () => void }} [options.confetti] thrown when a puzzle is solved
    */
-  constructor(canvas, { getTopInset = () => 0 } = {}) {
+  constructor(canvas, { getTopInset = () => 0, getBottomInset = () => 0, confetti = null } = {}) {
     this.#canvas = canvas;
     this.#context = canvas.getContext('2d');
     this.#getTopInset = getTopInset;
+    this.#getBottomInset = getBottomInset;
+    this.#confetti = confetti;
 
     canvas.addEventListener('pointerdown', (event) => this.#handlePointerDown(event));
     new ResizeObserver(() => this.#resize()).observe(canvas);
@@ -91,14 +98,20 @@ export class TubeScene {
   }
 
   /**
-   * Shows how many fills each cracked tube has left and which tubes are locked. Ice melts off
-   * a tube that just opened; anything else changes at once (e.g. after an undo).
-   * @param {Array<{ fills: number | null, locked: boolean }>} states one per tube
+   * Shows how many fills each cracked tube has left, which tubes are locked and which are
+   * complete and so capped. Ice melts off a tube that just opened, and caps go on and come
+   * off with a little animation; a tube in the middle of a pour gets its cap when the pour
+   * ends. The rest changes at once.
+   * @param {Array<{ fills: number | null, locked: boolean, capped?: boolean }>} states one per
+   *   tube
+   * @param {{ instant?: boolean }} [options] instant: put caps on and off without animating,
+   *   e.g. after a restart
    */
-  showTubeStates(states) {
-    states.forEach(({ fills, locked }, index) => {
+  showTubeStates(states, { instant = false } = {}) {
+    states.forEach(({ fills, locked, capped = false }, index) => {
       const tube = this.#tubes[index];
       tube.fills = fills;
+      this.#setCapped(tube, capped, instant);
       if (tube.lockKey === null) return;
       if (!locked && tube.ice === 1) motions.melt(this.#animator, tube);
       else if (locked) tube.ice = 1;
@@ -137,8 +150,10 @@ export class TubeScene {
     );
   }
 
+  /** Makes the tubes jump one after another and throws confetti; resolves once they land. */
   celebrate() {
     for (const index of [...this.#pours.keys()]) this.#finishPour(index);
+    this.#confetti?.burst();
     return motions.celebrate(this.#animator, this.#tubes);
   }
 
@@ -172,6 +187,29 @@ export class TubeScene {
     if (!handle.cancelled) this.#settle(handle);
   }
 
+  #setCapped(tube, capped, instant) {
+    if (instant) {
+      tube.capped = capped;
+      this.#animator.stop(motions.capKey(tube));
+      tube.cap = capped ? 1 : 0;
+      return;
+    }
+    if (tube.capped === capped) return;
+    tube.capped = capped;
+    if (!this.#pours.has(tube.index)) this.#playCap(tube);
+  }
+
+  /** Moves a tube's cap toward where it belongs; a cap that lands makes the tube hop. */
+  async #playCap(tube) {
+    if (tube.cap === (tube.capped ? 1 : 0)) return;
+    if (!tube.capped) {
+      motions.openCap(this.#animator, tube);
+      return;
+    }
+    await motions.closeCap(this.#animator, tube);
+    if (tube.capped && tube.cap === 1 && this.#tubes[tube.index] === tube) this.hop(tube.index);
+  }
+
   /** Jumps a pour that involves the tube at `index` to its end. */
   #finishPour(index) {
     const handle = this.#pours.get(index);
@@ -193,6 +231,9 @@ export class TubeScene {
     this.#streams.delete(stream);
     this.#pours.delete(from);
     this.#pours.delete(to);
+    // Caps that waited for the pour to end.
+    this.#playCap(source);
+    this.#playCap(this.#tubes[to]);
 
     if (this.#layoutPending && this.#pours.size === 0) {
       this.#layoutPending = false;
@@ -228,7 +269,13 @@ export class TubeScene {
     if (!this.#bounds) return;
 
     const { width, height } = this.#size;
-    this.#view = fitToView(this.#bounds, width, height, this.#getTopInset());
+    this.#view = fitToView(
+      this.#bounds,
+      width,
+      height,
+      this.#getTopInset(),
+      this.#getBottomInset()
+    );
   }
 
   #resize() {

@@ -21,6 +21,9 @@
   --oil: #f472b6;
   --master: #a855f7;
   --error: #ef4444;
+  /* Earned stars, and the counts on the toolbar. */
+  --star: #fbbf24;
+  --star-off: #dfe6ff33;
   /* Text on a tile filled with a difficulty color; dark in both themes. */
   --on-difficulty: #0b1430;
   /* Read by the scene to tint the glass tubes. */
@@ -50,6 +53,8 @@
     --cracked: #ea580c;
     /* The redder stages and master stay as in the dark theme: darker, the dark tile numbers would lose contrast. */
     --glass: #5a6a99;
+    --star: #f59e0b;
+    --star-off: #141a3326;
     color-scheme: light;
   }
 }
@@ -86,17 +91,24 @@ body {
   touch-action: manipulation;
 }
 
-/* Heads-up display: the title and move count on the left, actions on the right. */
+#confetti {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* Heads-up display: the title and move count on the left, info and levels on the right. */
 .hud {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   display: flex;
-  flex-wrap: wrap;
   justify-content: space-between;
-  align-items: center;
-  gap: 10px 16px;
+  align-items: flex-start;
+  gap: 10px 12px;
   padding: calc(env(safe-area-inset-top, 0px) + 12px) 16px 12px;
   /* Let taps between the HUD items reach the tubes underneath. */
   pointer-events: none;
@@ -131,11 +143,83 @@ body {
 
 .hud-actions {
   display: flex;
-  flex-wrap: wrap;
+  flex: none;
   gap: 6px;
 }
 
-button {
+#info svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+/* The moves toolbar at the bottom, in reach of the thumb. */
+.toolbar {
+  position: fixed;
+  left: 50%;
+  bottom: 0;
+  display: flex;
+  gap: 8px;
+  padding: 10px 16px calc(env(safe-area-inset-bottom, 0px) + 14px);
+  transform: translateX(-50%);
+}
+
+button.tool {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  min-width: 84px;
+  padding: 8px 14px 7px;
+  border-radius: 16px;
+  font-size: 0.8rem;
+}
+
+button.tool svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* How many are left, as a badge on the corner of the button. */
+button.tool .count {
+  position: absolute;
+  top: -6px;
+  right: -4px;
+  min-width: 20px;
+  padding: 1px 6px;
+  box-sizing: border-box;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  line-height: 18px;
+}
+
+button.tool.empty .count {
+  background: var(--line);
+  color: var(--muted);
+}
+
+button.link {
+  padding: 4px 10px;
+  border: none;
+  background: none;
+  color: var(--muted);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+button,
+.button {
   padding: 8px 14px;
   border: 1px solid var(--line);
   border-radius: 999px;
@@ -150,7 +234,13 @@ button {
     opacity 0.12s;
 }
 
-button:active {
+.button {
+  display: inline-block;
+  text-decoration: none;
+}
+
+button:active,
+.button:active {
   transform: scale(0.96);
 }
 
@@ -159,7 +249,8 @@ button:disabled {
   cursor: default;
 }
 
-button:focus-visible {
+button:focus-visible,
+.button:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
@@ -173,7 +264,8 @@ button.primary {
 #toast {
   position: fixed;
   left: 50%;
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 24px);
+  /* Above the toolbar. */
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 92px);
   /* Without a width, a box at left: 50% shrinks to half the screen and long notes wrap early. */
   width: max-content;
   max-width: min(32rem, calc(100% - 32px));
@@ -279,9 +371,18 @@ button.primary {
 
 .level-menu-footer {
   display: flex;
+  flex-wrap: wrap;
   justify-content: center;
+  gap: 8px;
   padding: 10px 16px 14px;
   border-top: 1px solid var(--line);
+}
+
+/* Buy Me a Coffee's own yellow, so the link is recognized at a glance. */
+.button.coffee {
+  border-color: transparent;
+  background: #ffdd00;
+  color: #0d0c22;
 }
 
 button.icon {
@@ -470,7 +571,8 @@ button.icon {
   font-size: 0.8rem;
 }
 
-.level-tile svg {
+/* The padlock of a locked level. */
+.level-tile > svg {
   position: absolute;
   right: 6px;
   bottom: 6px;
@@ -573,7 +675,265 @@ button.icon {
 
 @media (prefers-reduced-motion: reduce) {
   button,
+  .button,
   #toast {
     transition: none;
+  }
+}
+
+/* Stars: earned ones filled, the rest as faint outlines. */
+.stars {
+  display: inline-flex;
+  gap: 1px;
+}
+
+.stars svg {
+  width: 14px;
+  height: 14px;
+}
+
+.stars svg.on {
+  fill: var(--star);
+}
+
+.stars svg.off {
+  fill: var(--star-off);
+}
+
+/* The win dialog: stars on top, then the moves against the fewest, then what was earned. */
+.card.win {
+  gap: 10px;
+  width: min(340px, 100%);
+  box-sizing: border-box;
+}
+
+.stars.big {
+  gap: 6px;
+}
+
+.stars.big svg {
+  width: 46px;
+  height: 46px;
+  animation: star-pop 0.45s backwards cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.stars.big svg:nth-child(2) {
+  width: 56px;
+  height: 56px;
+  margin-top: -8px;
+  animation-delay: 0.15s;
+}
+
+.stars.big svg:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes star-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.3) rotate(-20deg);
+  }
+}
+
+.win-stats {
+  display: flex;
+  gap: 28px;
+  margin: 0;
+}
+
+.win-stats div {
+  display: grid;
+  justify-items: center;
+}
+
+.win-stats dt {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.win-stats dd {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 1.5rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.win-notes {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.win-notes li {
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--star) 20%, transparent);
+}
+
+.attempts-section {
+  display: grid;
+  gap: 6px;
+  width: 100%;
+}
+
+.attempts-section h3,
+.rules-section h3 {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.attempts {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.attempts li,
+.star-rules li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* The latest solution, the one just made, stands out. */
+.card.win .attempts li:first-child {
+  font-weight: 600;
+}
+
+.card.win .attempts {
+  justify-content: center;
+}
+
+/* The rules dialog: a sample tube beside each rule, then stars, supplies and attempts. */
+.card.rules {
+  box-sizing: border-box;
+  width: min(420px, 100%);
+  max-height: calc(100dvh - 32px);
+  /* The header and the button stay; the rules in between scroll. */
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  justify-items: stretch;
+  gap: 14px;
+  background: var(--panel-solid);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  text-align: left;
+}
+
+.rules-body {
+  display: grid;
+  gap: 18px;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.rules-section {
+  display: grid;
+  gap: 8px;
+}
+
+.rule-list {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rule {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.rule-icon {
+  flex: none;
+  width: 48px;
+  height: 92px;
+}
+
+.rule-icon.symbol {
+  display: grid;
+  place-items: center;
+}
+
+.rule-icon.symbol svg {
+  width: 30px;
+  height: 30px;
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.rule-text strong {
+  font-size: 1rem;
+}
+
+.card .rule-text p {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-family: var(--font-display);
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+
+.star-rules,
+.supplies {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.88rem;
+}
+
+.supplies li {
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.card p.muted {
+  color: var(--muted);
+}
+
+/* The best stars of a solved level, along the bottom of its tile. */
+.stars.tile-stars {
+  position: absolute;
+  bottom: 5px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.stars.tile-stars svg {
+  width: 10px;
+  height: 10px;
+}
+
+.level-tile.solved .stars.tile-stars svg.on {
+  fill: var(--on-difficulty);
+}
+
+.level-tile.solved .stars.tile-stars svg.off {
+  fill: color-mix(in srgb, var(--on-difficulty) 25%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stars.big svg {
+    animation: none;
   }
 }

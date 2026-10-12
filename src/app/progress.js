@@ -1,3 +1,6 @@
+import { ATTEMPTS_KEPT, INITIAL_HINTS } from './economy.js';
+import { MAX_STARS } from '../game/stars.js';
+
 /**
  * The player's progress, kept in the browser's localStorage.
  *
@@ -9,6 +12,16 @@
  * @property {number} solved how many levels are solved
  * @property {number} current the level to play, at most one past the solved ones
  * @property {string | null} dailyDone date key of the last solved daily puzzle
+ * @property {number} hints hints the player has left
+ * @property {number} spareUndos undos the player has earned, for when a level's run out
+ * @property {Record<number, LevelRecord>} records per level, how it went when it was solved
+ */
+
+/**
+ * @typedef {object} LevelRecord
+ * @property {number} best the most stars earned on the level
+ * @property {Array<{ moves: number, stars: number }>} attempts the last few solutions, oldest
+ *   first
  */
 
 const STORAGE_KEY = 'suloop:progress:v1';
@@ -18,7 +31,10 @@ export const INITIAL_PROGRESS = Object.freeze({
   mode: 'level',
   solved: 0,
   current: 1,
-  dailyDone: null
+  dailyDone: null,
+  hints: INITIAL_HINTS,
+  spareUndos: 0,
+  records: Object.freeze({})
 });
 
 /** The highest level the player may open. */
@@ -43,8 +59,41 @@ export function normalizeProgress(saved) {
     mode: data.mode === 'daily' ? 'daily' : 'level',
     solved,
     current: clamp(currentValue, 1, lastOpenLevel({ solved })),
-    dailyDone: typeof data.dailyDone === 'string' ? data.dailyDone : null
+    dailyDone: typeof data.dailyDone === 'string' ? data.dailyDone : null,
+    // Saves from before hints were counted start with the hints of a new player.
+    hints: isCount(data.hints) ? data.hints : INITIAL_HINTS,
+    spareUndos: isCount(data.spareUndos) ? data.spareUndos : 0,
+    records: normalizeRecords(data.records)
   };
+}
+
+/** Keeps the records of real levels, and of those only what makes sense. */
+function normalizeRecords(saved) {
+  if (!saved || typeof saved !== 'object') return {};
+
+  const records = {};
+  for (const [key, record] of Object.entries(saved)) {
+    const level = Number(key);
+    if (!Number.isInteger(level) || level < 1 || !record || typeof record !== 'object') continue;
+
+    const attempts = Array.isArray(record.attempts)
+      ? record.attempts
+          .filter((attempt) => isCount(attempt?.moves) && isStars(attempt.stars))
+          .map(({ moves, stars }) => ({ moves, stars }))
+          .slice(-ATTEMPTS_KEPT)
+      : [];
+    const best = Math.max(isStars(record.best) ? record.best : 0, ...attempts.map((a) => a.stars));
+    if (best > 0) records[level] = { best, attempts };
+  }
+  return records;
+}
+
+function isCount(value) {
+  return Number.isInteger(value) && value >= 0;
+}
+
+function isStars(value) {
+  return Number.isInteger(value) && value >= 1 && value <= MAX_STARS;
 }
 
 /**
