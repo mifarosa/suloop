@@ -130,6 +130,11 @@ describe('levelSettings', () => {
     expect(MASTER_SETTINGS.every((settings) => settings.undoLimit === 3)).toBe(true);
   });
 
+  it('never hides colors on a board with oil', () => {
+    // Water sinking under oil would move units that are still hidden.
+    expect(MASTER_SETTINGS.some((s) => s.oilColorCount > 0 && s.hiddenColors)).toBe(false);
+  });
+
   it('never needs more colors than the maximum', () => {
     for (let level = 1; level <= CHAPTER_LEVEL_COUNT + MASTER_SETTINGS.length; level++) {
       expect(levelSettings(level).colorCount).toBeLessThanOrEqual(MAX_COLOR_COUNT);
@@ -143,7 +148,11 @@ describe('rulesFirstUsedAt', () => {
     expect(rulesFirstUsedAt(65)).toEqual(['hiddenColors']);
     expect(rulesFirstUsedAt(66)).toEqual(['tallTubes']);
     expect(rulesFirstUsedAt(67)).toEqual(['halfTube']);
-    for (const level of [1, 60, 62, 68, 70, 72, 73, 77, 79]) {
+    expect(rulesFirstUsedAt(73)).toEqual(['oneWayTube']);
+    expect(rulesFirstUsedAt(74)).toEqual(['crackedTube']);
+    expect(rulesFirstUsedAt(75)).toEqual(['lockedTube']);
+    expect(rulesFirstUsedAt(76)).toEqual(['oil']);
+    for (const level of [1, 60, 62, 68, 70, 72, 77, 79, 81, 93]) {
       expect(rulesFirstUsedAt(level)).toEqual([]);
     }
   });
@@ -166,11 +175,13 @@ describe('chapterIdOfLevel', () => {
 
 describe('generatePuzzle', () => {
   it('deals the same puzzle for the same seed', () => {
-    expect(generatePuzzle(123, { colorCount: 5 })).toEqual(generatePuzzle(123, { colorCount: 5 }));
+    expect(generatePuzzle(123, { colorCount: 5 }).tubes).toEqual(
+      generatePuzzle(123, { colorCount: 5 }).tubes
+    );
   });
 
   it('deals full tubes of every color plus two empty ones', () => {
-    const tubes = generatePuzzle(99, { colorCount: 6 });
+    const { tubes } = generatePuzzle(99, { colorCount: 6 });
 
     expect(tubes).toHaveLength(8);
     expect(tubes.slice(6)).toEqual([[], []]);
@@ -179,7 +190,7 @@ describe('generatePuzzle', () => {
 
   it('deals only solvable puzzles that do not start half sorted', () => {
     for (let seed = 1; seed <= 20; seed++) {
-      const tubes = generatePuzzle(seed, { colorCount: 4 });
+      const { tubes } = generatePuzzle(seed, { colorCount: 4 });
       expect(solve(tubes)).not.toBeNull();
       expect(tubes.every((tube) => topRun(tube).count < 3)).toBe(true);
     }
@@ -189,40 +200,41 @@ describe('generatePuzzle', () => {
 describe('level and daily puzzles', () => {
   // Players share and compare levels, so a release must never change an existing level.
   it('keeps level layouts stable across releases', () => {
-    expect(createLevelPuzzle(1)).toEqual([[1, 0, 1, 2], [0, 2, 1, 2], [1, 0, 0, 2], [], []]);
-    expect(createLevelPuzzle(46)).toEqual(PINNED_LEVEL_46);
-    expect(createLevelPuzzle(61)).toEqual(PINNED_LEVEL_61);
+    expect(createLevelPuzzle(1).tubes).toEqual([[1, 0, 1, 2], [0, 2, 1, 2], [1, 0, 0, 2], [], []]);
+    expect(createLevelPuzzle(46).tubes).toEqual(PINNED_LEVEL_46);
+    expect(createLevelPuzzle(61).tubes).toEqual(PINNED_LEVEL_61);
   });
 
   it('deals every level with its settings, and every level can be solved', () => {
     // All chapter levels and the first few blocks of master levels.
     for (let level = 1; level <= CHAPTER_LEVEL_COUNT + 40; level++) {
-      const tubes = createLevelPuzzle(level);
+      const { tubes, board } = createLevelPuzzle(level);
       const settings = levelSettings(level);
       const { colorCount, emptyTubeCount, halfTubeCount, capacity } = settings;
+      const emptyCount =
+        emptyTubeCount + halfTubeCount + settings.oneWayTubeCount + settings.crackedTubeCount;
       expect(countUnits(tubes).size).toBe(colorCount);
       expect(new Set(countUnits(tubes).values())).toEqual(new Set([capacity]));
-      expect(tubes.filter((tube) => tube.length === 0)).toHaveLength(
-        emptyTubeCount + halfTubeCount
-      );
-      expect(solve(tubes, { capacity, sizes: tubeSizes(settings) })).not.toBeNull();
+      expect(tubes.filter((tube) => tube.length === 0)).toHaveLength(emptyCount);
+      expect(tubes.map((_, i) => board.sizeOf(i))).toEqual(tubeSizes(settings));
+      expect(solve(tubes, { board })).not.toBeNull();
     }
   });
 
   it("moves on to another seed when a level's own seed deals no solvable puzzle", () => {
-    // Level 7888 has seven colors and one empty tube, and its own seed deals no solvable board.
-    const settings = levelSettings(7888);
+    // Level 924 has seven colors and one empty tube, and its own seed deals no solvable board.
+    const settings = levelSettings(924);
     expect(settings).toMatchObject({ colorCount: 7, emptyTubeCount: 1, capacity: 4 });
-    expect(generatePuzzle(hashString('level-7888'), settings)).toBeNull();
+    expect(generatePuzzle(hashString('level-924'), settings)).toBeNull();
 
-    const tubes = createLevelPuzzle(7888);
-    expect(tubes).toEqual(createLevelPuzzle(7888));
+    const { tubes } = createLevelPuzzle(924);
+    expect(tubes).toEqual(createLevelPuzzle(924).tubes);
     expect(countUnits(tubes).size).toBe(7);
     expect(solve(tubes)).not.toBeNull();
   });
 
   it('keeps daily layouts stable across releases', () => {
-    expect(createDailyPuzzle('2026-10-09')).toEqual([
+    expect(createDailyPuzzle('2026-10-09').tubes).toEqual([
       [4, 0, 6, 5],
       [2, 2, 3, 3],
       [0, 2, 1, 3],
@@ -236,6 +248,6 @@ describe('level and daily puzzles', () => {
   });
 
   it('uses a fixed number of colors for the daily puzzle', () => {
-    expect(countUnits(createDailyPuzzle('2026-01-01')).size).toBe(DAILY_COLOR_COUNT);
+    expect(countUnits(createDailyPuzzle('2026-01-01').tubes).size).toBe(DAILY_COLOR_COUNT);
   });
 });

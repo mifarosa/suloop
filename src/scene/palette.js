@@ -20,3 +20,7 @@ export const LIQUID_COLORS = [
 /** A unit whose color the player has not seen yet: a dark, neutral fill with a question mark. */
 export const HIDDEN_COLOR = '#3b4260';
 export const HIDDEN_MARK_COLOR = '#c9d1ee';
+
+/** Frost over a locked tube, and the ink of the padlock drawn on its key color. */
+export const ICE_COLOR = 'rgba(190, 225, 255, 0.55)';
+export const LOCK_INK = '#0b1430';

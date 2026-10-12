@@ -8,6 +8,10 @@ import { TALL_TUBE_CAPACITY, TUBE_CAPACITY } from './rules.js';
  * @property {number} colorCount
  * @property {number} emptyTubeCount empty full-size tubes
  * @property {number} halfTubeCount empty tubes that hold only HALF_TUBE_SIZE units
+ * @property {number} oneWayTubeCount empty tubes that take liquid but never give it back
+ * @property {number} crackedTubeCount empty tubes that can be poured into only a few times
+ * @property {number} lockedTubeCount filled tubes locked until their key color is complete
+ * @property {number} oilColorCount colors that are oil and float on top of the water
  * @property {number} capacity units of each color, and what a full-size tube holds
  * @property {boolean} hiddenColors whether only the top unit of each tube shows at first
  * @property {number | null} undoLimit moves the player may take back; null for no limit
@@ -15,6 +19,10 @@ import { TALL_TUBE_CAPACITY, TUBE_CAPACITY } from './rules.js';
 
 const PLAIN = Object.freeze({
   halfTubeCount: 0,
+  oneWayTubeCount: 0,
+  crackedTubeCount: 0,
+  lockedTubeCount: 0,
+  oilColorCount: 0,
   capacity: TUBE_CAPACITY,
   hiddenColors: false,
   undoLimit: null
@@ -60,7 +68,14 @@ const MASTER = Object.freeze({ ...PLAIN, undoLimit: MASTER_UNDO_LIMIT });
  * - tall tubes: eight colors in them are about as hard for random play as ten in plain ones
  *   (7% against 6% solved), with two tubes fewer,
  * - a half tube next to a single empty one: hardest of all (eight colors: 2.5%; nine: 1.5%),
- *   and it makes eight and nine colors with one free full-size tube solvable.
+ *   and it makes eight and nine colors with one free full-size tube solvable,
+ * - a one-way tube as the second empty tube: random play barely notices it (nine colors:
+ *   12%), but every pour into it is final,
+ * - a cracked tube as the second empty tube (eight colors: 8%),
+ * - a locked tube (eight colors: 10%); with a single empty tube it is often unsolvable,
+ * - oil, the hardest for random play (six colors: 1.2%), because oil left on a tube keeps
+ *   the water under it in place. Two oil colors are next to unsolvable, and oil is never
+ *   combined with hidden colors.
  * Every new rule first appears on its own, then in pairs.
  *
  * The first four settings were the whole list once; they stay in place so those levels
@@ -92,7 +107,27 @@ export const MASTER_SETTINGS = Object.freeze([
     capacity: TALL_TUBE_CAPACITY
   },
   { ...MASTER, colorCount: 7, emptyTubeCount: 1, halfTubeCount: 1, hiddenColors: true },
-  { ...MASTER, colorCount: 9, emptyTubeCount: 1, halfTubeCount: 1 }
+  { ...MASTER, colorCount: 9, emptyTubeCount: 1, halfTubeCount: 1 },
+  { ...MASTER, colorCount: 9, emptyTubeCount: 1, oneWayTubeCount: 1 },
+  { ...MASTER, colorCount: 8, emptyTubeCount: 1, crackedTubeCount: 1 },
+  { ...MASTER, colorCount: 8, emptyTubeCount: 2, lockedTubeCount: 1 },
+  { ...MASTER, colorCount: 6, emptyTubeCount: 2, oilColorCount: 1 },
+  { ...MASTER, colorCount: 7, emptyTubeCount: 1, oneWayTubeCount: 1, hiddenColors: true },
+  {
+    ...MASTER,
+    colorCount: 8,
+    emptyTubeCount: 2,
+    lockedTubeCount: 1,
+    capacity: TALL_TUBE_CAPACITY
+  },
+  {
+    ...MASTER,
+    colorCount: 7,
+    emptyTubeCount: 1,
+    crackedTubeCount: 1,
+    capacity: TALL_TUBE_CAPACITY
+  },
+  { ...MASTER, colorCount: 5, emptyTubeCount: 2, oilColorCount: 1, capacity: TALL_TUBE_CAPACITY }
 ]);
 
 export const MAX_COLOR_COUNT = Math.max(
@@ -134,19 +169,26 @@ export function levelSettings(level) {
   return { ...PLAIN, colorCount, emptyTubeCount };
 }
 
-/** @typedef {'limitedUndo' | 'hiddenColors' | 'tallTubes' | 'halfTube'} SpecialRule */
+/**
+ * @typedef {'limitedUndo' | 'hiddenColors' | 'tallTubes' | 'halfTube' | 'oneWayTube'
+ *   | 'crackedTube' | 'lockedTube' | 'oil'} SpecialRule
+ */
 
 /**
  * The special rules in a puzzle's settings.
  * @param {PuzzleSettings} settings
  * @returns {SpecialRule[]}
  */
-export function specialRules({ undoLimit, hiddenColors, capacity, halfTubeCount }) {
+export function specialRules(settings) {
   const rules = [];
-  if (undoLimit !== null) rules.push('limitedUndo');
-  if (hiddenColors) rules.push('hiddenColors');
-  if (capacity > TUBE_CAPACITY) rules.push('tallTubes');
-  if (halfTubeCount > 0) rules.push('halfTube');
+  if (settings.undoLimit !== null) rules.push('limitedUndo');
+  if (settings.hiddenColors) rules.push('hiddenColors');
+  if (settings.capacity > TUBE_CAPACITY) rules.push('tallTubes');
+  if (settings.halfTubeCount > 0) rules.push('halfTube');
+  if (settings.oneWayTubeCount > 0) rules.push('oneWayTube');
+  if (settings.crackedTubeCount > 0) rules.push('crackedTube');
+  if (settings.lockedTubeCount > 0) rules.push('lockedTube');
+  if (settings.oilColorCount > 0) rules.push('oil');
   return rules;
 }
 
@@ -163,14 +205,18 @@ export function rulesFirstUsedAt(level) {
 }
 
 /**
- * The puzzle for a numbered level. Seeds are derived from the level number, so a level
- * looks the same on every device and after every release.
+ * The puzzle for a numbered level: its tubes and the board's rules. Seeds are derived from
+ * the level number, so a level looks the same on every device and after every release.
+ * @returns {{ tubes: number[][], board: import('./rules.js').Board }}
  */
 export function createLevelPuzzle(level) {
   return dealPuzzle(`level-${level}`, levelSettings(level));
 }
 
-/** The daily puzzle, shared by everyone on the same calendar date ("YYYY-MM-DD"). */
+/**
+ * The daily puzzle, shared by everyone on the same calendar date ("YYYY-MM-DD").
+ * @returns {{ tubes: number[][], board: import('./rules.js').Board }}
+ */
 export function createDailyPuzzle(dateKey) {
   return dealPuzzle(`daily-${dateKey}`, DAILY_SETTINGS);
 }
@@ -184,8 +230,8 @@ export function createDailyPuzzle(dateKey) {
 function dealPuzzle(key, settings) {
   for (let attempt = 0; attempt < SEED_ATTEMPTS; attempt++) {
     const seedKey = attempt === 0 ? key : `${key}#${attempt}`;
-    const tubes = generatePuzzle(hashString(seedKey), settings);
-    if (tubes) return tubes;
+    const puzzle = generatePuzzle(hashString(seedKey), settings);
+    if (puzzle) return puzzle;
   }
   throw new Error(`Could not deal a solvable puzzle for ${key}`);
 }

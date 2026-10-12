@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { HIDDEN } from '../src/game/rules.js';
+import { Board, HIDDEN } from '../src/game/rules.js';
 import { GameSession } from '../src/game/session.js';
 
 // Two moves from solved: pour tube 1 into tube 0, then tube 2 into tube 3.
@@ -7,7 +7,7 @@ const nearlySolved = () => [[0, 0, 0], [1, 1, 1, 0], [1], []];
 
 describe('GameSession', () => {
   it('picks a tube up on the first tap and puts it down on a second tap', () => {
-    const session = new GameSession(nearlySolved());
+    const session = new GameSession(new Board(), nearlySolved());
 
     expect(session.tap(1)).toEqual({ type: 'selected', tube: 1 });
     expect(session.selected).toBe(1);
@@ -16,7 +16,7 @@ describe('GameSession', () => {
   });
 
   it('rejects picking up an empty or complete tube', () => {
-    const session = new GameSession([[0, 0, 0, 0], []]);
+    const session = new GameSession(new Board(), [[0, 0, 0, 0], []]);
 
     expect(session.tap(0)).toEqual({ type: 'rejected', tube: 0 });
     expect(session.tap(1)).toEqual({ type: 'rejected', tube: 1 });
@@ -24,7 +24,7 @@ describe('GameSession', () => {
   });
 
   it('drops the selection when the pour is not allowed', () => {
-    const session = new GameSession(nearlySolved());
+    const session = new GameSession(new Board(), nearlySolved());
     session.tap(2);
 
     expect(session.tap(0)).toEqual({ type: 'blocked', from: 2, to: 0 });
@@ -33,7 +33,7 @@ describe('GameSession', () => {
   });
 
   it('pours, counts the move and reports a filled tube', () => {
-    const session = new GameSession(nearlySolved());
+    const session = new GameSession(new Board(), nearlySolved());
     session.tap(1);
 
     expect(session.tap(0)).toEqual({
@@ -42,14 +42,15 @@ describe('GameSession', () => {
       to: 0,
       amount: 1,
       filled: true,
-      solved: false
+      solved: false,
+      unlocked: []
     });
     expect(session.tubes[0]).toEqual([0, 0, 0, 0]);
     expect(session.moveCount).toBe(1);
   });
 
   it('reports the solving move and then ignores taps', () => {
-    const session = new GameSession(nearlySolved());
+    const session = new GameSession(new Board(), nearlySolved());
     session.tap(1);
     session.tap(0);
     session.tap(1);
@@ -61,7 +62,7 @@ describe('GameSession', () => {
   });
 
   it('undoes the last move and clears the selection', () => {
-    const session = new GameSession(nearlySolved());
+    const session = new GameSession(new Board(), nearlySolved());
     session.tap(1);
     session.tap(0);
     session.tap(2);
@@ -73,7 +74,7 @@ describe('GameSession', () => {
   });
 
   it('restarts from the initial board', () => {
-    const session = new GameSession(nearlySolved());
+    const session = new GameSession(new Board(), nearlySolved());
     session.tap(1);
     session.tap(0);
     session.restart();
@@ -84,19 +85,19 @@ describe('GameSession', () => {
 
   it('is not affected by later changes to the board it was created with', () => {
     const board = nearlySolved();
-    const session = new GameSession(board);
+    const session = new GameSession(new Board(), board);
     board[0].push(9);
 
     expect(session.tubes).toEqual(nearlySolved());
   });
 
   it('suggests a move that leads to a solution', () => {
-    const session = new GameSession(nearlySolved());
+    const session = new GameSession(new Board(), nearlySolved());
     expect(session.hint()).toEqual([1, 0]);
   });
 
   it('has no hint in a dead end', () => {
-    const session = new GameSession([
+    const session = new GameSession(new Board(), [
       [0, 1, 0, 1],
       [1, 0, 1, 0]
     ]);
@@ -109,12 +110,12 @@ describe('GameSession', () => {
     const board = () => [[2, 2, 1], [1, 0], [0, 0, 0], [], [2, 2, 1, 1]];
 
     it('shows only the top unit of each tube at first', () => {
-      const session = new GameSession(board(), { hiddenColors: true });
+      const session = new GameSession(new Board(), board(), { hiddenColors: true });
       expect(session.visibleTubes).toEqual([[H, H, 1], [H, 0], [H, H, 0], [], [H, H, H, 1]]);
     });
 
     it('shows a unit once everything above it is poured off', () => {
-      const session = new GameSession(board(), { hiddenColors: true });
+      const session = new GameSession(new Board(), board(), { hiddenColors: true });
       session.tap(0);
       session.tap(3);
 
@@ -123,7 +124,7 @@ describe('GameSession', () => {
     });
 
     it('pours hidden units of the same color along, and shows them where they land', () => {
-      const session = new GameSession([[1, 2, 2], [2], [0, 1, 0, 1], [0, 0, 1, 2]], {
+      const session = new GameSession(new Board(), [[1, 2, 2], [2], [0, 1, 0, 1], [0, 0, 1, 2]], {
         hiddenColors: true
       });
       session.tap(0);
@@ -134,7 +135,7 @@ describe('GameSession', () => {
     });
 
     it('does not hide again what was seen, after an undo or a restart', () => {
-      const session = new GameSession(board(), { hiddenColors: true });
+      const session = new GameSession(new Board(), board(), { hiddenColors: true });
       session.tap(0);
       session.tap(3);
       session.undo();
@@ -146,6 +147,7 @@ describe('GameSession', () => {
 
     it('shows all of a tube once it is complete', () => {
       const session = new GameSession(
+        new Board(),
         [
           [0, 0, 0],
           [1, 0],
@@ -160,14 +162,19 @@ describe('GameSession', () => {
     });
 
     it('hints with the real colors', () => {
-      const session = new GameSession(board(), { hiddenColors: true });
+      const session = new GameSession(new Board(), board(), { hiddenColors: true });
       expect(session.hint()).not.toBeNull();
     });
   });
 
   describe('with tall tubes', () => {
     it('fills a tube to five units, and only then counts it complete', () => {
-      const session = new GameSession([[0, 0, 0, 0], [1, 0], [1, 1, 1, 1], []], { capacity: 5 });
+      const session = new GameSession(new Board({ capacity: 5 }), [
+        [0, 0, 0, 0],
+        [1, 0],
+        [1, 1, 1, 1],
+        []
+      ]);
 
       expect(session.tap(0)).toEqual({ type: 'selected', tube: 0 });
       session.tap(0);
@@ -180,6 +187,39 @@ describe('GameSession', () => {
       });
       session.tap(1);
       expect(session.tap(2)).toMatchObject({ type: 'poured', filled: true, solved: true });
+    });
+  });
+
+  describe('with special tubes', () => {
+    it('will not pick up a one-way or a locked tube', () => {
+      const board = new Board({ oneWay: [1], locks: { 2: 0 } });
+      const session = new GameSession(board, [[0, 0, 0], [1], [1, 1, 1], [0]]);
+
+      expect(session.tap(1)).toEqual({ type: 'rejected', tube: 1 });
+      expect(session.tap(2)).toEqual({ type: 'rejected', tube: 2 });
+      expect(session.isLocked(2)).toBe(true);
+    });
+
+    it('reports the tubes a pour unlocked', () => {
+      const board = new Board({ locks: { 2: 0 } });
+      const session = new GameSession(board, [[0, 0, 0], [1], [1, 1, 1], [0]]);
+      session.tap(3);
+
+      expect(session.tap(0)).toMatchObject({ type: 'poured', filled: true, unlocked: [2] });
+      expect(session.isLocked(2)).toBe(false);
+      session.tap(2);
+      expect(session.tap(1)).toMatchObject({ type: 'poured', solved: true });
+    });
+
+    it('counts down the fills of a cracked tube, and gives them back on undo', () => {
+      const board = new Board({ cracked: { 2: 3 } });
+      const session = new GameSession(board, [[1, 0], [0, 0, 0], [], [1, 1, 1]]);
+      session.tap(0);
+      session.tap(2);
+      expect(session.fills[2]).toBe(2);
+
+      session.undo();
+      expect(session.fills[2]).toBe(3);
     });
   });
 });

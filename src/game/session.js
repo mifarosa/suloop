@@ -1,12 +1,4 @@
-import {
-  applyPour,
-  cloneTubes,
-  HIDDEN,
-  isSolved,
-  isTubeComplete,
-  pourAmount,
-  TUBE_CAPACITY
-} from './rules.js';
+import { HIDDEN } from './rules.js';
 import { solve } from './solver.js';
 
 // Hints run while the player waits, so they search less than level generation does.
@@ -19,11 +11,13 @@ const HINT_SEARCH_LIMIT = 150_000;
  *   | { type: 'deselected', tube: number }
  *   | { type: 'rejected', tube: number }
  *   | { type: 'blocked', from: number, to: number }
- *   | { type: 'poured', from: number, to: number, amount: number, filled: boolean, solved: boolean }
+ *   | { type: 'poured', from: number, to: number, amount: number, filled: boolean,
+ *       solved: boolean, unlocked: number[] }
  * )} TapResult
- * - `rejected`: an empty or complete tube cannot be picked up.
+ * - `rejected`: the tube cannot be picked up: it is empty, complete, one-way or locked.
  * - `blocked`: the selected tube cannot be poured into the tapped one; the selection is dropped.
  * - `filled`: the pour completed the target tube.
+ * - `unlocked`: locked tubes the pour opened.
  */
 
 /**
@@ -39,20 +33,14 @@ const HINT_SEARCH_LIMIT = 150_000;
  */
 export class GameSession {
   /**
+   * @param {import('./rules.js').Board} board the rules of the board
    * @param {number[][]} initialTubes
-   * @param {object} [options]
-   * @param {number} [options.capacity] units of each color
-   * @param {number | number[]} [options.sizes] units each tube holds (see rules.js)
-   * @param {boolean} [options.hiddenColors]
-   * @param {number | null} [options.undoLimit] null for no limit
+   * @param {{ hiddenColors?: boolean, undoLimit?: number | null }} [options] undoLimit: null
+   *   for no limit
    */
-  constructor(
-    initialTubes,
-    { capacity = TUBE_CAPACITY, sizes = capacity, hiddenColors = false, undoLimit = null } = {}
-  ) {
-    this.initialTubes = cloneTubes(initialTubes);
-    this.capacity = capacity;
-    this.sizes = sizes;
+  constructor(board, initialTubes, { hiddenColors = false, undoLimit = null } = {}) {
+    this.board = board;
+    this.initialTubes = initialTubes.map((tube) => tube.slice());
     this.undoLimit = undoLimit;
     /**
      * Per tube, how many units at the bottom are still hidden. The units there never move
@@ -62,6 +50,21 @@ export class GameSession {
       hiddenColors ? Math.max(0, tube.length - 1) : 0
     );
     this.restart();
+  }
+
+  /** @returns {number[][]} */
+  get tubes() {
+    return this.position.tubes;
+  }
+
+  /** How many more times each cracked tube can be poured into; null for other tubes. */
+  get fills() {
+    return this.position.fills;
+  }
+
+  /** Whether the tube at `index` is locked right now. */
+  isLocked(index) {
+    return this.board.isLocked(this.position, index);
   }
 
   /** The board as the player sees it: hidden units are HIDDEN. */
@@ -80,7 +83,7 @@ export class GameSession {
   }
 
   restart() {
-    this.tubes = cloneTubes(this.initialTubes);
+    this.position = this.board.start(this.initialTubes);
     this.history = [];
     /** @type {number | null} */
     this.selected = null;
@@ -115,7 +118,7 @@ export class GameSession {
     if (!this.canUndo) return false;
 
     this.selected = null;
-    this.tubes = this.history.pop();
+    this.position = this.history.pop();
     if (this.undosLeft !== null) this.undosLeft--;
     return true;
   }
@@ -125,19 +128,12 @@ export class GameSession {
    * @returns {[number, number] | null} null when the position is a dead end
    */
   hint() {
-    const solution = solve(this.tubes, {
-      capacity: this.capacity,
-      sizes: this.sizes,
-      maxNodes: HINT_SEARCH_LIMIT
-    });
+    const solution = solve(this.position, { board: this.board, maxNodes: HINT_SEARCH_LIMIT });
     return solution && solution.length > 0 ? solution[0] : null;
   }
 
   #pickUp(index) {
-    const tube = this.tubes[index];
-    if (tube.length === 0 || isTubeComplete(tube, this.capacity)) {
-      return { type: 'rejected', tube: index };
-    }
+    if (!this.board.canPourFrom(this.position, index)) return { type: 'rejected', tube: index };
 
     this.selected = index;
     return { type: 'selected', tube: index };
@@ -147,15 +143,21 @@ export class GameSession {
     const from = this.selected;
     this.selected = null;
 
-    const amount = pourAmount(this.tubes, from, to, this.sizes);
+    const { position, amount } = this.board.pour(this.position, from, to);
     if (amount === 0) return { type: 'blocked', from, to };
 
-    this.history.push(this.tubes);
-    this.tubes = applyPour(this.tubes, from, to, this.sizes).tubes;
-    this.solved = isSolved(this.tubes, this.capacity);
-    const filled = isTubeComplete(this.tubes[to], this.capacity);
+    const lockedBefore = this.#lockedTubes();
+    this.history.push(this.position);
+    this.position = position;
+    this.solved = this.board.isSolved(position);
+    const filled = this.board.isComplete(this.tubes[to]);
     this.#reveal(from, to, filled);
-    return { type: 'poured', from, to, amount, filled, solved: this.solved };
+    const unlocked = lockedBefore.filter((index) => !this.isLocked(index));
+    return { type: 'poured', from, to, amount, filled, solved: this.solved, unlocked };
+  }
+
+  #lockedTubes() {
+    return [...this.board.locks.keys()].filter((index) => this.isLocked(index));
   }
 
   /** Shows the new top of the source, and all of a target the pour completed. */

@@ -25,12 +25,15 @@ export class TubeScene {
   #animator = new Animator(() => this.#requestRender());
   /** @type {TubeView[]} */
   #tubes = [];
-  #stream = { visible: false, color: 0, x: 0, top: 0, bottom: 0 };
+  /** Pours being animated, by the index of each tube they involve. */
+  #pours = new Map();
+  /** The falling liquid of every pour being animated. */
+  #streams = new Set();
+  #isOil = () => false;
   #glassColor = DEFAULT_GLASS_COLOR;
   #size = { width: 0, height: 0 };
   #view = { scale: 1, originX: 0, originY: 0 };
   #bounds = null;
-  #pouring = false;
   #layoutPending = false;
   #frameRequested = false;
   #onTubeTap = () => {};
@@ -57,12 +60,18 @@ export class TubeScene {
   /**
    * Replaces every tube, e.g. for a new puzzle.
    * @param {number[][]} tubes colors bottom first; HIDDEN for a unit not seen yet
-   * @param {{ sizes?: number[] }} [options] units each tube holds
+   * @param {object} [options]
+   * @param {number[]} [options.sizes] units each tube holds
+   * @param {number[]} [options.oilColors] colors that are oil
+   * @param {Array<{ oneWay?: boolean, lockKey?: number | null, fills?: number | null }>}
+   *   [options.kinds] what is special about each tube (see TubeView)
    */
-  showPuzzle(tubes, { sizes = tubes.map(() => TUBE_CAPACITY) } = {}) {
-    this.#animator.stopAll();
+  showPuzzle(tubes, { sizes = tubes.map(() => TUBE_CAPACITY), oilColors = [], kinds = [] } = {}) {
+    this.#cancelPours();
+    const oil = new Set(oilColors);
+    this.#isOil = (color) => oil.has(color);
     this.#tubes = tubes.map((colors, index) => {
-      const tube = new TubeView(index, sizes[index]);
+      const tube = new TubeView(index, sizes[index], kinds[index]);
       tube.showColors(colors);
       return tube;
     });
@@ -72,11 +81,27 @@ export class TubeScene {
 
   /** Shows new contents at once, without animation, e.g. after an undo or a restart. */
   showContents(tubes) {
-    this.#animator.stopAll();
+    this.#cancelPours();
     this.#tubes.forEach((tube, index) => {
       tube.showColors(tubes[index]);
       tube.resetPose();
       tube.setGlow(0);
+    });
+    this.#requestRender();
+  }
+
+  /**
+   * Shows how many fills each cracked tube has left and which tubes are locked. Ice melts off
+   * a tube that just opened; anything else changes at once (e.g. after an undo).
+   * @param {Array<{ fills: number | null, locked: boolean }>} states one per tube
+   */
+  showTubeStates(states) {
+    states.forEach(({ fills, locked }, index) => {
+      const tube = this.#tubes[index];
+      tube.fills = fills;
+      if (tube.lockKey === null) return;
+      if (!locked && tube.ice === 1) motions.melt(this.#animator, tube);
+      else if (locked) tube.ice = 1;
     });
     this.#requestRender();
   }
@@ -88,14 +113,18 @@ export class TubeScene {
   }
 
   setLifted(index, lifted) {
+    this.#finishPour(index);
     return motions.lift(this.#animator, this.#tubes[index], lifted);
   }
 
   shake(index) {
+    this.#finishPour(index);
     return motions.shake(this.#animator, this.#tubes[index]);
   }
 
+  /** A small jump; skipped while the tube is busy in a newer pour. */
   hop(index) {
+    if (this.#pours.has(index)) return Promise.resolve();
     return motions.hop(this.#animator, this.#tubes[index]);
   }
 
@@ -109,31 +138,75 @@ export class TubeScene {
   }
 
   celebrate() {
+    for (const index of [...this.#pours.keys()]) this.#finishPour(index);
     return motions.celebrate(this.#animator, this.#tubes);
   }
 
   /**
-   * Animates a pour, then shows the board as it is after the move.
+   * Animates a pour, then shows the two tubes as they are after the move. Pours between
+   * other tubes can run at the same time; a pour that needs a tube still busy in an earlier
+   * one first finishes that one at once.
    * @param {number} from
    * @param {number} to
    * @param {number} amount units poured
    * @param {number[][]} tubesAfter the whole board after the pour
    */
   async pour(from, to, amount, tubesAfter) {
-    this.#pouring = true;
+    this.#finishPour(from);
+    this.#finishPour(to);
+    const stream = { visible: false, color: 0, x: 0, top: 0, bottom: 0 };
+    const handle = { from, to, tubesAfter, stream, cancelled: false };
+    this.#pours.set(from, handle);
+    this.#pours.set(to, handle);
+    this.#streams.add(stream);
+
+    await animatePour({
+      animator: this.#animator,
+      stream,
+      source: this.#tubes[from],
+      target: this.#tubes[to],
+      amount,
+      isOil: this.#isOil,
+      handle
+    });
+    if (!handle.cancelled) this.#settle(handle);
+  }
+
+  /** Jumps a pour that involves the tube at `index` to its end. */
+  #finishPour(index) {
+    const handle = this.#pours.get(index);
+    if (!handle) return;
+
+    handle.cancelled = true;
+    this.#animator.stop(motions.bodyKey(this.#tubes[handle.from]));
+    this.#settle(handle);
+  }
+
+  /** Shows a pour's two tubes as they are after it, at rest. */
+  #settle(handle) {
+    const { from, to, tubesAfter, stream } = handle;
     const source = this.#tubes[from];
-    const target = this.#tubes[to];
-
-    await animatePour({ animator: this.#animator, stream: this.#stream, source, target, amount });
-
     source.showColors(tubesAfter[from]);
-    target.showColors(tubesAfter[to]);
-    this.#pouring = false;
-    if (this.#layoutPending) {
+    source.resetPose();
+    this.#tubes[to].showColors(tubesAfter[to]);
+    stream.visible = false;
+    this.#streams.delete(stream);
+    this.#pours.delete(from);
+    this.#pours.delete(to);
+
+    if (this.#layoutPending && this.#pours.size === 0) {
       this.#layoutPending = false;
       this.#layout();
     }
     this.#requestRender();
+  }
+
+  /** Drops every pour where it is, e.g. before the whole board is replaced. */
+  #cancelPours() {
+    for (const handle of this.#pours.values()) handle.cancelled = true;
+    this.#pours.clear();
+    this.#streams.clear();
+    this.#animator.stopAll();
   }
 
   #layout() {
@@ -170,7 +243,7 @@ export class TubeScene {
     this.#size = { width, height };
 
     // Moving tubes in the middle of a pour would break its path; rearrange them afterwards.
-    if (this.#pouring) {
+    if (this.#pours.size > 0) {
       this.#layoutPending = true;
       this.#fitView();
     } else {
@@ -211,9 +284,10 @@ export class TubeScene {
     drawScene(this.#context, {
       ...this.#size,
       tubes: this.#tubes,
-      stream: this.#stream,
+      streams: this.#streams,
       view: this.#view,
-      glassColor: this.#glassColor
+      glassColor: this.#glassColor,
+      isOil: this.#isOil
     });
     if (this.#animator.isRunning) this.#requestRender();
   }
