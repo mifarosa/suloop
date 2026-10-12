@@ -24,3 +24,6 @@ export const HIDDEN_MARK_COLOR = '#c9d1ee';
 /** Frost over a locked tube, and the ink of the padlock drawn on its key color. */
 export const ICE_COLOR = 'rgba(190, 225, 255, 0.55)';
 export const LOCK_INK = '#0b1430';
+
+/** Confetti: the brightest liquid colors, so it matches the tubes it celebrates. */
+export const CONFETTI_COLORS = [0, 1, 2, 3, 4, 5, 6, 7, 10].map((color) => LIQUID_COLORS[color]);

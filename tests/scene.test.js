@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { MAX_COLOR_COUNT } from '../src/game/levels.js';
 import { Animator, easeInOutCubic, linear } from '../src/scene/animator.js';
+import { advancePieces, launchPieces } from '../src/scene/confetti.js';
 import { HIDDEN } from '../src/game/rules.js';
 import {
   ROW_GAP,
@@ -11,8 +12,9 @@ import {
   tubeHeight
 } from '../src/scene/dimensions.js';
 import { arrangeTubes, fitToView } from '../src/scene/layout.js';
-import { HIDDEN_COLOR, LIQUID_COLORS } from '../src/scene/palette.js';
+import { CONFETTI_COLORS, HIDDEN_COLOR, LIQUID_COLORS } from '../src/scene/palette.js';
 import { animatePour } from '../src/scene/pour.js';
+import { createRandom } from '../src/game/random.js';
 import { drawScene } from '../src/scene/renderer.js';
 import { TubeView } from '../src/scene/tubeView.js';
 
@@ -355,5 +357,63 @@ describe('Animator', () => {
     animator.run(100, () => {});
     expect(starts).toBe(2);
     expect(animator.isRunning).toBe(true);
+  });
+});
+
+describe('confetti', () => {
+  const screen = { width: 390, height: 844 };
+  const burst = () => launchPieces(createRandom(7), screen);
+  /** Runs a burst at 60 frames a second, calling `onFrame` with the time and pieces left. */
+  const play = (pieces, onFrame = () => {}) => {
+    let time = 0;
+    while (pieces.length > 0 && time < 10) {
+      pieces = advancePieces(pieces, 1 / 60, screen);
+      time += 1 / 60;
+      onFrame(time, pieces);
+    }
+    return time;
+  };
+
+  it('shoots half the pieces from each bottom corner, up and toward the middle', () => {
+    const pieces = burst();
+    const left = pieces.filter((piece) => piece.x === 0);
+    const right = pieces.filter((piece) => piece.x === screen.width);
+    expect(left.length).toBe(pieces.length / 2);
+    expect(right.length).toBe(pieces.length / 2);
+    expect(pieces.every((piece) => piece.y === screen.height && piece.vy < 0)).toBe(true);
+    expect(left.every((piece) => piece.vx > 0)).toBe(true);
+    expect(right.every((piece) => piece.vx < 0)).toBe(true);
+    expect(pieces.every((piece) => CONFETTI_COLORS.includes(piece.color))).toBe(true);
+  });
+
+  it('flies up over most of the screen and comes down across all of it', () => {
+    let highest = Infinity;
+    let leftmost = Infinity;
+    let rightmost = -Infinity;
+    play(burst(), (time, pieces) => {
+      for (const piece of pieces) highest = Math.min(highest, piece.y);
+      if (time < 1) return;
+      for (const piece of pieces) {
+        leftmost = Math.min(leftmost, piece.x);
+        rightmost = Math.max(rightmost, piece.x);
+      }
+    });
+    expect(highest).toBeLessThan(screen.height * 0.2);
+    expect(leftmost).toBeLessThan(screen.width * 0.2);
+    expect(rightmost).toBeGreaterThan(screen.width * 0.8);
+  });
+
+  it('is gone within a few seconds', () => {
+    const duration = play(burst());
+    expect(duration).toBeGreaterThan(2);
+    expect(duration).toBeLessThanOrEqual(5);
+  });
+
+  it('keeps a piece in place until its launch', () => {
+    const waiting = burst().filter((piece) => piece.age < -0.05);
+    expect(waiting.length).toBeGreaterThan(0);
+    const before = waiting.map(({ x, y }) => ({ x, y }));
+    advancePieces(waiting, 0.02, screen);
+    expect(waiting.map(({ x, y }) => ({ x, y }))).toEqual(before);
   });
 });

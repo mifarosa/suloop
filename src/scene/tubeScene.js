@@ -22,6 +22,7 @@ export class TubeScene {
   #canvas;
   #context;
   #getTopInset;
+  #confetti;
   #animator = new Animator(() => this.#requestRender());
   /** @type {TubeView[]} */
   #tubes = [];
@@ -40,12 +41,15 @@ export class TubeScene {
 
   /**
    * @param {HTMLCanvasElement} canvas
-   * @param {{ getTopInset?: () => number }} [options] pixels at the top covered by the HUD
+   * @param {object} [options]
+   * @param {() => number} [options.getTopInset] pixels at the top covered by the HUD
+   * @param {{ burst: () => void }} [options.confetti] thrown when a puzzle is solved
    */
-  constructor(canvas, { getTopInset = () => 0 } = {}) {
+  constructor(canvas, { getTopInset = () => 0, confetti = null } = {}) {
     this.#canvas = canvas;
     this.#context = canvas.getContext('2d');
     this.#getTopInset = getTopInset;
+    this.#confetti = confetti;
 
     canvas.addEventListener('pointerdown', (event) => this.#handlePointerDown(event));
     new ResizeObserver(() => this.#resize()).observe(canvas);
@@ -137,8 +141,10 @@ export class TubeScene {
     );
   }
 
+  /** Makes the tubes jump one after another and throws confetti; resolves once they land. */
   celebrate() {
     for (const index of [...this.#pours.keys()]) this.#finishPour(index);
+    this.#confetti?.burst();
     return motions.celebrate(this.#animator, this.#tubes);
   }
 

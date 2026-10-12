@@ -6,10 +6,12 @@ import { loadProgress, saveProgress } from './app/progress.js';
 import { codeInLink } from './app/progressCode.js';
 import { watchGlassColor } from './app/theme.js';
 import { TransferDialog } from './app/transferDialog.js';
+import { Confetti } from './scene/confetti.js';
 import { TubeScene } from './scene/tubeScene.js';
 
 const scene = new TubeScene(document.querySelector('#scene'), {
-  getTopInset: () => document.querySelector('.hud').getBoundingClientRect().bottom
+  getTopInset: () => document.querySelector('.hud').getBoundingClientRect().bottom,
+  confetti: new Confetti(document.querySelector('#confetti'))
 });
 const hud = new Hud(document);
 const menu = new LevelMenu(document);

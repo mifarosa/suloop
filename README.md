@@ -52,7 +52,10 @@ Renkli suları tüplere ayırdığın bulmaca oyunu. Tarayıcıda çalışır, k
 - Gerçekçi döküm: tüp, sıvı ağzına ulaşana kadar eğilir ve boşaldıkça daha çok eğilir; sıvının
   yüzeyi hep yatay kalır, akıntı tüpün dudağından düşer. Bir döküm sürerken sonraki hamle
   yapılabilir
-- Canvas 2D ile çizilen cam tüpler, açık/koyu tema; ek kütüphane yok, oyun 40 KB
+- Kazanınca iki köşeden konfeti patlar (cihazda "hareketi azalt" açıksa çıkmaz)
+- Seviyeler ekranında "Kahve ısmarla" butonu: oyunu beğenen
+  [Buy Me a Coffee](https://buymeacoffee.com/mifarosa) üzerinden destek olabilir
+- Canvas 2D ile çizilen cam tüpler, açık/koyu tema; ek kütüphane yok, oyun 42 KB
 
 ## Proje yapısı
 
@@ -72,6 +75,7 @@ src/
     tubeView.js   Tek bir tüpün o anki görünümü (konum, eğim, sıvı seviyeleri)
     pour.js       Döküm animasyonu
     motions.js    Kaldırma, sallama, zıplama, parlama
+    confetti.js   Kazanınca patlayan konfeti (kendi tuvalinde, her şeyin üstünde)
     layout.js     Tüplerin dizilişi ve ekrana ölçeklenmesi
     animator.js   Zamana bağlı animasyon altyapısı
     dimensions.js, palette.js
