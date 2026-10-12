@@ -51,7 +51,7 @@ Renkli suları tüplere ayırdığın bulmaca oyunu. Tarayıcıda çalışır, k
   sayın, en az hamle, kazandıkların ve seviyedeki son 5 denemen görünür; "Tekrar et" ve "Sonraki
   seviye" butonları vardır. Seviyeler ekranında her seviyenin en iyi yıldızları görünür
 - **İpucu hakkı:** 2 ipucuyla başlarsın. İpucu en kısa çözümün sonraki hamlesini gösterir ve 1
-  hak harcar; geri alınca geri gelmez, aynı durumda tekrar sormak ücretsizdir. Çıkmazdaysan hak
+  hak harcar ve hamle sayına 1 ekler (yıldızı etkiler); geri alınca ikisi de geri gelmez, aynı durumda tekrar sormak ücretsizdir. Çıkmazdaysan hak
   gitmez. Günün bulmacasını çözünce (günde bir kez) 1 ipucu kazanırsın
 - **Ekstra geri alma:** geri almanın sınırlı olduğu bir seviyeyi (16. seviyeden itibaren) ilk kez
   3 yıldızla geçince 1 ekstra geri alma kazanırsın; geri almanın sınırsız olduğu Kolay aşamada
@@ -73,9 +73,10 @@ Renkli suları tüplere ayırdığın bulmaca oyunu. Tarayıcıda çalışır, k
 - **PWA:** ana ekrana uygulama olarak yüklenebilir (Android/masaüstünde ayarlardaki "Uygulama
   olarak yükle", iPhone'da Safari → Paylaş → Ana Ekrana Ekle). İlk ziyaretten sonra internetsiz de
   oynanır; yeni sürüm yayınlanınca bağlantı varken hemen gelir
-- **Günlük sıralama:** seviyeler ekranındaki kupa simgesinden. Günün bulmacasında ilk çözümün
-  (hamle, süre, yıldız) ve kaç gün üst üste çözdüğün (seri) cihazda tutulur. Supabase bağlanınca
-  herkesle sıralama açılır (aşağıda)
+- **Günün bulmacası serisi:** günün bulmacasında ilk çözümün (hamle, süre, yıldız) ve kaç gün üst
+  üste çözdüğün cihazda tutulur; seviyeler ekranındaki günün bulmacası kartında ve bitiş ekranında
+  görünür. Supabase bağlanırsa herkesle günlük sıralama da açılır (aşağıda); bağlı değilken sıralama
+  hiç görünmez
 - **Bulmaca atölyesi:** seviyeler ekranındaki karttan. 8 kuralın hepsiyle kendi bulmacanı yaparsın:
   renk koy/al, kilit ve yağ ata, yarım/tek yönlü/çatlak tüp ekle, uzun tüp, gizli renk ve geri
   alma hakkı seç ya da rastgele doldur. Her değişiklikte bulmacanın çözülebildiği ve en az kaç

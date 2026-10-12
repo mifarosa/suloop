@@ -75,7 +75,7 @@ describe('GameController', () => {
 
   function createController(
     progress = {},
-    { clock = () => TODAY, onDailySolved, onEditPuzzle } = {}
+    { clock = () => TODAY, onDailySolved, onEditPuzzle, getDailySummary, leaderboardOnline } = {}
   ) {
     const controller = new GameController({
       scene,
@@ -86,6 +86,8 @@ describe('GameController', () => {
       findFewestMoves,
       onDailySolved,
       onEditPuzzle,
+      getDailySummary,
+      leaderboardOnline,
       progress: { ...INITIAL_PROGRESS, ...progress },
       saveProgress: (value) => saved.push(value),
       now: clock
@@ -256,7 +258,8 @@ describe('GameController', () => {
       notes: ['Günün bulmacası: +1 ipucu!'],
       attempts: null,
       continueLabel: 'Devam et',
-      leaderboard: true
+      // Without a shared leaderboard there is nothing to rank.
+      leaderboard: false
     });
 
     controller.replay();
@@ -267,6 +270,31 @@ describe('GameController', () => {
     controller.continueAfterWin();
     expect(saved.at(-1)).toMatchObject({ mode: 'level', current: 4 });
     expect(scene.showPuzzle).toHaveBeenLastCalledWith(...shownBoard(4));
+  });
+
+  it('shows the streak after a daily puzzle, and the leaderboard only when scores are shared', async () => {
+    const getDailySummary = () => ({ today: { moves: 20, seconds: 75, stars: 2 }, streak: 4 });
+    let controller = createController({ mode: 'daily' }, { getDailySummary });
+    await playSolution(controller, scene.showPuzzle.mock.lastCall[0]);
+    expect(lastWin()).toMatchObject({
+      notes: expect.arrayContaining(['🔥 4 gün üst üste çözdün!']),
+      leaderboard: false
+    });
+
+    controller.showLevels();
+    expect(lastMenu().daily).toMatchObject({
+      result: { text: '20 hamle · 1:15', stars: 2 },
+      streak: '🔥 4 gün üst üste'
+    });
+
+    controller = createController({ mode: 'daily' }, { getDailySummary, leaderboardOnline: true });
+    await playSolution(controller, scene.showPuzzle.mock.lastCall[0]);
+    expect(lastWin().leaderboard).toBe(true);
+  });
+
+  it('shows no result or streak on the daily card before any daily puzzle is solved', () => {
+    createController().showLevels();
+    expect(lastMenu().daily).toMatchObject({ result: null, streak: null });
   });
 
   it('reports each daily solution with the time since the puzzle was opened', async () => {
@@ -466,14 +494,34 @@ describe('GameController', () => {
 
     controller.showHint();
     expect(scene.highlight).toHaveBeenCalledWith([from, to]);
-    expect(hud.showToast).toHaveBeenCalledWith(`${from + 1}. tüpten ${to + 1}. tüpe dök.`);
+    expect(hud.showToast).toHaveBeenCalledWith(
+      `${from + 1}. tüpten ${to + 1}. tüpe dök. (İpucu +1 hamle)`
+    );
     expect(saved.at(-1).hints).toBe(1);
-    expect(lastRender()).toMatchObject({ hintCount: '1' });
+    // The hint counts as a move.
+    expect(lastRender()).toMatchObject({ hintCount: '1', subtitle: 'Kolay · 1 hamle' });
 
-    // Asking again in the same position costs nothing.
+    // Asking again in the same position costs nothing, neither a hint nor a move.
     controller.showHint();
     expect(scene.highlight).toHaveBeenCalledTimes(2);
     expect(saved.at(-1).hints).toBe(1);
+    expect(lastRender().subtitle).toBe('Kolay · 1 hamle');
+  });
+
+  it('rates a solution found with a hint one move longer', async () => {
+    const controller = createController();
+    controller.showHint();
+    const [from, to] = scene.highlight.mock.lastCall[0];
+    await controller.tapTube(from);
+    await controller.tapTube(to);
+    const { tubes, board } = createLevelPuzzle(1);
+    const rest = solveShortest(board.pour(board.start(tubes), from, to).position, { board });
+    for (const [next, target] of rest) {
+      await controller.tapTube(next);
+      await controller.tapTube(target);
+    }
+
+    expect(lastWin()).toMatchObject({ moves: 10, fewest: 9, stars: 2 });
   });
 
   it('does not give a hint back on undo, and says how to earn one when none is left', async () => {

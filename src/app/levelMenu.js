@@ -1,6 +1,14 @@
 /**
  * @typedef {object} LevelMenuModel
- * @property {{ title: string, date: string, action: string, solved: boolean, playing: boolean }} daily
+ * @property {{
+ *   title: string,
+ *   date: string,
+ *   action: string,
+ *   solved: boolean,
+ *   playing: boolean,
+ *   result: { text: string, stars: number } | null,
+ *   streak: string | null
+ * }} daily today's result and the streak, when there are any
  * @property {{ title: string, text: string, action: string }} editor
  * @property {Array<{
  *   id: string,
@@ -96,7 +104,7 @@ export class LevelMenu {
   }
 }
 
-function dailyCard({ title, date, action, solved, playing }) {
+function dailyCard({ title, date, action, solved, playing, result = null, streak = null }) {
   const card = element('button', 'daily-card');
   card.type = 'button';
   card.dataset.daily = '';
@@ -105,6 +113,12 @@ function dailyCard({ title, date, action, solved, playing }) {
 
   const text = element('span', 'daily-text');
   text.append(element('strong', '', title), element('span', 'daily-date', date));
+  if (result) {
+    const line = element('span', 'daily-result', result.text);
+    line.append(starRow(result.stars));
+    text.append(line);
+  }
+  if (streak) text.append(element('span', 'daily-streak-line', streak));
   card.append(text, element('span', 'daily-action', action));
   return card;
 }

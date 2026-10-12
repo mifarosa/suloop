@@ -53,6 +53,18 @@ export class DailyBoard {
   }
 
   /**
+   * Today's result and the streak, from the device alone.
+   * @param {Date} today
+   * @returns {{ today: import('./dailyResults.js').DailyResult | null, streak: number }}
+   */
+  summary(today) {
+    return {
+      today: this.#record.results[localDateKey(today)] ?? null,
+      streak: streak(this.#record, today)
+    };
+  }
+
+  /**
    * Everything the leaderboard dialog shows for `today`.
    * @param {Date} today
    */

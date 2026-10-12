@@ -139,6 +139,19 @@ describe('DailyBoard', () => {
     expect(save).toHaveBeenCalled();
   });
 
+  it('sums up today and the streak without asking the leaderboard', async () => {
+    const service = fakeService();
+    const board = new DailyBoard({ record: emptyRecord(), save: () => {}, service });
+    expect(board.summary(today)).toEqual({ today: null, streak: 0 });
+    await board.record('2026-10-11', result(30));
+    await board.record('2026-10-12', result(24, 70, 3));
+    expect(board.summary(today)).toEqual({
+      today: { moves: 24, seconds: 70, stars: 3, shared: false },
+      streak: 2
+    });
+    expect(service.top).not.toHaveBeenCalled();
+  });
+
   it('shares a result once the player has a name, and only the first of the day', async () => {
     const service = fakeService();
     const board = new DailyBoard({ record: emptyRecord(), save: () => {}, service });

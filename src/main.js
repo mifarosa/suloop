@@ -60,6 +60,8 @@ const controller = new GameController({
   findFewestMoves,
   feedback,
   onDailySolved: (day, result) => dailyBoard.record(day, result),
+  getDailySummary: (today) => dailyBoard.summary(today),
+  leaderboardOnline: dailyBoard.online,
   onEditPuzzle: (puzzle) => editor.show(puzzle),
   progress: loadProgress(),
   saveProgress
@@ -105,6 +107,9 @@ editor.bindActions({
   },
   onClose: () => editor.hide()
 });
+
+// Without a shared leaderboard there is nothing to rank; the daily card shows the streak.
+document.querySelector('#leaderboard-open').hidden = !dailyBoard.online;
 
 async function showLeaderboard() {
   leaderboardDialog.showLoading();

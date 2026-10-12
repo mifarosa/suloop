@@ -48,6 +48,8 @@ export class GameController {
   #rules;
   #feedback;
   #onDailySolved;
+  #getDailySummary;
+  #leaderboardOnline;
   #onEditPuzzle;
   #findFewestMoves;
   #progress;
@@ -87,6 +89,9 @@ export class GameController {
    * @param {import('./feedback.js').Feedback} [deps.feedback] sounds and vibration
    * @param {(day: string, result: { moves: number, seconds: number, stars: number }) => void}
    *   [deps.onDailySolved] called with each solution of a daily puzzle
+   * @param {(today: Date) => { today: { moves: number, seconds: number, stars: number } | null,
+   *   streak: number }} [deps.getDailySummary] the player's daily result and streak
+   * @param {boolean} [deps.leaderboardOnline] whether daily scores are shared with others
    * @param {(puzzle: import('../game/customPuzzle.js').CustomPuzzle) => void} [deps.onEditPuzzle]
    *   takes a custom puzzle back to the editor after a test play
    * @param {import('./progress.js').Progress} deps.progress
@@ -102,6 +107,8 @@ export class GameController {
     findFewestMoves,
     feedback = SILENT,
     onDailySolved = () => {},
+    getDailySummary = () => ({ today: null, streak: 0 }),
+    leaderboardOnline = false,
     onEditPuzzle = () => {},
     progress,
     saveProgress,
@@ -114,6 +121,8 @@ export class GameController {
     this.#rules = rules;
     this.#feedback = feedback;
     this.#onDailySolved = onDailySolved;
+    this.#getDailySummary = getDailySummary;
+    this.#leaderboardOnline = leaderboardOnline;
     this.#onEditPuzzle = onEditPuzzle;
     this.#findFewestMoves = findFewestMoves;
     this.#progress = { ...progress };
@@ -300,8 +309,8 @@ export class GameController {
 
   /**
    * Points out the next move of the shortest solution from here. A hint costs one of the
-   * player's hints; asking again in the same position shows the same move for free, and a
-   * dead end costs nothing.
+   * player's hints and counts as a move; asking again in the same position shows the same
+   * move for free, and a dead end costs nothing.
    */
   showHint() {
     const session = this.#session;
@@ -323,6 +332,7 @@ export class GameController {
         return;
       }
       if (!free) this.#setProgress(spendHint(this.#progress));
+      session.countHint();
       this.#lastHint = { position: session.position, move };
       this.#refreshHud();
     }
@@ -507,6 +517,8 @@ export class GameController {
       // The clock runs from when the puzzle was opened; a restart does not reset it.
       const seconds = Math.max(1, Math.round((this.#now().getTime() - this.#startedAt) / 1000));
       this.#onDailySolved(day, { moves, seconds, stars });
+      const { streak } = this.#getDailySummary(this.#puzzleDay);
+      if (streak >= 2) notes.push(texts.dailyStreakNote(streak));
     } else if (this.#level !== null) {
       const { progress, earnedUndo } = recordLevelWin(
         this.#progress,
@@ -533,7 +545,7 @@ export class GameController {
         : this.#level === null
           ? texts.backToLevels
           : texts.nextLevel,
-      leaderboard: this.#isDaily()
+      leaderboard: this.#isDaily() && this.#leaderboardOnline
     });
   }
 
@@ -606,9 +618,24 @@ export class GameController {
         date: texts.dailyCardDate(today),
         action: texts.dailyCardAction(dailySolved),
         solved: dailySolved,
-        playing: this.#isDaily()
+        playing: this.#isDaily(),
+        ...this.#dailyCardStats(today)
       },
       chapters
+    };
+  }
+
+  /** Today's result and the streak, as the daily puzzle's card shows them. */
+  #dailyCardStats(today) {
+    const summary = this.#getDailySummary(today);
+    return {
+      result: summary.today
+        ? {
+            text: texts.dailyResult(summary.today.moves, summary.today.seconds),
+            stars: summary.today.stars
+          }
+        : null,
+      streak: summary.streak > 0 ? texts.dailyStreak(summary.streak) : null
     };
   }
 

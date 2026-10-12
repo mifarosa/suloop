@@ -140,7 +140,7 @@ export const texts = {
   hintLabel: (hints) => `İpucu: ${hints} hakkın var`,
   spareUndoUsed: (left) => `Ekstra geri alma kullandın; ${left} kaldı.`,
   noHints: 'İpucu hakkın kalmadı. Günün bulmacasını çözünce 1 ipucu kazanırsın.',
-  hintMove: (from, to) => `${from + 1}. tüpten ${to + 1}. tüpe dök.`,
+  hintMove: (from, to) => `${from + 1}. tüpten ${to + 1}. tüpe dök. (İpucu +1 hamle)`,
   hintDeadEnd: 'Buradan çözüm yok. Birkaç hamle geri al; ipucu hakkın gitmedi.',
   hintDeadEndNoUndo: 'Buradan çözüm yok ve geri alma hakkın bitti. Baştan başla.',
 
@@ -175,8 +175,8 @@ export const texts = {
   spareUndoSupply: (count) =>
     `${count} ekstra geri alman var. Bir seviyeyi ilk kez 3 yıldızla geçtikçe 1 tane daha kazanırsın.`,
   hintSupply: (count) =>
-    `${count} ipucun var. Günün bulmacasını çözünce 1 tane daha kazanırsın; ` +
-    'geri alınca harcanan ipucu geri gelmez.',
+    `${count} ipucun var. Her ipucu hamle sayına 1 ekler; geri alınca harcanan ipucu geri ` +
+    'gelmez. Günün bulmacasını çözünce 1 tane daha kazanırsın.',
   noAttempts: 'Bu seviyeyi henüz çözmedin.',
 
   // The level list
@@ -199,7 +199,9 @@ export const texts = {
   dailyToday: (moves, seconds) => `Bugün: ${moves} hamle · ${duration(seconds)}`,
   dailyNotSolved: 'Bugünkü bulmacayı henüz çözmedin.',
   playDaily: 'Günün bulmacasını oyna',
-  dailyStreak: (days) => `Seri: ${days} gün üst üste 🔥`,
+  dailyStreak: (days) => `🔥 ${days} gün üst üste`,
+  dailyStreakNote: (days) => `🔥 ${days} gün üst üste çözdün!`,
+  dailyResult: (moves, seconds) => `${moves} hamle · ${duration(seconds)}`,
   leaderboardTop: 'Bugünün en iyileri',
   leaderboardFailed: 'Sıralama yüklenemedi. Bağlantını kontrol et.',
   leaderboardEmpty: 'Bugün henüz kimse sıralamaya girmedi.',
