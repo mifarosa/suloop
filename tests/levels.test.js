@@ -1,44 +1,43 @@
 import { describe, expect, it } from 'vitest';
 import { generatePuzzle, tubeSizes } from '../src/game/generator.js';
 import {
-  CHAPTER_LEVEL_COUNT,
-  chapterIdOfLevel,
-  CHAPTERS,
+  BOARD_RULES,
   createDailyPuzzle,
   createLevelPuzzle,
   DAILY_COLOR_COUNT,
+  dealPuzzle,
   levelSettings,
-  LEVELS_PER_CHAPTER,
-  MASTER_SETTINGS,
+  MASTER_STAGE,
   MAX_COLOR_COUNT,
-  rulesFirstUsedAt
+  rulesFirstUsedAt,
+  specialRules,
+  STAGE_LEVEL_COUNT,
+  STAGE_STARTS,
+  stageOfLevel,
+  STAGES
 } from '../src/game/levels.js';
 import { createRandom, hashString } from '../src/game/random.js';
 import { topRun, TUBE_CAPACITY } from '../src/game/rules.js';
 import { solve } from '../src/game/solver.js';
 
-// The first expert level, written out by hand so a change to the dealing shows up here.
-const PINNED_LEVEL_46 = [
-  [2, 4, 2, 5],
-  [0, 1, 1, 4],
-  [0, 2, 2, 1],
-  [3, 0, 5, 4],
-  [5, 3, 0, 1],
-  [3, 5, 4, 3],
+// The first one-way level and the first master level, written out by hand so a change to the
+// dealing shows up here.
+const PINNED_LEVEL_16 = [
+  [0, 2, 3, 1],
+  [1, 3, 4, 2],
+  [3, 1, 0, 0],
+  [1, 2, 3, 4],
+  [2, 0, 4, 4],
+  [],
   []
 ];
-
-// The first master level.
-const PINNED_LEVEL_61 = [
-  [8, 2, 7, 6],
-  [6, 7, 3, 1],
-  [5, 5, 0, 8],
-  [1, 8, 4, 0],
-  [1, 3, 7, 2],
-  [2, 0, 7, 3],
-  [0, 6, 8, 3],
-  [1, 5, 5, 2],
-  [4, 4, 4, 6],
+const PINNED_LEVEL_261 = [
+  [1, 2, 3, 2, 0],
+  [1, 4, 3, 0, 0],
+  [2, 3, 4, 1, 0],
+  [2, 3, 4, 1, 0],
+  [3, 4, 1, 4, 2],
+  [],
   [],
   []
 ];
@@ -70,106 +69,108 @@ describe('random', () => {
   });
 });
 
-describe('levelSettings', () => {
-  const colorsOf = (levels) => levels.map((level) => levelSettings(level).colorCount);
+describe('stages', () => {
+  const settingsOf = (levels) => levels.map(levelSettings);
+  const rulesOf = (level) => specialRules(levelSettings(level));
 
-  it('raises the color count in equal steps within a chapter', () => {
-    expect(colorsOf([1, 5, 6, 10, 11, 15])).toEqual([3, 3, 4, 4, 5, 5]);
-    expect(colorsOf([31, 38, 39, 45])).toEqual([9, 9, 10, 10]);
+  it('follow the plan: where each stage starts, and its undo limit', () => {
+    expect(STAGES.map((stage) => stage.id)).toEqual([
+      'easy',
+      'oneWay',
+      'tall',
+      'hidden',
+      'cracked',
+      'locked',
+      'half',
+      'oil'
+    ]);
+    expect(STAGE_STARTS).toEqual([1, 16, 36, 61, 91, 126, 166, 211]);
+    expect(STAGE_LEVEL_COUNT).toBe(260);
+    expect(STAGES.map((stage) => stage.undoLimit)).toEqual([null, 4, 4, 3, 3, 3, 3, 3]);
+    expect(levelSettings(261).undoLimit).toBe(3);
+    expect(stageOfLevel(260).id).toBe('oil');
+    expect(stageOfLevel(261)).toBe(MASTER_STAGE);
   });
 
-  it('starts every chapter at its lowest color count and ends at its highest', () => {
-    CHAPTERS.forEach((chapter, index) => {
-      const first = index * LEVELS_PER_CHAPTER + 1;
-      const last = first + LEVELS_PER_CHAPTER - 1;
-      expect(colorsOf([first, last])).toEqual([chapter.minColors, chapter.maxColors]);
-      expect(levelSettings(last).emptyTubeCount).toBe(chapter.emptyTubeCount);
+  it('keep the easy stage plain, with three colors and then four and five', () => {
+    expect(settingsOf([1, 5, 6, 10, 11, 15]).map((s) => s.colorCount)).toEqual([3, 3, 4, 4, 5, 5]);
+    for (let level = 1; level <= 15; level++) expect(rulesOf(level)).toEqual([]);
+  });
+
+  it('bring in each stage rule on its own for the first five levels', () => {
+    STAGES.slice(1).forEach((stage, i) => {
+      const first = STAGE_STARTS[i + 1];
+      for (let level = first; level < first + 5; level++) {
+        expect(rulesOf(level)).toEqual(['limitedUndo', stage.rule]);
+      }
     });
   });
 
-  it('leaves a single empty tube only in the expert chapter', () => {
-    expect(levelSettings(45).emptyTubeCount).toBe(2);
-    expect(levelSettings(46).emptyTubeCount).toBe(1);
-  });
-
-  it('cycles through the hardest settings after the chapters, forever', () => {
-    const afterChapters = (offset) => levelSettings(CHAPTER_LEVEL_COUNT + offset);
-    expect(MASTER_SETTINGS.map((_, i) => afterChapters(i + 1))).toEqual(MASTER_SETTINGS);
-    expect(afterChapters(MASTER_SETTINGS.length + 1)).toEqual(MASTER_SETTINGS[0]);
-    expect(levelSettings(100_000)).toEqual(
-      MASTER_SETTINGS[(100_000 - 61) % MASTER_SETTINGS.length]
-    );
-  });
-
-  it('keeps the first master settings, so the master levels already played stay the same', () => {
-    expect(
-      MASTER_SETTINGS.slice(0, 4).map(({ colorCount, emptyTubeCount }) => [
-        colorCount,
-        emptyTubeCount
-      ])
-    ).toEqual([
-      [9, 2],
-      [6, 1],
-      [10, 2],
-      [7, 1]
-    ]);
-  });
-
-  it('keeps the special rules to the master levels', () => {
-    for (let level = 1; level <= CHAPTER_LEVEL_COUNT; level++) {
-      expect(levelSettings(level)).toMatchObject({
-        capacity: 4,
-        hiddenColors: false,
-        halfTubeCount: 0,
-        undoLimit: null
-      });
+  it('use the stage rule in every level of the stage', () => {
+    for (let level = 16; level <= STAGE_LEVEL_COUNT; level++) {
+      expect(rulesOf(level)).toContain(stageOfLevel(level).rule);
     }
-    expect(MASTER_SETTINGS.some((settings) => settings.hiddenColors)).toBe(true);
-    expect(MASTER_SETTINGS.some((settings) => settings.capacity === 5)).toBe(true);
-    expect(MASTER_SETTINGS.some((settings) => settings.halfTubeCount === 1)).toBe(true);
-    expect(MASTER_SETTINGS.every((settings) => settings.undoLimit === 3)).toBe(true);
   });
 
-  it('never hides colors on a board with oil', () => {
-    // Water sinking under oil would move units that are still hidden.
-    expect(MASTER_SETTINGS.some((s) => s.oilColorCount > 0 && s.hiddenColors)).toBe(false);
+  it('mix in only rules of earlier stages', () => {
+    for (let level = 16; level <= STAGE_LEVEL_COUNT; level++) {
+      const stageRank = BOARD_RULES.indexOf(stageOfLevel(level).rule);
+      for (const rule of rulesOf(level).filter((r) => r !== 'limitedUndo')) {
+        expect(BOARD_RULES.indexOf(rule)).toBeLessThanOrEqual(stageRank);
+      }
+    }
   });
 
-  it('never needs more colors than the maximum', () => {
-    for (let level = 1; level <= CHAPTER_LEVEL_COUNT + MASTER_SETTINGS.length; level++) {
+  it('follow the parts of the plan', () => {
+    // 41–50: tall tubes with one-way tubes; 76–90: hidden with both earlier rules.
+    expect(rulesOf(45)).toEqual(['limitedUndo', 'oneWayTube', 'tallTubes']);
+    expect(rulesOf(80)).toEqual(['limitedUndo', 'oneWayTube', 'tallTubes', 'hiddenColors']);
+    // 146–165: two locks.
+    expect(levelSettings(150).lockedTubeCount).toBe(2);
+    // 171–190: half tubes with tall tubes.
+    expect(rulesOf(180)).toEqual(['limitedUndo', 'tallTubes', 'halfTube']);
+    // 236–260: oil with two or three earlier rules.
+    for (let level = 236; level <= 260; level++) {
+      expect(rulesOf(level).length - 2).toBeGreaterThanOrEqual(2);
+    }
+  });
+
+  it('mix three or four rules into every master level, the same for everyone', () => {
+    for (let level = 261; level <= 400; level++) {
+      const count = rulesOf(level).filter((rule) => rule !== 'limitedUndo').length;
+      expect(count).toBeGreaterThanOrEqual(3);
+      expect(count).toBeLessThanOrEqual(4);
+    }
+    expect(levelSettings(5000)).toEqual(levelSettings(5000));
+  });
+
+  it('keep two spare tubes, and one plain empty tube next to a lock or oil', () => {
+    for (let level = 1; level <= 400; level++) {
+      const s = levelSettings(level);
+      const spare = s.emptyTubeCount + s.oneWayTubeCount + s.crackedTubeCount + s.halfTubeCount;
+      expect(spare).toBeGreaterThanOrEqual(2);
+      if (s.lockedTubeCount > 0 || s.oilColorCount > 0) {
+        expect(s.emptyTubeCount).toBeGreaterThanOrEqual(1);
+      }
+    }
+  });
+
+  it('never need more colors than the maximum', () => {
+    for (let level = 1; level <= 400; level++) {
       expect(levelSettings(level).colorCount).toBeLessThanOrEqual(MAX_COLOR_COUNT);
     }
   });
 });
 
 describe('rulesFirstUsedAt', () => {
-  it('names the special rules at the first level that uses them', () => {
-    expect(rulesFirstUsedAt(61)).toEqual(['limitedUndo']);
-    expect(rulesFirstUsedAt(65)).toEqual(['hiddenColors']);
-    expect(rulesFirstUsedAt(66)).toEqual(['tallTubes']);
-    expect(rulesFirstUsedAt(67)).toEqual(['halfTube']);
-    expect(rulesFirstUsedAt(73)).toEqual(['oneWayTube']);
-    expect(rulesFirstUsedAt(74)).toEqual(['crackedTube']);
-    expect(rulesFirstUsedAt(75)).toEqual(['lockedTube']);
-    expect(rulesFirstUsedAt(76)).toEqual(['oil']);
-    for (const level of [1, 60, 62, 68, 70, 72, 77, 79, 81, 93]) {
+  it('names the stage rule and a new undo limit at the first level of a stage, and only there', () => {
+    expect(rulesFirstUsedAt(16)).toEqual(['limitedUndo', 'oneWayTube']);
+    expect(rulesFirstUsedAt(36)).toEqual(['tallTubes']);
+    expect(rulesFirstUsedAt(61)).toEqual(['limitedUndo', 'hiddenColors']);
+    expect(rulesFirstUsedAt(211)).toEqual(['oil']);
+    for (const level of [1, 2, 17, 60, 62, 260, 261, 300]) {
       expect(rulesFirstUsedAt(level)).toEqual([]);
     }
-  });
-});
-
-describe('chapterIdOfLevel', () => {
-  it('groups the levels in chapters, then master levels', () => {
-    expect([1, 15, 16, 30, 46, 60, 61, 5000].map(chapterIdOfLevel)).toEqual([
-      'easy',
-      'easy',
-      'medium',
-      'medium',
-      'expert',
-      'expert',
-      'master',
-      'master'
-    ]);
   });
 });
 
@@ -201,13 +202,13 @@ describe('level and daily puzzles', () => {
   // Players share and compare levels, so a release must never change an existing level.
   it('keeps level layouts stable across releases', () => {
     expect(createLevelPuzzle(1).tubes).toEqual([[1, 0, 1, 2], [0, 2, 1, 2], [1, 0, 0, 2], [], []]);
-    expect(createLevelPuzzle(46).tubes).toEqual(PINNED_LEVEL_46);
-    expect(createLevelPuzzle(61).tubes).toEqual(PINNED_LEVEL_61);
+    expect(createLevelPuzzle(16).tubes).toEqual(PINNED_LEVEL_16);
+    expect(createLevelPuzzle(261).tubes).toEqual(PINNED_LEVEL_261);
   });
 
   it('deals every level with its settings, and every level can be solved', () => {
-    // All chapter levels and the first few blocks of master levels.
-    for (let level = 1; level <= CHAPTER_LEVEL_COUNT + 40; level++) {
+    // Every stage level and the first few blocks of master levels.
+    for (let level = 1; level <= STAGE_LEVEL_COUNT + 40; level++) {
       const { tubes, board } = createLevelPuzzle(level);
       const settings = levelSettings(level);
       const { colorCount, emptyTubeCount, halfTubeCount, capacity } = settings;
@@ -217,18 +218,21 @@ describe('level and daily puzzles', () => {
       expect(new Set(countUnits(tubes).values())).toEqual(new Set([capacity]));
       expect(tubes.filter((tube) => tube.length === 0)).toHaveLength(emptyCount);
       expect(tubes.map((_, i) => board.sizeOf(i))).toEqual(tubeSizes(settings));
+      expect(board.oneWay.size).toBe(settings.oneWayTubeCount);
+      expect(board.cracked.size).toBe(settings.crackedTubeCount);
+      expect(board.locks.size).toBe(settings.lockedTubeCount);
+      expect(board.oilColors.size).toBe(settings.oilColorCount);
       expect(solve(tubes, { board })).not.toBeNull();
     }
   });
 
-  it("moves on to another seed when a level's own seed deals no solvable puzzle", () => {
-    // Level 924 has seven colors and one empty tube, and its own seed deals no solvable board.
-    const settings = levelSettings(924);
-    expect(settings).toMatchObject({ colorCount: 7, emptyTubeCount: 1, capacity: 4 });
+  it("moves on to another seed when a key's own seed deals no solvable puzzle", () => {
+    // Seven colors and one empty tube from the seed of "level-924" never make a solvable board.
+    const settings = { ...levelSettings(1), colorCount: 7, emptyTubeCount: 1 };
     expect(generatePuzzle(hashString('level-924'), settings)).toBeNull();
 
-    const { tubes } = createLevelPuzzle(924);
-    expect(tubes).toEqual(createLevelPuzzle(924).tubes);
+    const { tubes } = dealPuzzle('level-924', settings);
+    expect(tubes).toEqual(dealPuzzle('level-924', settings).tubes);
     expect(countUnits(tubes).size).toBe(7);
     expect(solve(tubes)).not.toBeNull();
   });

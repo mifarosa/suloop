@@ -2,12 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { GameController } from '../src/app/controller.js';
 import { decodeProgressCode, encodeProgressCode } from '../src/app/progressCode.js';
 import { tubeSizes } from '../src/game/generator.js';
-import {
-  CHAPTER_LEVEL_COUNT,
-  createLevelPuzzle,
-  levelSettings,
-  LEVELS_PER_CHAPTER
-} from '../src/game/levels.js';
+import { createLevelPuzzle, levelSettings } from '../src/game/levels.js';
 import { HIDDEN } from '../src/game/rules.js';
 import { solve } from '../src/game/solver.js';
 
@@ -154,44 +149,43 @@ describe('GameController', () => {
     expect(scene.showPuzzle).toHaveBeenLastCalledWith(...shownBoard(4));
   });
 
-  it('announces the next chapter after its last level', async () => {
-    const controller = createController({ solved: 14, current: LEVELS_PER_CHAPTER });
-    await playSolution(controller, createLevelPuzzle(LEVELS_PER_CHAPTER));
+  it('announces the next stage after the last level of a stage', async () => {
+    const controller = createController({ solved: 14, current: 15 });
+    await playSolution(controller, createLevelPuzzle(15));
 
-    expect(hud.showWin.mock.lastCall[0].message).toMatch(/Orta seviyeler açıldı!$/);
+    expect(hud.showWin.mock.lastCall[0].message).toMatch(/Yeni aşama: Tek Yönlü!$/);
   });
 
-  it('does not announce a chapter again when an old level is replayed', async () => {
-    const controller = createController({ solved: 20, current: LEVELS_PER_CHAPTER });
-    await playSolution(controller, createLevelPuzzle(LEVELS_PER_CHAPTER));
+  it('does not announce a stage again when an old level is replayed', async () => {
+    const controller = createController({ solved: 20, current: 15 });
+    await playSolution(controller, createLevelPuzzle(15));
 
     expect(hud.showWin.mock.lastCall[0].message).toMatch(/^\d+ hamlede çözdün\.$/);
-    expect(saved.at(-1)).toMatchObject({ solved: 20, current: LEVELS_PER_CHAPTER + 1 });
+    expect(saved.at(-1)).toMatchObject({ solved: 20, current: 16 });
   });
 
-  it('opens the master levels after the last chapter, and goes on after them', async () => {
-    const controller = createController({ solved: 59, current: CHAPTER_LEVEL_COUNT });
-    await playSolution(controller, createLevelPuzzle(CHAPTER_LEVEL_COUNT));
+  it('opens the master levels after the last stage, and goes on after them', async () => {
+    const controller = createController({ solved: 259, current: 260 });
+    await playSolution(controller, createLevelPuzzle(260));
 
     expect(hud.showWin.mock.lastCall[0]).toEqual({
-      message: expect.stringMatching(/Usta seviyeler açıldı!$/),
+      message: expect.stringMatching(/Yeni aşama: Usta!$/),
       continueLabel: 'Sonraki seviye'
     });
     controller.continueAfterWin();
-    expect(lastRender()).toEqual({
-      title: 'Seviye 61',
-      subtitle: 'Usta · 0 hamle',
-      canUndo: false,
+    expect(lastRender()).toMatchObject({
+      title: 'Seviye 261',
+      subtitle: expect.stringMatching(/^Usta · .+ · 0 hamle$/),
       undoLabel: 'Geri al (3)'
     });
   });
 
   it('does not announce anything at the end of a block of master levels', async () => {
-    const controller = createController({ solved: 74, current: 75 });
-    await playSolution(controller, createLevelPuzzle(75));
+    const controller = createController({ solved: 269, current: 270 });
+    await playSolution(controller, createLevelPuzzle(270));
 
     expect(hud.showWin.mock.lastCall[0].message).toMatch(/^\d+ hamlede çözdün\.$/);
-    expect(saved.at(-1)).toMatchObject({ solved: 75, current: 76 });
+    expect(saved.at(-1)).toMatchObject({ solved: 270, current: 271 });
   });
 
   it('ignores restart once the puzzle is solved', async () => {
@@ -275,19 +269,30 @@ describe('GameController', () => {
     expect(hud.showToast).toHaveBeenCalledWith(`${from + 1}. tüpten ${to + 1}. tüpe dök.`);
   });
 
-  it('lists the levels as solved, open or locked', () => {
+  it('lists the levels by stage, as solved, open or locked', () => {
     const controller = createController({ solved: 3, current: 2 });
     controller.showLevels();
 
     expect(lastMenu().chapters.map((chapter) => chapter.name)).toEqual([
       'Kolay',
-      'Orta',
-      'Zor',
-      'Uzman',
+      'Tek Yönlü',
+      'Uzun Tüp',
+      'Gizli Renk',
+      'Çatlak Tüp',
+      'Kilitli Tüp',
+      'Yarım Tüp',
+      'Yağ',
       'Usta'
     ]);
-    expect(lastMenu().chapters[0]).toMatchObject({ detail: '3–5 renk', progress: '3/15' });
-    expect(lastMenu().chapters[3].detail).toBe('6–7 renk · tek boş tüp');
+    expect(lastMenu().chapters[0]).toMatchObject({
+      detail: 'Düz tüpler · sınırsız geri alma',
+      progress: '3/15'
+    });
+    expect(lastMenu().chapters[1]).toMatchObject({
+      detail: 'Tek yönlü tüp · 4 geri alma',
+      progress: '0/20'
+    });
+    expect(lastMenu().chapters[3].detail).toBe('Alttaki renkler gizli · 3 geri alma');
     expect([1, 3, 4, 5].map((level) => tile(level).state)).toEqual([
       'solved',
       'solved',
@@ -299,24 +304,24 @@ describe('GameController', () => {
     expect(lastMenu().daily).toMatchObject({ solved: false, playing: false, action: 'Oyna' });
   });
 
-  it('shows the master levels a block at a time, up to the furthest open level', () => {
+  it('shows the master levels ten at a time, up to the furthest open level', () => {
     const masterLevels = () =>
       lastMenu()
         .chapters.at(-1)
         .levels.map((tile) => tile.level);
     const controller = createController({ solved: 3, current: 4 });
     controller.showLevels();
-    expect(masterLevels()).toEqual(range(61, 75));
+    expect(masterLevels()).toEqual(range(261, 270));
     expect(lastMenu().chapters.at(-1)).toMatchObject({
-      detail: 'Sonsuz · 3 geri alma · her seviyede özel bir kural',
+      detail: 'Sonsuz · her seviyede 3–4 kural · 3 geri alma',
       progress: '0 çözüldü'
     });
 
-    createController({ solved: 75, current: 76 }).showLevels();
-    expect(masterLevels()).toEqual(range(61, 90));
+    createController({ solved: 275, current: 276 }).showLevels();
+    expect(masterLevels()).toEqual(range(261, 280));
     expect(lastMenu().chapters.at(-1).progress).toBe('15 çözüldü');
-    expect(tile(76).state).toBe('open');
-    expect(tile(77).state).toBe('locked');
+    expect(tile(276).state).toBe('open');
+    expect(tile(277).state).toBe('locked');
   });
 
   it('plays a level picked from the list', () => {
@@ -369,36 +374,41 @@ describe('GameController', () => {
       return [from, to];
     }
 
-    it('lets a master level take back three moves, and a restart gives them back', async () => {
-      const controller = createController({ solved: 60, current: 61 });
-      expect(lastRender().undoLabel).toBe('Geri al (3)');
+    it('lets a level take back as many moves as its stage allows, and a restart gives them back', async () => {
+      const controller = createController({ solved: 20, current: 16 });
+      expect(lastRender().undoLabel).toBe('Geri al (4)');
 
-      for (let i = 0; i < 3; i++) {
-        await pourOnce(controller, 61);
+      for (let i = 0; i < 4; i++) {
+        await pourOnce(controller, 16);
         controller.undo();
       }
       expect(lastRender()).toMatchObject({ undoLabel: 'Geri al (0)' });
 
-      await pourOnce(controller, 61);
+      await pourOnce(controller, 16);
       expect(lastRender().canUndo).toBe(false);
       scene.showContents.mockClear();
       controller.undo();
       expect(scene.showContents).not.toHaveBeenCalled();
 
       controller.restart();
-      expect(lastRender()).toMatchObject({ undoLabel: 'Geri al (3)', canUndo: false });
+      expect(lastRender()).toMatchObject({ undoLabel: 'Geri al (4)', canUndo: false });
     });
 
-    it('explains the limit at the first master level', () => {
-      createController({ solved: 60, current: 61 });
+    it('explains the limit where it starts and where it tightens', () => {
+      createController({ solved: 20, current: 16 });
       expect(hud.showToast).toHaveBeenCalledWith(
-        'Usta seviyelerinde 3 geri alma hakkın var; baştan başlayınca yenilenir.',
+        expect.stringMatching(/^Bu aşamada 4 geri alma hakkın var; baştan başlayınca yenilenir\. /),
+        { long: true }
+      );
+      createController({ solved: 70, current: 61 });
+      expect(hud.showToast).toHaveBeenLastCalledWith(
+        expect.stringMatching(/^Bu aşamada 3 geri alma hakkın var/),
         { long: true }
       );
     });
 
-    it('leaves the chapters and the daily puzzle without a limit', () => {
-      createController({ solved: 59, current: 60 });
+    it('leaves the easy stage and the daily puzzle without a limit', () => {
+      createController({ solved: 14, current: 15 });
       expect(lastRender().undoLabel).toBe('Geri al');
       createController({ mode: 'daily' });
       expect(lastRender().undoLabel).toBe('Geri al');
@@ -406,72 +416,71 @@ describe('GameController', () => {
   });
 
   describe('half tubes', () => {
-    it('gives the scene a short tube and names it', () => {
-      createController({ solved: 70, current: 67 });
+    it('gives the scene a short tube and explains it', () => {
+      createController({ solved: 170, current: 166 });
 
       const [, { sizes }] = scene.showPuzzle.mock.lastCall;
       expect(sizes.at(-1)).toBe(2);
       expect(sizes.slice(0, -1).every((size) => size === 4)).toBe(true);
-      expect(lastRender().subtitle).toBe('Usta · Yarım tüp · 0 hamle');
+      expect(lastRender().subtitle).toBe('Yarım Tüp · 0 hamle');
       expect(hud.showToast).toHaveBeenCalledWith(expect.stringMatching(/^Yarım tüp/), {
         long: true
       });
     });
 
     it('can be solved by tapping', async () => {
-      const controller = createController({ solved: 66, current: 67 });
-      const moves = solve(createLevelPuzzle(67).tubes, { board: createLevelPuzzle(67).board });
-      for (const [from, to] of moves) {
-        await controller.tapTube(from);
-        await controller.tapTube(to);
-      }
+      const controller = createController({ solved: 170, current: 166 });
+      await playSolution(controller, createLevelPuzzle(166));
       expect(scene.celebrate).toHaveBeenCalledOnce();
     });
   });
 
   describe('hidden colors and tall tubes', () => {
-    it('shows only the top colors on a hidden-color level and names the rule', () => {
-      createController({ solved: 70, current: 65 });
+    it('shows only the top colors on a hidden-color level', () => {
+      createController({ solved: 70, current: 61 });
 
       const [shown, options] = scene.showPuzzle.mock.lastCall;
-      const real = createLevelPuzzle(65).tubes;
-      expect(options).toMatchObject({ sizes: tubeSizes(levelSettings(65)) });
+      const real = createLevelPuzzle(61).tubes;
+      expect(options).toMatchObject({ sizes: tubeSizes(levelSettings(61)) });
       shown.forEach((tube, i) => {
         expect(tube.length).toBe(real[i].length);
         if (tube.length > 0) expect(tube.at(-1)).toBe(real[i].at(-1));
         expect(tube.slice(0, -1).every((color) => color === HIDDEN)).toBe(true);
       });
-      expect(lastRender().subtitle).toBe('Usta · Gizli renk · 0 hamle');
+      expect(lastRender().subtitle).toBe('Gizli Renk · 0 hamle');
     });
 
     it('gives a tall-tube level its capacity', () => {
-      createController({ solved: 70, current: 66 });
+      createController({ solved: 70, current: 36 });
 
-      expect(scene.showPuzzle).toHaveBeenLastCalledWith(...shownBoard(66));
-      expect(lastRender().subtitle).toBe('Usta · Uzun tüp · 0 hamle');
+      expect(scene.showPuzzle).toHaveBeenLastCalledWith(...shownBoard(36));
+      expect(scene.showPuzzle.mock.lastCall[1].sizes[0]).toBe(5);
+      expect(lastRender().subtitle).toBe('Uzun Tüp · 0 hamle');
     });
 
-    it('names both rules when a level has both', () => {
-      createController({ solved: 70, current: 68 });
-      expect(lastRender().subtitle).toBe('Usta · Gizli renk · Uzun tüp · 0 hamle');
+    it('names the earlier rules a level mixes in after its stage', () => {
+      createController({ solved: 90, current: 45 });
+      expect(lastRender().subtitle).toBe('Uzun Tüp · Tek yönlü · 0 hamle');
+      createController({ solved: 90, current: 80 });
+      expect(lastRender().subtitle).toBe('Gizli Renk · Tek yönlü · Uzun tüp · 0 hamle');
     });
 
-    it('explains a rule at the first level that uses it, and only there', () => {
-      createController({ solved: 70, current: 65 });
-      expect(hud.showToast).toHaveBeenCalledWith(expect.stringMatching(/^Gizli renkler:/), {
+    it('explains a rule at the first level of its stage, and only there', () => {
+      createController({ solved: 70, current: 61 });
+      expect(hud.showToast).toHaveBeenCalledWith(expect.stringContaining('Gizli renkler:'), {
         long: true
       });
 
       hud.showToast.mockClear();
-      createController({ solved: 80, current: 77 });
+      createController({ solved: 80, current: 62 });
       expect(hud.showToast).not.toHaveBeenCalled();
     });
 
     it('can be solved by tapping, with the real colors underneath', async () => {
-      const controller = createController({ solved: 67, current: 68 });
-      await playSolution(controller, createLevelPuzzle(68));
+      const controller = createController({ solved: 90, current: 80 });
+      await playSolution(controller, createLevelPuzzle(80));
       expect(scene.celebrate).toHaveBeenCalledOnce();
-      expect(saved.at(-1)).toMatchObject({ solved: 68, current: 69 });
+      expect(saved.at(-1)).toMatchObject({ solved: 90, current: 81 });
     });
   });
 
@@ -487,12 +496,12 @@ describe('GameController', () => {
 
     it('takes over progress that is further along and goes to the next level', () => {
       const controller = createController({ solved: 3, current: 2 });
-      controller.importProgress(encodeProgressCode(72));
+      controller.importProgress(encodeProgressCode(40));
 
-      expect(saved.at(-1)).toMatchObject({ mode: 'level', solved: 72, current: 73 });
-      expect(scene.showPuzzle).toHaveBeenLastCalledWith(...shownBoard(73));
+      expect(saved.at(-1)).toMatchObject({ mode: 'level', solved: 40, current: 41 });
+      expect(scene.showPuzzle).toHaveBeenLastCalledWith(...shownBoard(41));
       expect(transfer.hide).toHaveBeenCalled();
-      expect(hud.showToast).toHaveBeenCalledWith('İlerleme yüklendi: 72 seviye çözülmüş.');
+      expect(hud.showToast).toHaveBeenCalledWith('İlerleme yüklendi: 40 seviye çözülmüş.');
     });
 
     it('never goes back to progress that is behind', () => {
@@ -534,7 +543,7 @@ describe('GameController', () => {
 
   describe('special tubes', () => {
     it('tells the scene which tubes are one-way, cracked and locked, and which colors are oil', () => {
-      for (const level of [73, 74, 75, 76]) createController({ solved: 80, current: level });
+      for (const level of [16, 91, 126, 211]) createController({ solved: 260, current: level });
       const calls = scene.showPuzzle.mock.calls.slice(-4).map(([, options]) => options);
 
       expect(calls[0].kinds.some((kind) => kind.oneWay)).toBe(true);
@@ -543,24 +552,24 @@ describe('GameController', () => {
       expect(calls[3].oilColors).toHaveLength(1);
     });
 
-    it('names the rule of each new kind of tube and explains it once', () => {
+    it('names the stage of each new kind of tube and explains it once', () => {
       const subtitles = {
-        73: 'Usta · Tek yönlü · 0 hamle',
-        74: 'Usta · Çatlak tüp · 0 hamle',
-        75: 'Usta · Kilitli tüp · 0 hamle',
-        76: 'Usta · Yağ · 0 hamle'
+        16: 'Tek Yönlü · 0 hamle',
+        91: 'Çatlak Tüp · 0 hamle',
+        126: 'Kilitli Tüp · 0 hamle',
+        211: 'Yağ · 0 hamle'
       };
       for (const [level, subtitle] of Object.entries(subtitles)) {
         hud.showToast.mockClear();
-        createController({ solved: 80, current: Number(level) });
+        createController({ solved: 260, current: Number(level) });
         expect(lastRender().subtitle).toBe(subtitle);
         expect(hud.showToast).toHaveBeenCalledOnce();
       }
     });
 
     it('melts the lock only once the opening pour has landed', async () => {
-      const controller = createController({ solved: 80, current: 75 });
-      const { tubes, board } = createLevelPuzzle(75);
+      const controller = createController({ solved: 260, current: 126 });
+      const { tubes, board } = createLevelPuzzle(126);
       const locked = [...board.locks.keys()][0];
       const showsLocked = () => scene.showTubeStates.mock.lastCall[0][locked].locked;
 
@@ -588,9 +597,9 @@ describe('GameController', () => {
     });
 
     it('can solve every new kind of level by tapping', async () => {
-      for (const level of [73, 74, 75, 76, 77, 78, 79, 80]) {
+      for (const level of [16, 36, 61, 91, 126, 150, 166, 211, 240, 261, 262]) {
         scene.celebrate.mockClear();
-        const controller = createController({ solved: 80, current: level });
+        const controller = createController({ solved: 270, current: level });
         await playSolution(controller, createLevelPuzzle(level));
         expect(scene.celebrate).toHaveBeenCalledOnce();
       }

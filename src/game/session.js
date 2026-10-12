@@ -26,7 +26,9 @@ const HINT_SEARCH_LIMIT = 150_000;
  *
  * With hidden colors only the top unit of each tube shows at first. A unit below shows once
  * everything above it has been poured off, and stays shown: undo and restart do not hide
- * again what the player has seen. The rules and the hints always use the real colors.
+ * again what the player has seen. Oil, floating on top, always shows; only water hides, so
+ * water poured under oil always lands above the hidden units. The rules and the hints always
+ * use the real colors.
  *
  * With an undo limit the player may take back only that many moves; a restart gives them
  * all back.
@@ -47,7 +49,7 @@ export class GameSession {
      * while hidden, since a unit has to be on top to be poured, so the count only shrinks.
      */
     this.hiddenCounts = initialTubes.map((tube) =>
-      hiddenColors ? Math.max(0, tube.length - 1) : 0
+      hiddenColors ? Math.min(Math.max(0, tube.length - 1), board.waterCount(tube)) : 0
     );
     this.restart();
   }

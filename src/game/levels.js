@@ -1,5 +1,5 @@
 import { generatePuzzle } from './generator.js';
-import { hashString } from './random.js';
+import { createRandom, hashString } from './random.js';
 import { TALL_TUBE_CAPACITY, TUBE_CAPACITY } from './rules.js';
 
 /**
@@ -36,121 +36,184 @@ export const DAILY_SETTINGS = Object.freeze({
   emptyTubeCount: 2
 });
 
-/**
- * The first levels, easiest first, in chapters of LEVELS_PER_CHAPTER. Within a chapter the
- * color count rises in equal steps from `minColors` to `maxColors`.
- *
- * The order follows how often random play still solves a puzzle (from about 95% with three
- * colors down to about 6% with ten). A single empty tube makes a board much harder than more
- * colors do, so the last chapter uses fewer colors and one empty tube.
- */
-export const CHAPTERS = Object.freeze([
-  { id: 'easy', minColors: 3, maxColors: 5, emptyTubeCount: 2 },
-  { id: 'medium', minColors: 6, maxColors: 8, emptyTubeCount: 2 },
-  { id: 'hard', minColors: 9, maxColors: 10, emptyTubeCount: 2 },
-  { id: 'expert', minColors: 6, maxColors: 7, emptyTubeCount: 1 }
+/** @typedef {'limitedUndo' | 'oneWayTube' | 'tallTubes' | 'hiddenColors' | 'crackedTube'
+ *   | 'lockedTube' | 'halfTube' | 'oil'} SpecialRule */
+
+/** The board rules, in the order the stages bring them in. */
+export const BOARD_RULES = Object.freeze([
+  'oneWayTube',
+  'tallTubes',
+  'hiddenColors',
+  'crackedTube',
+  'lockedTube',
+  'halfTube',
+  'oil'
 ]);
 
-export const LEVELS_PER_CHAPTER = 15;
-/** Levels in the chapters; every level after them is a master level. */
-export const CHAPTER_LEVEL_COUNT = CHAPTERS.length * LEVELS_PER_CHAPTER;
-
-/** Moves a player may take back in a master level; a restart gives them all back. */
-export const MASTER_UNDO_LIMIT = 3;
-const MASTER = Object.freeze({ ...PLAIN, undoLimit: MASTER_UNDO_LIMIT });
-
 /**
- * Master levels go on forever. They no longer get harder: each one takes the next of these
- * settings in turn, and all of them limit undo. More colors would need tubes too small for a
- * phone and colors too alike to tell apart, so other rules make a board hard:
- * - a single empty tube (with eight colors it is often unsolvable on its own),
- * - hidden colors, which take away what the player can plan with,
- * - tall tubes: eight colors in them are about as hard for random play as ten in plain ones
- *   (7% against 6% solved), with two tubes fewer,
- * - a half tube next to a single empty one: hardest of all (eight colors: 2.5%; nine: 1.5%),
- *   and it makes eight and nine colors with one free full-size tube solvable,
- * - a one-way tube as the second empty tube: random play barely notices it (nine colors:
- *   12%), but every pour into it is final,
- * - a cracked tube as the second empty tube (eight colors: 8%),
- * - a locked tube (eight colors: 10%); with a single empty tube it is often unsolvable,
- * - oil, the hardest for random play (six colors: 1.2%), because oil left on a tube keeps
- *   the water under it in place. Two oil colors are next to unsolvable, and oil is never
- *   combined with hidden colors.
- * Every new rule first appears on its own, then in pairs.
+ * The stages of the game. Each one after the first brings in one rule: it comes on its own
+ * first, then mixed with rules of the stages before, in parts that get harder. The undo limit
+ * tightens as the rules pile up.
  *
- * The first four settings were the whole list once; they stay in place so those levels
- * keep their boards.
+ * A part lists its levels (`count`), the colors rising across it, rules every level of it
+ * adds (`also`), a range of rules drawn for each level (`pick`), and a rule whose tube comes
+ * twice (`twice`). Drawn rules are fixed by the level number, so every player gets the same.
  *
- * @type {ReadonlyArray<Readonly<PuzzleSettings>>}
+ * Difficulty was set by how often random play still solves a board (see the README), and by
+ * keeping every level quick to deal.
  */
-export const MASTER_SETTINGS = Object.freeze([
-  { ...MASTER, colorCount: 9, emptyTubeCount: 2 },
-  { ...MASTER, colorCount: 6, emptyTubeCount: 1 },
-  { ...MASTER, colorCount: 10, emptyTubeCount: 2 },
-  { ...MASTER, colorCount: 7, emptyTubeCount: 1 },
-  { ...MASTER, colorCount: 7, emptyTubeCount: 2, hiddenColors: true },
-  { ...MASTER, colorCount: 8, emptyTubeCount: 2, capacity: TALL_TUBE_CAPACITY },
-  { ...MASTER, colorCount: 8, emptyTubeCount: 1, halfTubeCount: 1 },
+export const STAGES = Object.freeze([
   {
-    ...MASTER,
-    colorCount: 7,
-    emptyTubeCount: 2,
-    capacity: TALL_TUBE_CAPACITY,
-    hiddenColors: true
-  },
-  { ...MASTER, colorCount: 8, emptyTubeCount: 2, hiddenColors: true },
-  {
-    ...MASTER,
-    colorCount: 6,
-    emptyTubeCount: 1,
-    halfTubeCount: 1,
-    capacity: TALL_TUBE_CAPACITY
-  },
-  { ...MASTER, colorCount: 7, emptyTubeCount: 1, halfTubeCount: 1, hiddenColors: true },
-  { ...MASTER, colorCount: 9, emptyTubeCount: 1, halfTubeCount: 1 },
-  { ...MASTER, colorCount: 9, emptyTubeCount: 1, oneWayTubeCount: 1 },
-  { ...MASTER, colorCount: 8, emptyTubeCount: 1, crackedTubeCount: 1 },
-  { ...MASTER, colorCount: 8, emptyTubeCount: 2, lockedTubeCount: 1 },
-  { ...MASTER, colorCount: 6, emptyTubeCount: 2, oilColorCount: 1 },
-  { ...MASTER, colorCount: 7, emptyTubeCount: 1, oneWayTubeCount: 1, hiddenColors: true },
-  {
-    ...MASTER,
-    colorCount: 8,
-    emptyTubeCount: 2,
-    lockedTubeCount: 1,
-    capacity: TALL_TUBE_CAPACITY
+    id: 'easy',
+    rule: null,
+    undoLimit: null,
+    parts: [
+      { count: 5, colors: [3, 3] },
+      { count: 10, colors: [4, 5] }
+    ]
   },
   {
-    ...MASTER,
-    colorCount: 7,
-    emptyTubeCount: 1,
-    crackedTubeCount: 1,
-    capacity: TALL_TUBE_CAPACITY
+    id: 'oneWay',
+    rule: 'oneWayTube',
+    undoLimit: 4,
+    parts: [
+      { count: 5, colors: [5, 6] },
+      { count: 10, colors: [6, 8] },
+      { count: 5, colors: [9, 10] }
+    ]
   },
-  { ...MASTER, colorCount: 5, emptyTubeCount: 2, oilColorCount: 1, capacity: TALL_TUBE_CAPACITY }
+  {
+    id: 'tall',
+    rule: 'tallTubes',
+    undoLimit: 4,
+    parts: [
+      { count: 5, colors: [5, 6] },
+      { count: 10, colors: [6, 7], also: ['oneWayTube'] },
+      { count: 10, colors: [7, 8], also: ['oneWayTube'] }
+    ]
+  },
+  {
+    id: 'hidden',
+    rule: 'hiddenColors',
+    undoLimit: 3,
+    parts: [
+      { count: 5, colors: [5, 6] },
+      { count: 10, colors: [6, 7], pick: { from: ['tallTubes', 'oneWayTube'], count: [1, 1] } },
+      { count: 15, colors: [6, 8], also: ['tallTubes', 'oneWayTube'] }
+    ]
+  },
+  {
+    id: 'cracked',
+    rule: 'crackedTube',
+    undoLimit: 3,
+    parts: [
+      { count: 5, colors: [6, 7] },
+      { count: 15, colors: [6, 7], pick: { from: ['tallTubes', 'hiddenColors'], count: [1, 2] } },
+      {
+        count: 15,
+        colors: [6, 8],
+        pick: { from: ['oneWayTube', 'tallTubes', 'hiddenColors'], count: [2, 3] }
+      }
+    ]
+  },
+  {
+    id: 'locked',
+    rule: 'lockedTube',
+    undoLimit: 3,
+    parts: [
+      { count: 5, colors: [6, 7] },
+      { count: 15, colors: [7, 7], pick: { from: ['crackedTube', 'oneWayTube'], count: [1, 1] } },
+      { count: 20, colors: [7, 9], twice: 'lockedTube' }
+    ]
+  },
+  {
+    id: 'half',
+    rule: 'halfTube',
+    undoLimit: 3,
+    parts: [
+      { count: 5, colors: [5, 6] },
+      { count: 20, colors: [4, 5], also: ['tallTubes'] },
+      {
+        count: 20,
+        colors: [6, 7],
+        pick: { from: ['lockedTube', 'crackedTube', 'hiddenColors'], count: [2, 3] }
+      }
+    ]
+  },
+  {
+    id: 'oil',
+    rule: 'oil',
+    undoLimit: 3,
+    parts: [
+      { count: 5, colors: [4, 5] },
+      { count: 20, colors: [4, 5], pick: { from: ['oneWayTube', 'halfTube'], count: [1, 1] } },
+      {
+        count: 25,
+        colors: [4, 5],
+        pick: {
+          from: [
+            'oneWayTube',
+            'tallTubes',
+            'hiddenColors',
+            'crackedTube',
+            'lockedTube',
+            'halfTube'
+          ],
+          count: [2, 3]
+        }
+      }
+    ]
+  }
 ]);
+
+/** Master levels go on forever, each with a few rules drawn from all of them. */
+export const MASTER_STAGE = Object.freeze({
+  id: 'master',
+  rule: null,
+  undoLimit: 3,
+  pick: { from: BOARD_RULES, count: [3, 4] },
+  colors: [5, 7]
+});
+
+const stageLevelCount = (stage) => stage.parts.reduce((sum, part) => sum + part.count, 0);
+
+/** Levels in the stages; every level after them is a master level. */
+export const STAGE_LEVEL_COUNT = STAGES.reduce((sum, stage) => sum + stageLevelCount(stage), 0);
+
+/** The first level of each stage, by stage index. */
+export const STAGE_STARTS = Object.freeze(
+  STAGES.map(
+    (_, index) => 1 + STAGES.slice(0, index).reduce((sum, s) => sum + stageLevelCount(s), 0)
+  )
+);
 
 export const MAX_COLOR_COUNT = Math.max(
   DAILY_COLOR_COUNT,
-  ...CHAPTERS.map((chapter) => chapter.maxColors),
-  ...MASTER_SETTINGS.map((settings) => settings.colorCount)
+  ...STAGES.flatMap((stage) => stage.parts.map((part) => part.colors[1])),
+  MASTER_STAGE.colors[1]
 );
 
 /** Seeds to try for one puzzle. Almost every puzzle comes from the first one. */
 const SEED_ATTEMPTS = 10;
 
 export function isMasterLevel(level) {
-  return level > CHAPTER_LEVEL_COUNT;
+  return level > STAGE_LEVEL_COUNT;
 }
 
-/** The id of a level's chapter: one of the CHAPTERS, or 'master' after them. */
-export function chapterIdOfLevel(level) {
-  return isMasterLevel(level) ? 'master' : CHAPTERS[chapterIndexOfLevel(level)].id;
+/** The stage a level belongs to, or MASTER_STAGE after the stages. */
+export function stageOfLevel(level) {
+  return isMasterLevel(level) ? MASTER_STAGE : STAGES[stageIndexOfLevel(level)];
 }
 
-/** Index into CHAPTERS of the chapter a level belongs to; only for levels in the chapters. */
-function chapterIndexOfLevel(level) {
-  return Math.floor((level - 1) / LEVELS_PER_CHAPTER);
+/** How many levels a stage has; master levels never end. */
+export function levelCountOf(stage) {
+  return stage === MASTER_STAGE ? Infinity : stageLevelCount(stage);
+}
+
+function stageIndexOfLevel(level) {
+  let index = STAGE_STARTS.length - 1;
+  while (STAGE_STARTS[index] > level) index--;
+  return index;
 }
 
 /**
@@ -159,20 +222,69 @@ function chapterIndexOfLevel(level) {
  * @returns {Readonly<PuzzleSettings>}
  */
 export function levelSettings(level) {
+  // Drawn rules and colors come from a seed of their own, so they never change a deal.
+  const random = createRandom(hashString(`rules-${level}`));
   if (isMasterLevel(level)) {
-    return MASTER_SETTINGS[(level - CHAPTER_LEVEL_COUNT - 1) % MASTER_SETTINGS.length];
+    const rules = drawRules(random, MASTER_STAGE.pick);
+    const [fewest, most] = MASTER_STAGE.colors;
+    // More rules and oil leave room for fewer colors.
+    const colorCount = Math.max(
+      fewest,
+      most - (rules.length - 3) - (rules.includes('oil') ? 1 : 0) - Math.floor(random() * 2)
+    );
+    return buildSettings({ colorCount, rules, undoLimit: MASTER_STAGE.undoLimit });
   }
-  const { minColors, maxColors, emptyTubeCount } = CHAPTERS[chapterIndexOfLevel(level)];
-  const position = (level - 1) % LEVELS_PER_CHAPTER;
-  const steps = maxColors - minColors + 1;
-  const colorCount = minColors + Math.floor((position * steps) / LEVELS_PER_CHAPTER);
-  return { ...PLAIN, colorCount, emptyTubeCount };
+
+  const stageIndex = stageIndexOfLevel(level);
+  const stage = STAGES[stageIndex];
+  let position = level - STAGE_STARTS[stageIndex];
+  const part = stage.parts.find((candidate) => (position -= candidate.count) < 0);
+  const step = position + part.count;
+  const [from, to] = part.colors;
+  const colorCount = from + Math.floor((step * (to - from + 1)) / part.count);
+  const rules = [
+    ...(stage.rule ? [stage.rule] : []),
+    ...(part.also ?? []),
+    ...(part.pick ? drawRules(random, part.pick) : [])
+  ];
+  return buildSettings({ colorCount, rules, undoLimit: stage.undoLimit, twice: part.twice });
+}
+
+/** Draws between `count[0]` and `count[1]` rules from `from`, in their stage order. */
+function drawRules(random, { from, count: [fewest, most] }) {
+  const count = fewest + Math.floor(random() * (most - fewest + 1));
+  const pool = from.slice();
+  const drawn = [];
+  while (drawn.length < count && pool.length > 0) {
+    drawn.push(pool.splice(Math.floor(random() * pool.length), 1)[0]);
+  }
+  return BOARD_RULES.filter((rule) => drawn.includes(rule));
 }
 
 /**
- * @typedef {'limitedUndo' | 'hiddenColors' | 'tallTubes' | 'halfTube' | 'oneWayTube'
- *   | 'crackedTube' | 'lockedTube' | 'oil'} SpecialRule
+ * Settings for a board with the given rules. A board has two spare tubes: plain empty ones,
+ * or one-way, cracked and half tubes standing in for them; a further one-way, cracked or half
+ * tube would make the board easier, not harder. A board with a lock or oil keeps one plain
+ * empty tube: without it a locked board is often unsolvable, and an oily one takes the solver
+ * seconds to deal.
  */
+function buildSettings({ colorCount, rules, undoLimit, twice = null }) {
+  const has = (rule) => rules.includes(rule);
+  const times = (rule) => (has(rule) ? (rule === twice ? 2 : 1) : 0);
+  const specials = times('oneWayTube') + times('crackedTube') + times('halfTube');
+  return {
+    colorCount,
+    emptyTubeCount: Math.max(has('lockedTube') || has('oil') ? 1 : 0, 2 - specials),
+    halfTubeCount: times('halfTube'),
+    oneWayTubeCount: times('oneWayTube'),
+    crackedTubeCount: times('crackedTube'),
+    lockedTubeCount: times('lockedTube'),
+    oilColorCount: has('oil') ? 1 : 0,
+    capacity: has('tallTubes') ? TALL_TUBE_CAPACITY : TUBE_CAPACITY,
+    hiddenColors: has('hiddenColors'),
+    undoLimit
+  };
+}
 
 /**
  * The special rules in a puzzle's settings.
@@ -182,26 +294,32 @@ export function levelSettings(level) {
 export function specialRules(settings) {
   const rules = [];
   if (settings.undoLimit !== null) rules.push('limitedUndo');
-  if (settings.hiddenColors) rules.push('hiddenColors');
-  if (settings.capacity > TUBE_CAPACITY) rules.push('tallTubes');
-  if (settings.halfTubeCount > 0) rules.push('halfTube');
   if (settings.oneWayTubeCount > 0) rules.push('oneWayTube');
+  if (settings.capacity > TUBE_CAPACITY) rules.push('tallTubes');
+  if (settings.hiddenColors) rules.push('hiddenColors');
   if (settings.crackedTubeCount > 0) rules.push('crackedTube');
   if (settings.lockedTubeCount > 0) rules.push('lockedTube');
+  if (settings.halfTubeCount > 0) rules.push('halfTube');
   if (settings.oilColorCount > 0) rules.push('oil');
   return rules;
 }
 
 /**
- * The special rules a level is the first to use, so the game can explain them there.
+ * What a level is the first to bring, so the game can explain it there: the rule of a stage
+ * at its first level, and the undo limit wherever it changes.
  * @returns {SpecialRule[]}
  */
 export function rulesFirstUsedAt(level) {
-  const index = level - CHAPTER_LEVEL_COUNT - 1;
-  if (index < 0 || index >= MASTER_SETTINGS.length) return [];
+  if (isMasterLevel(level)) return [];
+  const stageIndex = stageIndexOfLevel(level);
+  if (level !== STAGE_STARTS[stageIndex]) return [];
 
-  const usedBefore = MASTER_SETTINGS.slice(0, index).flatMap(specialRules);
-  return specialRules(MASTER_SETTINGS[index]).filter((rule) => !usedBefore.includes(rule));
+  const stage = STAGES[stageIndex];
+  const before = STAGES[stageIndex - 1];
+  const news = [];
+  if (stage.undoLimit !== null && stage.undoLimit !== before?.undoLimit) news.push('limitedUndo');
+  if (stage.rule) news.push(stage.rule);
+  return news;
 }
 
 /**
@@ -227,7 +345,7 @@ export function createDailyPuzzle(dateKey) {
  * @param {string} key
  * @param {PuzzleSettings} settings
  */
-function dealPuzzle(key, settings) {
+export function dealPuzzle(key, settings) {
   for (let attempt = 0; attempt < SEED_ATTEMPTS; attempt++) {
     const seedKey = attempt === 0 ? key : `${key}#${attempt}`;
     const puzzle = generatePuzzle(hashString(seedKey), settings);

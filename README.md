@@ -12,31 +12,36 @@ Renkli suları tüplere ayırdığın bulmaca oyunu. Tarayıcıda çalışır, k
 
 ## Özellikler
 
-- Kolaydan zora dört bölüm, ardından bitmeyen Usta seviyeleri:
+- Kademeli öğrenme: sekiz aşama, her biri bir kural öğretir; ardından bitmeyen Usta seviyeleri.
+  Her aşama kuralı önce tek başına tanıtır, sonra önceki aşamaların kurallarıyla karıştırır:
 
-  | Bölüm | Seviyeler | Tahta                                                |
-  | ----- | --------- | ---------------------------------------------------- |
-  | Kolay | 1–15      | 3–5 renk, 2 boş tüp                                  |
-  | Orta  | 16–30     | 6–8 renk, 2 boş tüp                                  |
-  | Zor   | 31–45     | 9–10 renk, 2 boş tüp                                 |
-  | Uzman | 46–60     | 6–7 renk, yalnızca 1 boş tüp                         |
-  | Usta  | 61 ve öte | 5–10 renk; sırayla özel kurallar ve tüpler (aşağıda) |
+  | Aşama       | Seviyeler  | Kural                                  | Karışım                                             | Geri alma |
+  | ----------- | ---------- | -------------------------------------- | --------------------------------------------------- | --------- |
+  | Kolay       | 1–15       | Düz tüpler, 3–5 renk                   | —                                                   | sınırsız  |
+  | Tek Yönlü   | 16–35      | İçine dökülür, dışına dökülmez         | 31–35: 9–10 renkli final                            | 4         |
+  | Uzun Tüp    | 36–60      | Her tüp 5 birim alır                   | 41–60: tek yönlü tüple                              | 4         |
+  | Gizli Renk  | 61–90      | Alttaki renkler gizli                  | 66–75: uzun ya da tek yönlü; 76–90: ikisi birden    | 3         |
+  | Çatlak Tüp  | 91–125     | İçine yalnızca 3 kez dökülür           | 96–110: uzun/gizli; 111–125: önceki 2–3 kural       | 3         |
+  | Kilitli Tüp | 126–165    | Anahtar renk tamamlanınca buzu çözülür | 131–145: çatlak ya da tek yönlü; 146–165: iki kilit | 3         |
+  | Yarım Tüp   | 166–210    | Yalnızca 2 birim alır, boş kalmalı     | 171–190: uzun tüple; 191–210: kilit/çatlak/gizli    | 3         |
+  | Yağ         | 211–260    | Suyun üstünde durur                    | 216–235: tek yönlü ya da yarım; 236–260: 2–3 kural  | 3         |
+  | Usta        | 261 ve öte | Her seviyede rastgele 3–4 kural        | Bitmez, hep zordur                                  | 3         |
 
-  Usta seviyeleri artık zorlaşmaz ama hep zordur. Her seviye numarası herkeste aynı tahtayı verir.
-  Hepsinde 3 geri alma hakkı vardır (baştan başlayınca yenilenir) ve 20 ayar sırayla döner:
+  Her aşama biraz daha kolay başlar ve sonuna doğru zorlaşır. Her seviye numarası herkeste aynı
+  tahtayı verir. Geri alma hakkı baştan başlayınca yenilenir.
 
   - **Gizli renkler:** başta her tüpün yalnızca en üstü görünür; alttakiler, üstündekiler döküldükçe
     açılır. Bir kez görülen geri alınca ya da baştan başlayınca tekrar gizlenmez. İpucu gerçek
-    renkleri bilir.
+    renkleri bilir. Yağ hep görünür.
   - **Uzun tüp:** her tüp 5 birim alır. **Yarım tüp:** yalnızca 2 birim alır, sonunda boş kalmalı.
   - **Tek yönlü tüp:** içine dökülür, dışına dökülmez.
   - **Çatlak tüp:** içine yalnızca 3 kez dökülebilir, dışına her zaman.
   - **Kilitli tüp:** kilidindeki renkte bir tüp tamamlanana kadar buzla kaplıdır.
   - **Yağ:** suyun üstünde durur. Su yağın altına geçer; yağ kalkmadan altındaki su dökülmez.
 
-  Her kural ilk çıktığı seviyede kısaca anlatılır.
+  Her kural ve her yeni geri alma hakkı ilk çıktığı seviyede kısaca anlatılır.
 
-- Seviyeler ekranı: çözülen seviyeler bölümün rengiyle dolar, sıradaki seviye açık, ötesi kilitli.
+- Seviyeler ekranı: çözülen seviyeler aşamanın rengiyle dolar, sıradaki seviye açık, ötesi kilitli.
   Çözülmüş bir seviyeye dönüp tekrar oynanabilir
 - Günün bulmacası: herkes aynı gün aynı bulmacayı oynar
 - Her seviye üretilirken çözücüyle denenir; çözülemeyen seviye çıkmaz
@@ -47,7 +52,7 @@ Renkli suları tüplere ayırdığın bulmaca oyunu. Tarayıcıda çalışır, k
 - Gerçekçi döküm: tüp, sıvı ağzına ulaşana kadar eğilir ve boşaldıkça daha çok eğilir; sıvının
   yüzeyi hep yatay kalır, akıntı tüpün dudağından düşer. Bir döküm sürerken sonraki hamle
   yapılabilir
-- Canvas 2D ile çizilen cam tüpler, açık/koyu tema; ek kütüphane yok, oyun 38 KB
+- Canvas 2D ile çizilen cam tüpler, açık/koyu tema; ek kütüphane yok, oyun 40 KB
 
 ## Proje yapısı
 
@@ -57,7 +62,7 @@ src/
     rules.js      Tahtanın kuralları (Board): dökme, yağ, özel tüpler, çözülme
     solver.js     Derinlik öncelikli çözücü (seviye doğrulama ve ipucu)
     generator.js  Tohumlu, çözülebilir bulmaca üretimi
-    levels.js     Bölümler, zorluk eğrisi, seviye ve günlük bulmaca
+    levels.js     Aşamalar, kuralların karışımı, seviye ve günlük bulmaca
     random.js     Tohumlu rastgele sayı üretici ve metin hash'i
     session.js    Bir oyunun durumu: seçim, hamle geçmişi, geri alma
   scene/          Görünüm (Canvas 2D). Oyun kurallarını bilmez
