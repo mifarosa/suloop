@@ -45,7 +45,7 @@ const TODAY = new Date(2026, 9, 9, 12, 0);
 
 /** What the scene is given for a level: the board and each tube's size. */
 const shownBoard = (level) => [
-  createLevelPuzzle(level),
+  createLevelPuzzle(level).tubes,
   { sizes: tubeSizes(levelSettings(level)) }
 ];
 
@@ -72,8 +72,10 @@ describe('GameController', () => {
     return controller;
   }
 
-  async function playSolution(controller, tubes) {
-    for (const [from, to] of solve(tubes)) {
+  /** Plays a level's solution, or the solution of plain tubes (such as a daily puzzle). */
+  async function playSolution(controller, puzzle) {
+    const { tubes, board } = Array.isArray(puzzle) ? { tubes: puzzle } : puzzle;
+    for (const [from, to] of solve(tubes, { board })) {
       await controller.tapTube(from);
       await controller.tapTube(to);
     }
@@ -105,7 +107,7 @@ describe('GameController', () => {
 
   it('lifts a tube on the first tap and pours on the second', async () => {
     const controller = createController();
-    const [from, to] = solve(createLevelPuzzle(1))[0];
+    const [from, to] = solve(createLevelPuzzle(1).tubes)[0];
 
     await controller.tapTube(from);
     expect(scene.setLifted).toHaveBeenCalledWith(from, true);
@@ -204,7 +206,7 @@ describe('GameController', () => {
     let finishPour;
     scene.pour.mockImplementation(() => new Promise((resolve) => (finishPour = resolve)));
     const controller = createController();
-    const [from, to] = solve(createLevelPuzzle(1))[0];
+    const [from, to] = solve(createLevelPuzzle(1).tubes)[0];
 
     await controller.tapTube(from);
     const pouring = controller.tapTube(to);
@@ -217,18 +219,18 @@ describe('GameController', () => {
 
   it('undoes a move and shows the previous board', async () => {
     const controller = createController();
-    const [from, to] = solve(createLevelPuzzle(1))[0];
+    const [from, to] = solve(createLevelPuzzle(1).tubes)[0];
     await controller.tapTube(from);
     await controller.tapTube(to);
 
     controller.undo();
-    expect(scene.showContents).toHaveBeenLastCalledWith(createLevelPuzzle(1));
+    expect(scene.showContents).toHaveBeenLastCalledWith(createLevelPuzzle(1).tubes);
     expect(lastRender()).toMatchObject({ subtitle: 'Kolay · 0 hamle', canUndo: false });
   });
 
   it('points out the next move as a hint', () => {
     const controller = createController();
-    const [from, to] = solve(createLevelPuzzle(1))[0];
+    const [from, to] = solve(createLevelPuzzle(1).tubes)[0];
 
     controller.showHint();
     expect(scene.highlight).toHaveBeenCalledWith([from, to]);
@@ -321,10 +323,8 @@ describe('GameController', () => {
 
   describe('limited undo', () => {
     async function pourOnce(controller, level) {
-      const settings = levelSettings(level);
-      const [[from, to]] = solve(createLevelPuzzle(level), {
-        capacity: settings.capacity,
-        sizes: tubeSizes(settings)
+      const [[from, to]] = solve(createLevelPuzzle(level).tubes, {
+        board: createLevelPuzzle(level).board
       });
       await controller.tapTube(from);
       await controller.tapTube(to);
@@ -382,11 +382,7 @@ describe('GameController', () => {
 
     it('can be solved by tapping', async () => {
       const controller = createController({ solved: 66, current: 67 });
-      const settings = levelSettings(67);
-      const moves = solve(createLevelPuzzle(67), {
-        capacity: settings.capacity,
-        sizes: tubeSizes(settings)
-      });
+      const moves = solve(createLevelPuzzle(67).tubes, { board: createLevelPuzzle(67).board });
       for (const [from, to] of moves) {
         await controller.tapTube(from);
         await controller.tapTube(to);
@@ -400,7 +396,7 @@ describe('GameController', () => {
       createController({ solved: 70, current: 65 });
 
       const [shown, options] = scene.showPuzzle.mock.lastCall;
-      const real = createLevelPuzzle(65);
+      const real = createLevelPuzzle(65).tubes;
       expect(options).toEqual({ sizes: tubeSizes(levelSettings(65)) });
       shown.forEach((tube, i) => {
         expect(tube.length).toBe(real[i].length);
@@ -435,10 +431,7 @@ describe('GameController', () => {
 
     it('can be solved by tapping, with the real colors underneath', async () => {
       const controller = createController({ solved: 67, current: 68 });
-      for (const [from, to] of solve(createLevelPuzzle(68), { capacity: 5 })) {
-        await controller.tapTube(from);
-        await controller.tapTube(to);
-      }
+      await playSolution(controller, createLevelPuzzle(68));
       expect(scene.celebrate).toHaveBeenCalledOnce();
       expect(saved.at(-1)).toMatchObject({ solved: 68, current: 69 });
     });

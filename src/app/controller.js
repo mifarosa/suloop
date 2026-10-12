@@ -11,7 +11,6 @@ import {
   rulesFirstUsedAt,
   specialRules
 } from '../game/levels.js';
-import { tubeSizes } from '../game/generator.js';
 import { GameSession } from '../game/session.js';
 import { localDateKey } from './calendar.js';
 import { lastOpenLevel } from './progress.js';
@@ -63,15 +62,16 @@ export class GameController {
   start() {
     this.#puzzleDay = this.#now();
     this.#level = this.#isDaily() ? null : this.#progress.current;
-    const tubes = this.#isDaily()
+    const { tubes, board } = this.#isDaily()
       ? createDailyPuzzle(localDateKey(this.#puzzleDay))
       : createLevelPuzzle(this.#level);
     const settings = this.#settings();
-    const { capacity, hiddenColors, undoLimit } = settings;
-    const sizes = tubeSizes(settings);
+    const { hiddenColors, undoLimit } = settings;
 
-    this.#session = new GameSession(tubes, { capacity, sizes, hiddenColors, undoLimit });
-    this.#scene.showPuzzle(this.#session.visibleTubes, { sizes });
+    this.#session = new GameSession(board, tubes, { hiddenColors, undoLimit });
+    this.#scene.showPuzzle(this.#session.visibleTubes, {
+      sizes: tubes.map((_, index) => board.sizeOf(index))
+    });
     this.#hud.hideWin();
     this.#menu.hide();
     this.#refreshHud();

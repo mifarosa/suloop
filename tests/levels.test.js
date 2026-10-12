@@ -166,11 +166,13 @@ describe('chapterIdOfLevel', () => {
 
 describe('generatePuzzle', () => {
   it('deals the same puzzle for the same seed', () => {
-    expect(generatePuzzle(123, { colorCount: 5 })).toEqual(generatePuzzle(123, { colorCount: 5 }));
+    expect(generatePuzzle(123, { colorCount: 5 }).tubes).toEqual(
+      generatePuzzle(123, { colorCount: 5 }).tubes
+    );
   });
 
   it('deals full tubes of every color plus two empty ones', () => {
-    const tubes = generatePuzzle(99, { colorCount: 6 });
+    const { tubes } = generatePuzzle(99, { colorCount: 6 });
 
     expect(tubes).toHaveLength(8);
     expect(tubes.slice(6)).toEqual([[], []]);
@@ -179,7 +181,7 @@ describe('generatePuzzle', () => {
 
   it('deals only solvable puzzles that do not start half sorted', () => {
     for (let seed = 1; seed <= 20; seed++) {
-      const tubes = generatePuzzle(seed, { colorCount: 4 });
+      const { tubes } = generatePuzzle(seed, { colorCount: 4 });
       expect(solve(tubes)).not.toBeNull();
       expect(tubes.every((tube) => topRun(tube).count < 3)).toBe(true);
     }
@@ -189,15 +191,15 @@ describe('generatePuzzle', () => {
 describe('level and daily puzzles', () => {
   // Players share and compare levels, so a release must never change an existing level.
   it('keeps level layouts stable across releases', () => {
-    expect(createLevelPuzzle(1)).toEqual([[1, 0, 1, 2], [0, 2, 1, 2], [1, 0, 0, 2], [], []]);
-    expect(createLevelPuzzle(46)).toEqual(PINNED_LEVEL_46);
-    expect(createLevelPuzzle(61)).toEqual(PINNED_LEVEL_61);
+    expect(createLevelPuzzle(1).tubes).toEqual([[1, 0, 1, 2], [0, 2, 1, 2], [1, 0, 0, 2], [], []]);
+    expect(createLevelPuzzle(46).tubes).toEqual(PINNED_LEVEL_46);
+    expect(createLevelPuzzle(61).tubes).toEqual(PINNED_LEVEL_61);
   });
 
   it('deals every level with its settings, and every level can be solved', () => {
     // All chapter levels and the first few blocks of master levels.
     for (let level = 1; level <= CHAPTER_LEVEL_COUNT + 40; level++) {
-      const tubes = createLevelPuzzle(level);
+      const { tubes, board } = createLevelPuzzle(level);
       const settings = levelSettings(level);
       const { colorCount, emptyTubeCount, halfTubeCount, capacity } = settings;
       expect(countUnits(tubes).size).toBe(colorCount);
@@ -205,7 +207,8 @@ describe('level and daily puzzles', () => {
       expect(tubes.filter((tube) => tube.length === 0)).toHaveLength(
         emptyTubeCount + halfTubeCount
       );
-      expect(solve(tubes, { capacity, sizes: tubeSizes(settings) })).not.toBeNull();
+      expect(tubes.map((_, i) => board.sizeOf(i))).toEqual(tubeSizes(settings));
+      expect(solve(tubes, { board })).not.toBeNull();
     }
   });
 
@@ -215,14 +218,14 @@ describe('level and daily puzzles', () => {
     expect(settings).toMatchObject({ colorCount: 7, emptyTubeCount: 1, capacity: 4 });
     expect(generatePuzzle(hashString('level-7888'), settings)).toBeNull();
 
-    const tubes = createLevelPuzzle(7888);
-    expect(tubes).toEqual(createLevelPuzzle(7888));
+    const { tubes } = createLevelPuzzle(7888);
+    expect(tubes).toEqual(createLevelPuzzle(7888).tubes);
     expect(countUnits(tubes).size).toBe(7);
     expect(solve(tubes)).not.toBeNull();
   });
 
   it('keeps daily layouts stable across releases', () => {
-    expect(createDailyPuzzle('2026-10-09')).toEqual([
+    expect(createDailyPuzzle('2026-10-09').tubes).toEqual([
       [4, 0, 6, 5],
       [2, 2, 3, 3],
       [0, 2, 1, 3],
@@ -236,6 +239,6 @@ describe('level and daily puzzles', () => {
   });
 
   it('uses a fixed number of colors for the daily puzzle', () => {
-    expect(countUnits(createDailyPuzzle('2026-01-01')).size).toBe(DAILY_COLOR_COUNT);
+    expect(countUnits(createDailyPuzzle('2026-01-01').tubes).size).toBe(DAILY_COLOR_COUNT);
   });
 });

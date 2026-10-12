@@ -163,14 +163,18 @@ export function rulesFirstUsedAt(level) {
 }
 
 /**
- * The puzzle for a numbered level. Seeds are derived from the level number, so a level
- * looks the same on every device and after every release.
+ * The puzzle for a numbered level: its tubes and the board's rules. Seeds are derived from
+ * the level number, so a level looks the same on every device and after every release.
+ * @returns {{ tubes: number[][], board: import('./rules.js').Board }}
  */
 export function createLevelPuzzle(level) {
   return dealPuzzle(`level-${level}`, levelSettings(level));
 }
 
-/** The daily puzzle, shared by everyone on the same calendar date ("YYYY-MM-DD"). */
+/**
+ * The daily puzzle, shared by everyone on the same calendar date ("YYYY-MM-DD").
+ * @returns {{ tubes: number[][], board: import('./rules.js').Board }}
+ */
 export function createDailyPuzzle(dateKey) {
   return dealPuzzle(`daily-${dateKey}`, DAILY_SETTINGS);
 }
@@ -184,8 +188,8 @@ export function createDailyPuzzle(dateKey) {
 function dealPuzzle(key, settings) {
   for (let attempt = 0; attempt < SEED_ATTEMPTS; attempt++) {
     const seedKey = attempt === 0 ? key : `${key}#${attempt}`;
-    const tubes = generatePuzzle(hashString(seedKey), settings);
-    if (tubes) return tubes;
+    const puzzle = generatePuzzle(hashString(seedKey), settings);
+    if (puzzle) return puzzle;
   }
   throw new Error(`Could not deal a solvable puzzle for ${key}`);
 }

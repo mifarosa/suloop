@@ -1,5 +1,5 @@
 import { createRandom } from './random.js';
-import { HALF_TUBE_SIZE, TUBE_CAPACITY, topRun } from './rules.js';
+import { Board, HALF_TUBE_SIZE, TUBE_CAPACITY, topRun } from './rules.js';
 import { solve } from './solver.js';
 
 const MAX_ATTEMPTS = 100;
@@ -7,12 +7,22 @@ const MAX_ATTEMPTS = 100;
 // A tube that starts with this many matching units on top is already half sorted.
 const TOO_EASY_TOP_RUN = 3;
 
+/** How many times a cracked tube can be poured into. */
+export const CRACKED_TUBE_FILLS = 3;
+
 /**
- * The shape of a board.
+ * The shape of a board. The tubes come in this order: the filled ones, then the empty ones,
+ * half, one-way and cracked.
  * @typedef {object} BoardShape
  * @property {number} colorCount number of colors, and so the number of filled tubes
- * @property {number} [emptyTubeCount] empty full-size tubes after the filled ones
- * @property {number} [halfTubeCount] empty half tubes after those
+ * @property {number} [emptyTubeCount] empty full-size tubes
+ * @property {number} [halfTubeCount] empty half tubes
+ * @property {number} [oneWayTubeCount] empty full-size tubes that never give liquid back
+ * @property {number} [crackedTubeCount] empty full-size tubes that can be poured into only
+ *   CRACKED_TUBE_FILLS times
+ * @property {number} [lockedTubeCount] filled tubes that stay locked until their key color
+ *   is complete (0 or 1)
+ * @property {number} [oilColorCount] colors that are oil
  * @property {number} [capacity] units of each color, and what a full-size tube holds
  */
 
@@ -21,15 +31,13 @@ const TOO_EASY_TOP_RUN = 3;
  * @param {BoardShape} shape
  * @returns {number[]}
  */
-export function tubeSizes({
-  colorCount,
-  emptyTubeCount = 2,
-  halfTubeCount = 0,
-  capacity = TUBE_CAPACITY
-}) {
+export function tubeSizes(shape) {
+  const { colorCount, emptyTubeCount = 2, halfTubeCount = 0, capacity = TUBE_CAPACITY } = shape;
+  const { oneWayTubeCount = 0, crackedTubeCount = 0 } = shape;
   return [
     ...Array(colorCount + emptyTubeCount).fill(capacity),
-    ...Array(halfTubeCount).fill(HALF_TUBE_SIZE)
+    ...Array(halfTubeCount).fill(HALF_TUBE_SIZE),
+    ...Array(oneWayTubeCount + crackedTubeCount).fill(capacity)
   ];
 }
 
@@ -38,23 +46,49 @@ export function tubeSizes({
  *
  * @param {number} seed
  * @param {BoardShape} shape
- * @returns {number[][] | null} null when no solvable deal turned up, which happens now and then
- *   with a single empty tube
+ * @returns {{ tubes: number[][], board: Board } | null} null when no solvable deal turned up,
+ *   which happens now and then with a single empty tube
  */
 export function generatePuzzle(seed, shape) {
-  const { colorCount, capacity = TUBE_CAPACITY, halfTubeCount = 0 } = shape;
+  const { colorCount, capacity = TUBE_CAPACITY, lockedTubeCount = 0 } = shape;
+  const { oilColorCount = 0 } = shape;
   const tubeCount = tubeSizes(shape).length;
-  // One number when all tubes are full-size keeps the solver on its faster path.
-  const sizes = halfTubeCount > 0 ? tubeSizes(shape) : capacity;
   const random = createRandom(seed);
 
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     const tubes = dealFilledTubes(random, colorCount, capacity);
     while (tubes.length < tubeCount) tubes.push([]);
 
-    if (!tubes.some(startsTooEasy) && solve(tubes, { capacity, sizes })) return tubes;
+    // Only boards with special rules draw these, so plain boards deal as they always have.
+    const oilColors = oilColorCount > 0 ? pick(random, range(colorCount), oilColorCount) : [];
+    const lock = lockedTubeCount > 0 ? pickLock(random, tubes, colorCount) : null;
+    const board = createBoard(shape, oilColors, lock);
+    if (oilColors.length > 0) floatOil(tubes, board);
+
+    if (!tubes.some(startsTooEasy) && solve(tubes, { board })) return { tubes, board };
   }
   return null;
+}
+
+/** The rules for a shape, with the oil colors and the lock that were drawn for it. */
+function createBoard(shape, oilColors, lock) {
+  const sizes = tubeSizes(shape);
+  const { colorCount, emptyTubeCount = 2, halfTubeCount = 0, capacity = TUBE_CAPACITY } = shape;
+  const { oneWayTubeCount = 0, crackedTubeCount = 0 } = shape;
+  const firstOneWay = colorCount + emptyTubeCount + halfTubeCount;
+  const firstCracked = firstOneWay + oneWayTubeCount;
+
+  return new Board({
+    capacity,
+    // A board of full-size tubes only needs no sizes, which keeps the solver on its faster path.
+    sizes: halfTubeCount > 0 ? sizes : null,
+    oilColors,
+    oneWay: range(oneWayTubeCount).map((i) => firstOneWay + i),
+    cracked: Object.fromEntries(
+      range(crackedTubeCount).map((i) => [firstCracked + i, CRACKED_TUBE_FILLS])
+    ),
+    locks: lock ? { [lock.tube]: lock.key } : {}
+  });
 }
 
 /** Shuffles `capacity` units of every color and splits them into full tubes. */
@@ -70,6 +104,35 @@ function dealFilledTubes(random, colorCount, capacity) {
     tubes.push(units.slice(i * capacity, (i + 1) * capacity));
   }
   return tubes;
+}
+
+/** Lets the oil in every tube rise above the water, keeping the order within each. */
+function floatOil(tubes, board) {
+  for (const tube of tubes) {
+    const water = tube.filter((color) => !board.isOil(color));
+    const oil = tube.filter((color) => board.isOil(color));
+    tube.splice(0, tube.length, ...water, ...oil);
+  }
+}
+
+/**
+ * Locks one filled tube, with a key color that has no unit inside it; otherwise the key could
+ * never be completed.
+ */
+function pickLock(random, tubes, colorCount) {
+  const tube = Math.floor(random() * colorCount);
+  const keys = range(colorCount).filter((color) => !tubes[tube].includes(color));
+  return { tube, key: keys[Math.floor(random() * keys.length)] };
+}
+
+function pick(random, items, count) {
+  const shuffled = items.slice();
+  shuffle(shuffled, random);
+  return shuffled.slice(0, count).sort((a, b) => a - b);
+}
+
+function range(count) {
+  return Array.from({ length: count }, (_, i) => i);
 }
 
 /** Fisher–Yates shuffle, in place. */
