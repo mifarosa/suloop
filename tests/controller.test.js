@@ -494,14 +494,34 @@ describe('GameController', () => {
 
     controller.showHint();
     expect(scene.highlight).toHaveBeenCalledWith([from, to]);
-    expect(hud.showToast).toHaveBeenCalledWith(`${from + 1}. tüpten ${to + 1}. tüpe dök.`);
+    expect(hud.showToast).toHaveBeenCalledWith(
+      `${from + 1}. tüpten ${to + 1}. tüpe dök. (İpucu +1 hamle)`
+    );
     expect(saved.at(-1).hints).toBe(1);
-    expect(lastRender()).toMatchObject({ hintCount: '1' });
+    // The hint counts as a move.
+    expect(lastRender()).toMatchObject({ hintCount: '1', subtitle: 'Kolay · 1 hamle' });
 
-    // Asking again in the same position costs nothing.
+    // Asking again in the same position costs nothing, neither a hint nor a move.
     controller.showHint();
     expect(scene.highlight).toHaveBeenCalledTimes(2);
     expect(saved.at(-1).hints).toBe(1);
+    expect(lastRender().subtitle).toBe('Kolay · 1 hamle');
+  });
+
+  it('rates a solution found with a hint one move longer', async () => {
+    const controller = createController();
+    controller.showHint();
+    const [from, to] = scene.highlight.mock.lastCall[0];
+    await controller.tapTube(from);
+    await controller.tapTube(to);
+    const { tubes, board } = createLevelPuzzle(1);
+    const rest = solveShortest(board.pour(board.start(tubes), from, to).position, { board });
+    for (const [next, target] of rest) {
+      await controller.tapTube(next);
+      await controller.tapTube(target);
+    }
+
+    expect(lastWin()).toMatchObject({ moves: 10, fewest: 9, stars: 2 });
   });
 
   it('does not give a hint back on undo, and says how to earn one when none is left', async () => {

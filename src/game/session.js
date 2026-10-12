@@ -46,6 +46,9 @@ const HINT_SEARCH_LIMIT = 150_000;
  *
  * With an undo limit the player may take back only that many moves; a restart gives them
  * all back.
+ *
+ * A hint counts as a move: it adds one to the move count, so a solution found with help
+ * earns fewer stars. An undo does not take it back; a restart starts the count afresh.
  */
 export class GameSession {
   /**
@@ -90,8 +93,14 @@ export class GameSession {
     );
   }
 
+  /** Moves made, plus one for each hint taken. */
   get moveCount() {
-    return this.history.length;
+    return this.history.length + this.hintsTaken;
+  }
+
+  /** Counts a hint the player was given as a move. */
+  countHint() {
+    this.hintsTaken++;
   }
 
   /** Whether there is a move to take back, whatever the undo limit says. */
@@ -113,6 +122,7 @@ export class GameSession {
     this.solved = false;
     /** @type {number | null} null when undo has no limit */
     this.undosLeft = this.undoLimit;
+    this.hintsTaken = 0;
   }
 
   /**

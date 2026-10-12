@@ -309,8 +309,8 @@ export class GameController {
 
   /**
    * Points out the next move of the shortest solution from here. A hint costs one of the
-   * player's hints; asking again in the same position shows the same move for free, and a
-   * dead end costs nothing.
+   * player's hints and counts as a move; asking again in the same position shows the same
+   * move for free, and a dead end costs nothing.
    */
   showHint() {
     const session = this.#session;
@@ -332,6 +332,7 @@ export class GameController {
         return;
       }
       if (!free) this.#setProgress(spendHint(this.#progress));
+      session.countHint();
       this.#lastHint = { position: session.position, move };
       this.#refreshHud();
     }

@@ -75,6 +75,21 @@ describe('GameSession', () => {
     expect(session.undo()).toBeNull();
   });
 
+  it('counts a hint as a move, which neither an undo nor a new move takes back', () => {
+    const session = new GameSession(new Board(), nearlySolved());
+    session.countHint();
+    expect(session.moveCount).toBe(1);
+    session.tap(1);
+    session.tap(0);
+    expect(session.moveCount).toBe(2);
+    session.undo();
+    expect(session.moveCount).toBe(1);
+    expect(session.hasMoves).toBe(false);
+
+    session.restart();
+    expect(session.moveCount).toBe(0);
+  });
+
   it('takes a move back with a spare undo once the limit is used up', () => {
     const session = new GameSession(new Board(), [[0, 1], [1, 0], [], []], { undoLimit: 1 });
     session.tap(0);
