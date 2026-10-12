@@ -37,6 +37,10 @@ export class TubeView {
     this.ice = lockKey === null ? 0 : 1;
     this.fills = fills;
     this.maxFills = fills;
+    /** Whether the tube is complete and so gets a cap. */
+    this.capped = false;
+    /** How far the cap is on: 0 off and out of sight, 1 pressed onto the mouth. */
+    this.cap = 0;
   }
 
   get topColor() {

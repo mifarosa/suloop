@@ -1,7 +1,10 @@
 import { HIDDEN } from './rules.js';
+import { solveShortest } from './shortest.js';
 import { solve } from './solver.js';
 
-// Hints run while the player waits, so they search less than level generation does.
+// Hints run while the player waits. They look for the shortest way on first, so following
+// them earns every star; a position too tangled for that gets any way out instead.
+const HINT_SHORTEST_LIMIT = 40_000;
 const HINT_SEARCH_LIMIT = 150_000;
 
 /**
@@ -18,6 +21,17 @@ const HINT_SEARCH_LIMIT = 150_000;
  * - `blocked`: the selected tube cannot be poured into the tapped one; the selection is dropped.
  * - `filled`: the pour completed the target tube.
  * - `unlocked`: locked tubes the pour opened.
+ */
+
+/**
+ * A move as the history keeps it: the position before it, and the pour.
+ * @typedef {object} Move
+ * @property {import('./rules.js').Position} before
+ * @property {number} from
+ * @property {number} to
+ * @property {number} amount
+ * @property {boolean} onTop whether the poured units ended up on top of the target, so they
+ *   can be seen going back on an undo; water that sank under oil did not
  */
 
 /**
@@ -80,12 +94,19 @@ export class GameSession {
     return this.history.length;
   }
 
+  /** Whether there is a move to take back, whatever the undo limit says. */
+  get hasMoves() {
+    return this.history.length > 0 && !this.solved;
+  }
+
+  /** Whether the undo limit still allows taking a move back. */
   get canUndo() {
-    return this.history.length > 0 && !this.solved && this.undosLeft !== 0;
+    return this.hasMoves && this.undosLeft !== 0;
   }
 
   restart() {
     this.position = this.board.start(this.initialTubes);
+    /** @type {Move[]} */
     this.history = [];
     /** @type {number | null} */
     this.selected = null;
@@ -115,22 +136,32 @@ export class GameSession {
     return { type: 'deselected', tube };
   }
 
-  /** @returns {boolean} whether a move was undone */
-  undo() {
-    if (!this.canUndo) return false;
+  /**
+   * Takes the last move back.
+   * @param {{ spare?: boolean }} [options] spare: the player pays with a spare undo of their
+   *   own, which works even when the limit of the level is used up and leaves it as it is
+   * @returns {Move | null} the move taken back, or null when there was none to take back
+   */
+  undo({ spare = false } = {}) {
+    if (spare ? !this.hasMoves : !this.canUndo) return null;
 
     this.selected = null;
-    this.position = this.history.pop();
-    if (this.undosLeft !== null) this.undosLeft--;
-    return true;
+    const move = this.history.pop();
+    this.position = move.before;
+    if (!spare && this.undosLeft !== null) this.undosLeft--;
+    return move;
   }
 
   /**
-   * The next move of a solution from the current position.
+   * The next move of a solution from the current position, of the shortest one when it can
+   * be found quickly.
    * @returns {[number, number] | null} null when the position is a dead end
    */
   hint() {
-    const solution = solve(this.position, { board: this.board, maxNodes: HINT_SEARCH_LIMIT });
+    const { position, board } = this;
+    const solution =
+      solveShortest(position, { board, maxNodes: HINT_SHORTEST_LIMIT }) ??
+      solve(position, { board, maxNodes: HINT_SEARCH_LIMIT });
     return solution && solution.length > 0 ? solution[0] : null;
   }
 
@@ -149,7 +180,9 @@ export class GameSession {
     if (amount === 0) return { type: 'blocked', from, to };
 
     const lockedBefore = this.#lockedTubes();
-    this.history.push(this.position);
+    const onTop =
+      this.board.isOil(this.tubes[from].at(-1)) || !this.board.isOil(this.tubes[to].at(-1));
+    this.history.push({ before: this.position, from, to, amount, onTop });
     this.position = position;
     this.solved = this.board.isSolved(position);
     const filled = this.board.isComplete(this.tubes[to]);

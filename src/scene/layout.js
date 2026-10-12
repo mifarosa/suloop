@@ -41,18 +41,19 @@ export function arrangeTubes(count, aspect, tubeHeight = TUBE_HEIGHT) {
 }
 
 /**
- * Fits the arrangement into a view, centered in the area below the HUD.
+ * Fits the arrangement into a view, centered in the area between the HUD and the toolbar.
  * @param {{ width: number, top: number, bottom: number }} bounds in world units
  * @param {number} width view size in pixels
  * @param {number} height
  * @param {number} [topInset] pixels at the top kept free for the HUD
+ * @param {number} [bottomInset] pixels at the bottom kept free for the toolbar
  * @returns {{ scale: number, originX: number, originY: number }} pixels per world unit, and
  *   where the world origin lands on screen (screen y grows downwards, world y upwards)
  */
-export function fitToView(bounds, width, height, topInset = 0) {
+export function fitToView(bounds, width, height, topInset = 0, bottomInset = 0) {
   const worldWidth = bounds.width + FRAME_MARGIN * 2;
   const worldHeight = bounds.top - bounds.bottom + FRAME_MARGIN * 2;
-  const freeHeight = Math.max(1, height - topInset);
+  const freeHeight = Math.max(1, height - topInset - bottomInset);
   const scale = Math.min(width / worldWidth, freeHeight / worldHeight, MAX_SCALE);
   const centerY = (bounds.top + bounds.bottom) / 2;
 

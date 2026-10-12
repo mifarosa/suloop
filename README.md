@@ -8,7 +8,7 @@ Renkli suları tüplere ayırdığın bulmaca oyunu. Tarayıcıda çalışır, k
 
 - Bir tüpe dokun, tüp kalkar. Sonra başka bir tüpe dokun, üstteki renk oraya dökülür.
 - Sıvı yalnızca boş bir tüpe ya da aynı rengin üstüne dökülebilir. Her tüp 4 birim alır.
-- Her tüpte tek renk kalınca seviye biter.
+- Tek renkle dolan tüpün kapağı kapanır. Her tüp kapanınca ya da boş kalınca seviye biter.
 
 ## Özellikler
 
@@ -45,7 +45,22 @@ Renkli suları tüplere ayırdığın bulmaca oyunu. Tarayıcıda çalışır, k
   Çözülmüş bir seviyeye dönüp tekrar oynanabilir
 - Günün bulmacası: herkes aynı gün aynı bulmacayı oynar
 - Her seviye üretilirken çözücüyle denenir; çözülemeyen seviye çıkmaz
-- Geri al, baştan başla ve ipucu ("2. tüpten 5. tüpe dök")
+- **Yıldızlar:** her bulmacanın en az hamlesi arka planda (Web Worker) A\* aramasıyla bulunur.
+  En az hamleyle çözen 3, birkaç hamle fazlasıyla (en az + beşte biri, en az 2) çözen 2, daha
+  fazlasıyla çözen 1 yıldız alır. Geri alınan hamleler sayılmaz. Bitiş ekranında yıldızlar, hamle
+  sayın, en az hamle, kazandıkların ve seviyedeki son 5 denemen görünür; "Tekrar et" ve "Sonraki
+  seviye" butonları vardır. Seviyeler ekranında her seviyenin en iyi yıldızları görünür
+- **İpucu hakkı:** 2 ipucuyla başlarsın. İpucu en kısa çözümün sonraki hamlesini gösterir ve 1
+  hak harcar; geri alınca geri gelmez, aynı durumda tekrar sormak ücretsizdir. Çıkmazdaysan hak
+  gitmez. Günün bulmacasını çözünce (günde bir kez) 1 ipucu kazanırsın
+- **Ekstra geri alma:** bir seviyeyi ilk kez 3 yıldızla geçince 1 ekstra geri alma kazanırsın.
+  Seviyenin kendi geri alma hakları bitince bunlar kullanılır; butonda "3+2" gibi görünür
+- **Kapaklar ve geri alma:** tamamlanan tüpe sıvı inince kapak kapanır. Geri alınca kapak açılır
+  ve sıvı geldiği tüpe geri akar; kilitler yeniden donar, çatlak tüpün dolum hakkı geri gelir
+- **Yeni kural kartı:** yeni bir kuralın geldiği ilk seviyede (ve oyunun ilk seviyesinde), kural
+  oyundaki tüpün aynısıyla çizilmiş bir kartla anlatılır. **(i) butonu** o seviyedeki bütün
+  kuralları, yıldız sınırlarını, haklarını ve son 5 denemeni gösterir
+- Geri al, ipucu ve baştan butonları başparmağın yetiştiği alt çubukta, kalan haklarıyla
 - Kaldığın seviye tarayıcıda saklanır. "İlerlemeyi taşı" ile kısa bir kod ya da bağlantı alıp
   başka bir cihazda (ya da tarayıcı verisi silindikten sonra) kaldığın yerden devam edersin.
   Yükleme ilerlemeyi hiç geri götürmez: eski bir kod hiçbir şeyi silmez
@@ -55,7 +70,7 @@ Renkli suları tüplere ayırdığın bulmaca oyunu. Tarayıcıda çalışır, k
 - Kazanınca iki köşeden konfeti patlar (cihazda "hareketi azalt" açıksa çıkmaz)
 - Seviyeler ekranında "Kahve ısmarla" butonu: oyunu beğenen
   [Buy Me a Coffee](https://buymeacoffee.com/mifarosa) üzerinden destek olabilir
-- Canvas 2D ile çizilen cam tüpler, açık/koyu tema; ek kütüphane yok, oyun 42 KB
+- Canvas 2D ile çizilen cam tüpler, açık/koyu tema; ek kütüphane yok, oyun 57 KB (gzip 21 KB)
 
 ## Proje yapısı
 
@@ -63,25 +78,33 @@ Renkli suları tüplere ayırdığın bulmaca oyunu. Tarayıcıda çalışır, k
 src/
   game/           Oyun kuralları. Saf JavaScript: DOM ya da çizim bilmez, testlerle korunur
     rules.js      Tahtanın kuralları (Board): dökme, yağ, özel tüpler, çözülme
-    solver.js     Derinlik öncelikli çözücü (seviye doğrulama ve ipucu)
+    solver.js     Derinlik öncelikli çözücü (seviye doğrulama)
+    shortest.js   En kısa çözüm (A*): yıldızlar ve ipucu için
+    fewestWorker.js En az hamleyi arka planda bulan Web Worker
+    stars.js      Yıldız sınırları
     generator.js  Tohumlu, çözülebilir bulmaca üretimi
     levels.js     Aşamalar, kuralların karışımı, seviye ve günlük bulmaca
     random.js     Tohumlu rastgele sayı üretici ve metin hash'i
-    session.js    Bir oyunun durumu: seçim, hamle geçmişi, geri alma
+    session.js    Bir oyunun durumu: seçim, hamle geçmişi, geri alma, ipucu
   scene/          Görünüm (Canvas 2D). Oyun kurallarını bilmez
     tubeScene.js  Tuval, ekrana sığdırma, dokunma algılama, kare çizim döngüsü
     renderer.js   Tüplerin ve döküm akıntısının çizimi
     liquid.js     Eğik tüpteki sıvının şekli (yüzey hep yatay)
     tubeView.js   Tek bir tüpün o anki görünümü (konum, eğim, sıvı seviyeleri)
     pour.js       Döküm animasyonu
-    motions.js    Kaldırma, sallama, zıplama, parlama
+    motions.js    Kaldırma, sallama, zıplama, parlama, kapak
+    ruleIcon.js   Kural kartlarındaki örnek tüpler
     confetti.js   Kazanınca patlayan konfeti (kendi tuvalinde, her şeyin üstünde)
     layout.js     Tüplerin dizilişi ve ekrana ölçeklenmesi
     animator.js   Zamana bağlı animasyon altyapısı
     dimensions.js, palette.js
   app/            Parçaları birleştiren katman
     controller.js Oyuncu hareketlerini oyuna ve animasyonlara bağlar
-    hud.js        Başlık, butonlar, bildirim ve tebrik penceresi
+    hud.js        Başlık, araç çubuğu, bildirim ve bitiş penceresi
+    rulesDialog.js Yeni kural kartı ve (i) bilgi penceresi
+    starIcons.js  Yıldız simgeleri
+    economy.js    İpucu, ekstra geri alma ve seviye kayıtları
+    fewestMoves.js En az hamleyi worker'a sorar, cevapları hatırlar
     levelMenu.js  Seviyeler ekranı
     progress.js   İlerlemenin kaydı
     progressCode.js İlerleme kodu ve bağlantısı

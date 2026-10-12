@@ -13,6 +13,7 @@ import {
 } from '../src/scene/dimensions.js';
 import { arrangeTubes, fitToView } from '../src/scene/layout.js';
 import { CONFETTI_COLORS, HIDDEN_COLOR, LIQUID_COLORS } from '../src/scene/palette.js';
+import { closeCap, openCap } from '../src/scene/motions.js';
 import { animatePour } from '../src/scene/pour.js';
 import { createRandom } from '../src/game/random.js';
 import { drawScene } from '../src/scene/renderer.js';
@@ -217,28 +218,28 @@ describe('tall tubes', () => {
   });
 });
 
-describe('drawScene', () => {
-  // A stand-in canvas context that accepts every drawing call and records fills and text.
-  function recordingContext() {
-    const fills = [];
-    const texts = [];
-    const strokes = [];
-    const record = {
-      fillRect: (...args) => fills.push({ style: ctx.fillStyle, args }),
-      fill: () => fills.push({ style: ctx.fillStyle }),
-      stroke: () => strokes.push(ctx.strokeStyle),
-      fillText: (text) => texts.push(text)
-    };
-    const ctx = new Proxy(
-      { fills, texts, strokes },
-      {
-        get: (target, name) => (name in target ? target[name] : (record[name] ?? (() => {}))),
-        set: (target, name, value) => ((target[name] = value), true)
-      }
-    );
-    return ctx;
-  }
+// A stand-in canvas context that accepts every drawing call and records fills and text.
+function recordingContext() {
+  const fills = [];
+  const texts = [];
+  const strokes = [];
+  const record = {
+    fillRect: (...args) => fills.push({ style: ctx.fillStyle, args }),
+    fill: () => fills.push({ style: ctx.fillStyle }),
+    stroke: () => strokes.push(ctx.strokeStyle),
+    fillText: (text) => texts.push(text)
+  };
+  const ctx = new Proxy(
+    { fills, texts, strokes },
+    {
+      get: (target, name) => (name in target ? target[name] : (record[name] ?? (() => {}))),
+      set: (target, name, value) => ((target[name] = value), true)
+    }
+  );
+  return ctx;
+}
 
+describe('drawScene', () => {
   const sceneWith = (tubes) => ({
     width: 400,
     height: 800,
@@ -299,6 +300,64 @@ describe('drawScene', () => {
     expect(styles).toContain(LIQUID_COLORS[2]);
     expect(styles).toContain(LIQUID_COLORS[5]);
     expect(ctx.strokes.at(-1)).toBe(LIQUID_COLORS[7]);
+  });
+});
+
+describe('caps', () => {
+  it('drops onto a complete tube, presses in a little and settles', () => {
+    const animator = new Animator();
+    const tube = new TubeView(0);
+    const start = performance.now();
+    const values = [];
+    closeCap(animator, tube);
+    for (let ms = 0; ms <= 400; ms += 20) {
+      animator.tick(start + ms);
+      values.push(tube.cap);
+    }
+    expect(Math.max(...values)).toBeGreaterThan(1);
+    expect(values.at(-1)).toBe(1);
+  });
+
+  it('lifts off from wherever it is', () => {
+    const animator = new Animator();
+    const tube = new TubeView(0);
+    tube.cap = 0.6;
+    const start = performance.now();
+    openCap(animator, tube);
+    animator.tick(start + 100);
+    expect(tube.cap).toBeGreaterThan(0);
+    expect(tube.cap).toBeLessThan(0.6);
+    animator.tick(start + 250);
+    expect(tube.cap).toBe(0);
+  });
+
+  it('is drawn in the color of the tube, and hides the badge of a special tube', () => {
+    const tube = new TubeView(0, 4, { oneWay: true });
+    tube.showColors([4, 4, 4, 4]);
+    const scene = {
+      width: 400,
+      height: 800,
+      tubes: [tube],
+      streams: [],
+      view: { scale: 50, originX: 200, originY: 600 },
+      glassColor: '#ffffff'
+    };
+    const capFills = () => {
+      const ctx = recordingContext();
+      drawScene(ctx, scene);
+      return ctx.fills.filter((fill) => fill.style === LIQUID_COLORS[4]).length;
+    };
+    const glassFills = () => {
+      const ctx = recordingContext();
+      drawScene(ctx, scene);
+      return ctx.fills.filter((fill) => fill.style === '#ffffff').length;
+    };
+
+    const uncapped = { liquid: capFills(), glass: glassFills() };
+    tube.cap = 1;
+    expect(capFills()).toBeGreaterThan(uncapped.liquid);
+    // The one-way arrow is a glass-colored fill; the cap takes its place.
+    expect(glassFills()).toBe(uncapped.glass - 1);
   });
 });
 

@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { Board, HIDDEN } from '../src/game/rules.js';
+import { createLevelPuzzle } from '../src/game/levels.js';
+import { createRandom } from '../src/game/random.js';
 import { GameSession } from '../src/game/session.js';
 
 // Two moves from solved: pour tube 1 into tube 0, then tube 2 into tube 3.
@@ -67,10 +69,36 @@ describe('GameSession', () => {
     session.tap(0);
     session.tap(2);
 
-    expect(session.undo()).toBe(true);
+    expect(session.undo()).toMatchObject({ from: 1, to: 0, amount: 1, onTop: true });
     expect(session.tubes).toEqual(nearlySolved());
     expect(session.selected).toBeNull();
-    expect(session.undo()).toBe(false);
+    expect(session.undo()).toBeNull();
+  });
+
+  it('takes a move back with a spare undo once the limit is used up', () => {
+    const session = new GameSession(new Board(), [[0, 1], [1, 0], [], []], { undoLimit: 1 });
+    session.tap(0);
+    session.tap(2);
+    session.tap(1);
+    session.tap(3);
+    session.undo();
+    expect(session.canUndo).toBe(false);
+    expect(session.undo()).toBeNull();
+
+    expect(session.undo({ spare: true })).toMatchObject({ from: 0, to: 2 });
+    expect(session.undosLeft).toBe(0);
+    expect(session.undo({ spare: true })).toBeNull();
+  });
+
+  it('says when poured water sank under oil, out of sight', () => {
+    const board = new Board({ oilColors: [2] });
+    const session = new GameSession(board, [[0, 2], [1, 0], [1], []]);
+    session.tap(1);
+    session.tap(0);
+    session.tap(2);
+    session.tap(3);
+
+    expect(session.history.map((move) => move.onTop)).toEqual([false, true]);
   });
 
   it('restarts from the initial board', () => {
@@ -222,4 +250,52 @@ describe('GameSession', () => {
       expect(session.fills[2]).toBe(3);
     });
   });
+});
+
+describe('undo on boards with every kind of tube', () => {
+  /** Everything an undo has to bring back exactly. */
+  const snapshot = (session) => ({
+    tubes: session.tubes.map((tube) => tube.slice()),
+    fills: session.fills.slice(),
+    locked: session.tubes.map((_, index) => session.isLocked(index)),
+    complete: session.tubes.map((tube) => session.board.isComplete(tube))
+  });
+
+  it.each([130, 150, 180, 200, 240, 263, 270])(
+    'brings level %i back exactly, move by move',
+    (level) => {
+      const { tubes, board } = createLevelPuzzle(level);
+      const session = new GameSession(board, tubes);
+      const random = createRandom(level);
+      const states = [snapshot(session)];
+
+      // Random legal moves, so pours fill, crack, unlock and complete tubes along the way.
+      // The solving move is left out: a solved game takes nothing back.
+      const pours = () =>
+        tubes
+          .flatMap((_, from) => tubes.map((_, to) => [from, to]))
+          .filter(
+            ([from, to]) =>
+              board.canPourFrom(session.position, from) &&
+              board.canPour(session.position, from, to) &&
+              !board.isSolved(board.pour(session.position, from, to).position)
+          );
+      for (let moves = 0; moves < 40; moves++) {
+        const options = pours();
+        if (options.length === 0) break;
+        const [from, to] = options[Math.floor(random() * options.length)];
+        session.tap(from);
+        session.tap(to);
+        states.push(snapshot(session));
+      }
+      expect(states.length).toBeGreaterThan(5);
+
+      while (states.length > 1) {
+        states.pop();
+        expect(session.undo()).not.toBeNull();
+        expect(snapshot(session)).toEqual(states.at(-1));
+      }
+      expect(session.undo()).toBeNull();
+    }
+  );
 });

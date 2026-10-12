@@ -1,5 +1,7 @@
 export const linear = (t) => t;
 export const easeInOutCubic = (t) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
+/** Runs a little past the end and settles back, like something pressed into place. */
+export const easeOutBack = (t) => 1 + 2.70158 * (t - 1) ** 3 + 1.70158 * (t - 1) ** 2;
 
 /**
  * Time-based tweens, advanced once per rendered frame.
