@@ -60,8 +60,7 @@ export const texts = {
   dailyCardAction: (solved) => (solved ? 'Çözüldü ✓' : 'Oyna'),
   chapterDetail: ({ minColors, maxColors, emptyTubeCount }) =>
     `${minColors}–${maxColors} renk${emptyTubeCount === 1 ? ' · tek boş tüp' : ''}`,
-  masterDetail:
-    'Sonsuz · 3 geri alma · gizli renk, yağ, kilitli, çatlak, tek yönlü, uzun ve yarım tüp',
+  masterDetail: 'Sonsuz · 3 geri alma · her seviyede özel bir kural',
   chapterProgress: (solved, total) => `${solved}/${total}`,
   masterProgress: (solved) => `${solved} çözüldü`,
   // Carrying progress to another device

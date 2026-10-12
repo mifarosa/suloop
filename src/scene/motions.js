@@ -2,7 +2,8 @@ import { linear } from './animator.js';
 import { LIFT_HEIGHT } from './dimensions.js';
 
 const DURATION_MS = {
-  lift: 160,
+  lift: 130,
+  melt: 650,
   shake: 320,
   hop: 380,
   pulse: 1400,
@@ -33,6 +34,18 @@ export function lift(animator, tube, lifted) {
       body.y = from + (to - from) * t;
     },
     { key: bodyKey(tube) }
+  );
+}
+
+/** Melts the ice off a tube that just opened. */
+export function melt(animator, tube) {
+  const from = tube.ice;
+  return animator.run(
+    DURATION_MS.melt,
+    (t) => {
+      tube.ice = from * (1 - t);
+    },
+    { key: `ice-${tube.index}` }
   );
 }
 

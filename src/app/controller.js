@@ -35,7 +35,7 @@ export class GameController {
   #level = null;
   /** The calendar day of the daily puzzle being played. */
   #puzzleDay;
-  /** Set while a pour or the win celebration plays; input waits until it is over. */
+  /** Set while the win celebration plays; input waits until it is over. Pours do not block. */
   #animating = false;
 
   /**
@@ -70,7 +70,13 @@ export class GameController {
 
     this.#session = new GameSession(board, tubes, { hiddenColors, undoLimit });
     this.#scene.showPuzzle(this.#session.visibleTubes, {
-      sizes: tubes.map((_, index) => board.sizeOf(index))
+      sizes: tubes.map((_, index) => board.sizeOf(index)),
+      oilColors: [...board.oilColors],
+      kinds: tubes.map((_, index) => ({
+        oneWay: board.oneWay.has(index),
+        lockKey: board.locks.get(index) ?? null,
+        fills: board.cracked.get(index) ?? null
+      }))
     });
     this.#hud.hideWin();
     this.#menu.hide();
@@ -112,7 +118,7 @@ export class GameController {
     if (this.#animating || !this.#session.canUndo) return;
 
     this.#session.undo();
-    this.#scene.showContents(this.#session.visibleTubes);
+    this.#showBoard();
     this.#refreshHud();
   }
 
@@ -120,7 +126,7 @@ export class GameController {
     if (this.#animating || this.#session.solved) return;
 
     this.#session.restart();
-    this.#scene.showContents(this.#session.visibleTubes);
+    this.#showBoard();
     this.#refreshHud();
   }
 
@@ -216,16 +222,44 @@ export class GameController {
     this.showLevels();
   }
 
-  async #playPour({ from, to, amount, filled, solved }) {
-    this.#animating = true;
+  /**
+   * Plays a pour. The player can go on with the next move meanwhile; the scene sorts out
+   * pours that overlap. Only the win celebration holds input back.
+   */
+  async #playPour({ from, to, amount, filled, solved, unlocked }) {
+    const session = this.#session;
+    if (solved) this.#animating = true;
     this.#refreshHud();
+    // A cracked tube's fill is used up at once; a lock opens once the liquid has landed.
+    this.#scene.showTubeStates(this.#tubeStates(unlocked));
     try {
-      await this.#scene.pour(from, to, amount, this.#session.visibleTubes);
+      await this.#scene.pour(from, to, amount, session.visibleTubes);
+      // Undo, restart or another level may have replaced the board meanwhile.
+      if (this.#session !== session) return;
+      if (unlocked.length > 0) this.#scene.showTubeStates(this.#tubeStates());
       if (filled) this.#scene.hop(to);
       if (solved) await this.#celebrateWin();
     } finally {
-      this.#animating = false;
+      if (solved) this.#animating = false;
     }
+  }
+
+  /** Shows the board as the session has it, at once, e.g. after an undo. */
+  #showBoard() {
+    this.#scene.showContents(this.#session.visibleTubes);
+    this.#scene.showTubeStates(this.#tubeStates());
+  }
+
+  /**
+   * Fills left and locks, per tube.
+   * @param {number[]} [stillLocked] tubes to show locked although they just opened
+   */
+  #tubeStates(stillLocked = []) {
+    const session = this.#session;
+    return session.tubes.map((_, index) => ({
+      fills: session.fills[index],
+      locked: session.isLocked(index) || stillLocked.includes(index)
+    }));
   }
 
   async #celebrateWin() {

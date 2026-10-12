@@ -49,6 +49,14 @@ export class Animator {
     }
   }
 
+  /** Stops the tween under `key` where it is, if one runs; its promise resolves. */
+  stop(key) {
+    const tween = this.#tweens.get(key);
+    if (!tween) return;
+    this.#tweens.delete(key);
+    tween.resolve();
+  }
+
   /** Stops every tween where it is; their promises resolve. */
   stopAll() {
     for (const tween of this.#tweens.values()) tween.resolve();

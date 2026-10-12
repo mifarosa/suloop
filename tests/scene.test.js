@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { MAX_COLOR_COUNT } from '../src/game/levels.js';
 import { Animator, easeInOutCubic, linear } from '../src/scene/animator.js';
 import { HIDDEN } from '../src/game/rules.js';
@@ -6,6 +6,7 @@ import {
   ROW_GAP,
   SEGMENT_HEIGHT,
   TUBE_HEIGHT,
+  TUBE_RADIUS,
   TUBE_SPACING,
   tubeHeight
 } from '../src/scene/dimensions.js';
@@ -73,15 +74,21 @@ describe('fitToView', () => {
 });
 
 describe('animatePour', () => {
-  // Drives the animator with a fake clock until the pour has finished.
+  // Drives the animator frame by frame on a fake clock until the pour has finished. The clock
+  // also stands in for performance.now(), so tweens start at the frame they start in.
   async function play(animator, promise) {
     let done = false;
     promise.then(() => (done = true));
-    let now = performance.now();
-    for (let i = 0; i < 500 && !done; i++) {
-      now += 50;
-      animator.tick(now);
-      await new Promise((resolve) => setTimeout(resolve, 0));
+    let now = 1000;
+    const clock = vi.spyOn(performance, 'now').mockImplementation(() => now);
+    try {
+      for (let i = 0; i < 500 && !done; i++) {
+        now += 16;
+        animator.tick(now);
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      }
+    } finally {
+      clock.mockRestore();
     }
     return done;
   }
@@ -117,6 +124,57 @@ describe('animatePour', () => {
       [1, 2, 1]
     ]);
     expect(source.body).toEqual({ x: 0, y: TUBE_HEIGHT, tilt: 0 });
+  });
+
+  it('keeps the lip in one place and tilts further as the tube empties', async () => {
+    const animator = new Animator();
+    const stream = { visible: false, color: 0, x: 0, top: 0, bottom: 0 };
+    const source = new TubeView(0);
+    const target = new TubeView(1);
+    source.showColors([0, 1, 1]);
+    target.showColors([1]);
+    source.x = -TUBE_SPACING;
+    target.x = TUBE_SPACING;
+
+    const poses = [];
+    const original = animator.tick.bind(animator);
+    animator.tick = (now) => {
+      original(now);
+      if (stream.visible) poses.push({ ...source.body });
+    };
+    await play(animator, animatePour({ animator, stream, source, target, amount: 2 }));
+
+    // The target is right of center, so the source pours with its right lip (tilting clockwise).
+    const lips = poses.map(({ x, y, tilt }) => ({
+      x: source.x + x + TUBE_RADIUS * Math.cos(tilt),
+      y: source.y + y + TUBE_RADIUS * Math.sin(tilt)
+    }));
+    expect(poses.length).toBeGreaterThan(3);
+    for (const lip of lips) {
+      expect(lip.x).toBeCloseTo(lips[0].x, 6);
+      expect(lip.y).toBeCloseTo(lips[0].y, 6);
+    }
+    const tilts = poses.map((pose) => -pose.tilt);
+    expect(tilts.at(-1)).toBeGreaterThan(tilts[0]);
+    tilts.slice(1).forEach((tilt, i) => expect(tilt).toBeGreaterThanOrEqual(tilts[i] - 1e-9));
+  });
+
+  it('lets water sink under the oil of the target, which rises', async () => {
+    const animator = new Animator();
+    const stream = { visible: false, color: 0, x: 0, top: 0, bottom: 0 };
+    const source = new TubeView(0);
+    const target = new TubeView(1);
+    source.showColors([2, 1]);
+    target.showColors([1, 5]);
+    const isOil = (color) => color === 5;
+
+    await play(animator, animatePour({ animator, stream, source, target, amount: 1, isOil }));
+    const layers = target.segments.slice().sort((a, b) => a.slot - b.slot);
+    expect(layers.map((s) => [s.color, s.slot])).toEqual([
+      [1, 0],
+      [1, 1],
+      [5, 2]
+    ]);
   });
 
   it('shows hidden units of the poured color as they leave', async () => {
@@ -162,12 +220,15 @@ describe('drawScene', () => {
   function recordingContext() {
     const fills = [];
     const texts = [];
+    const strokes = [];
     const record = {
       fillRect: (...args) => fills.push({ style: ctx.fillStyle, args }),
+      fill: () => fills.push({ style: ctx.fillStyle }),
+      stroke: () => strokes.push(ctx.strokeStyle),
       fillText: (text) => texts.push(text)
     };
     const ctx = new Proxy(
-      { fills, texts },
+      { fills, texts, strokes },
       {
         get: (target, name) => (name in target ? target[name] : (record[name] ?? (() => {}))),
         set: (target, name, value) => ((target[name] = value), true)
@@ -180,9 +241,30 @@ describe('drawScene', () => {
     width: 400,
     height: 800,
     tubes,
-    stream: { visible: false, color: 0, x: 0, top: 0, bottom: 0 },
+    streams: [],
     view: { scale: 50, originX: 200, originY: 600 },
     glassColor: '#ffffff'
+  });
+
+  it('draws the liquid of a tilted tube in its colors, with level surfaces', () => {
+    const tube = new TubeView(0);
+    tube.showColors([2, 5]);
+    tube.body.tilt = 0.9;
+    const ctx = recordingContext();
+    drawScene(ctx, sceneWith([tube]));
+
+    const styles = ctx.fills.map((fill) => fill.style);
+    expect(styles).toContain(LIQUID_COLORS[2]);
+    expect(styles).toContain(LIQUID_COLORS[5]);
+  });
+
+  it('draws a locked tube with a badge in its key color', () => {
+    const tube = new TubeView(0, 4, { lockKey: 6 });
+    tube.showColors([1, 2]);
+    const ctx = recordingContext();
+    drawScene(ctx, sceneWith([tube]));
+
+    expect(ctx.fills.map((fill) => fill.style)).toContain(LIQUID_COLORS[6]);
   });
 
   it('draws a hidden unit as a question mark instead of its color', () => {
@@ -206,7 +288,7 @@ describe('drawScene', () => {
       width: 400,
       height: 800,
       tubes: [tube],
-      stream: { visible: true, color: 7, x: 0, top: 4, bottom: 2 * SEGMENT_HEIGHT },
+      streams: [{ visible: true, color: 7, x: 0, top: 4, bottom: 2 * SEGMENT_HEIGHT }],
       view: { scale: 50, originX: 200, originY: 600 },
       glassColor: '#ffffff'
     });
@@ -214,7 +296,7 @@ describe('drawScene', () => {
     const styles = ctx.fills.map((fill) => fill.style);
     expect(styles).toContain(LIQUID_COLORS[2]);
     expect(styles).toContain(LIQUID_COLORS[5]);
-    expect(styles.at(-1)).toBe(LIQUID_COLORS[7]);
+    expect(ctx.strokes.at(-1)).toBe(LIQUID_COLORS[7]);
   });
 });
 

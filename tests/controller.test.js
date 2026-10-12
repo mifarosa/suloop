@@ -15,6 +15,7 @@ function fakeScene() {
   return {
     showPuzzle: vi.fn(),
     showContents: vi.fn(),
+    showTubeStates: vi.fn(),
     setLifted: vi.fn(),
     shake: vi.fn(),
     hop: vi.fn(),
@@ -46,7 +47,7 @@ const TODAY = new Date(2026, 9, 9, 12, 0);
 /** What the scene is given for a level: the board and each tube's size. */
 const shownBoard = (level) => [
   createLevelPuzzle(level).tubes,
-  { sizes: tubeSizes(levelSettings(level)) }
+  expect.objectContaining({ sizes: tubeSizes(levelSettings(level)) })
 ];
 
 const range = (first, last) => Array.from({ length: last - first + 1 }, (_, i) => first + i);
@@ -202,19 +203,56 @@ describe('GameController', () => {
     expect(scene.showContents).not.toHaveBeenCalled();
   });
 
-  it('ignores taps while a pour is playing', async () => {
-    let finishPour;
-    scene.pour.mockImplementation(() => new Promise((resolve) => (finishPour = resolve)));
+  it('takes the next move while a pour is still playing', async () => {
+    const pending = [];
+    scene.pour.mockImplementation(() => new Promise((resolve) => pending.push(resolve)));
     const controller = createController();
-    const [from, to] = solve(createLevelPuzzle(1).tubes)[0];
+    const [[from, to], [nextFrom, nextTo]] = solve(createLevelPuzzle(1).tubes);
 
     await controller.tapTube(from);
     const pouring = controller.tapTube(to);
-    await controller.tapTube(from);
-    expect(scene.setLifted).toHaveBeenCalledTimes(1);
+    await controller.tapTube(nextFrom);
+    const nextPouring = controller.tapTube(nextTo);
+    expect(scene.pour).toHaveBeenCalledTimes(2);
+    expect(lastRender().subtitle).toBe('Kolay · 2 hamle');
 
-    finishPour();
-    await pouring;
+    pending.forEach((resolve) => resolve());
+    await Promise.all([pouring, nextPouring]);
+  });
+
+  it('holds input back while the win is celebrated', async () => {
+    let finishCelebration;
+    scene.celebrate.mockImplementation(
+      () => new Promise((resolve) => (finishCelebration = resolve))
+    );
+    const controller = createController();
+    const moves = solve(createLevelPuzzle(1).tubes);
+    for (const [from, to] of moves.slice(0, -1)) {
+      await controller.tapTube(from);
+      await controller.tapTube(to);
+    }
+    const [lastFrom, lastTo] = moves.at(-1);
+    await controller.tapTube(lastFrom);
+    const winning = controller.tapTube(lastTo);
+    await Promise.resolve();
+
+    scene.showContents.mockClear();
+    controller.showLevels();
+    expect(menu.show).not.toHaveBeenCalled();
+
+    finishCelebration();
+    await winning;
+  });
+
+  it('shows fills and locks again after an undo', async () => {
+    const controller = createController();
+    const [from, to] = solve(createLevelPuzzle(1).tubes)[0];
+    await controller.tapTube(from);
+    await controller.tapTube(to);
+    scene.showTubeStates.mockClear();
+
+    controller.undo();
+    expect(scene.showTubeStates).toHaveBeenCalledOnce();
   });
 
   it('undoes a move and shows the previous board', async () => {
@@ -270,8 +308,7 @@ describe('GameController', () => {
     controller.showLevels();
     expect(masterLevels()).toEqual(range(61, 75));
     expect(lastMenu().chapters.at(-1)).toMatchObject({
-      detail:
-        'Sonsuz · 3 geri alma · gizli renk, yağ, kilitli, çatlak, tek yönlü, uzun ve yarım tüp',
+      detail: 'Sonsuz · 3 geri alma · her seviyede özel bir kural',
       progress: '0 çözüldü'
     });
 
@@ -398,7 +435,7 @@ describe('GameController', () => {
 
       const [shown, options] = scene.showPuzzle.mock.lastCall;
       const real = createLevelPuzzle(65).tubes;
-      expect(options).toEqual({ sizes: tubeSizes(levelSettings(65)) });
+      expect(options).toMatchObject({ sizes: tubeSizes(levelSettings(65)) });
       shown.forEach((tube, i) => {
         expect(tube.length).toBe(real[i].length);
         if (tube.length > 0) expect(tube.at(-1)).toBe(real[i].at(-1));
@@ -492,6 +529,71 @@ describe('GameController', () => {
       controller.importProgress(encodeProgressCode(20));
 
       expect(lastRender().title).toBe('Seviye 21');
+    });
+  });
+
+  describe('special tubes', () => {
+    it('tells the scene which tubes are one-way, cracked and locked, and which colors are oil', () => {
+      for (const level of [73, 74, 75, 76]) createController({ solved: 80, current: level });
+      const calls = scene.showPuzzle.mock.calls.slice(-4).map(([, options]) => options);
+
+      expect(calls[0].kinds.some((kind) => kind.oneWay)).toBe(true);
+      expect(calls[1].kinds.some((kind) => kind.fills === 3)).toBe(true);
+      expect(calls[2].kinds.some((kind) => kind.lockKey !== null)).toBe(true);
+      expect(calls[3].oilColors).toHaveLength(1);
+    });
+
+    it('names the rule of each new kind of tube and explains it once', () => {
+      const subtitles = {
+        73: 'Usta · Tek yönlü · 0 hamle',
+        74: 'Usta · Çatlak tüp · 0 hamle',
+        75: 'Usta · Kilitli tüp · 0 hamle',
+        76: 'Usta · Yağ · 0 hamle'
+      };
+      for (const [level, subtitle] of Object.entries(subtitles)) {
+        hud.showToast.mockClear();
+        createController({ solved: 80, current: Number(level) });
+        expect(lastRender().subtitle).toBe(subtitle);
+        expect(hud.showToast).toHaveBeenCalledOnce();
+      }
+    });
+
+    it('melts the lock only once the opening pour has landed', async () => {
+      const controller = createController({ solved: 80, current: 75 });
+      const { tubes, board } = createLevelPuzzle(75);
+      const locked = [...board.locks.keys()][0];
+      const showsLocked = () => scene.showTubeStates.mock.lastCall[0][locked].locked;
+
+      let landing;
+      scene.pour.mockImplementation(() => new Promise((resolve) => (landing = resolve)));
+      const moves = solve(tubes, { board });
+      // Play until the move that opens the lock starts.
+      let position = board.start(tubes);
+      for (const [from, to] of moves) {
+        const next = board.pour(position, from, to).position;
+        await controller.tapTube(from);
+        const pouring = controller.tapTube(to);
+        if (!board.isLocked(next, locked)) {
+          expect(showsLocked()).toBe(true);
+          landing();
+          await pouring;
+          expect(showsLocked()).toBe(false);
+          return;
+        }
+        landing();
+        await pouring;
+        position = next;
+      }
+      throw new Error('The lock never opened');
+    });
+
+    it('can solve every new kind of level by tapping', async () => {
+      for (const level of [73, 74, 75, 76, 77, 78, 79, 80]) {
+        scene.celebrate.mockClear();
+        const controller = createController({ solved: 80, current: level });
+        await playSolution(controller, createLevelPuzzle(level));
+        expect(scene.celebrate).toHaveBeenCalledOnce();
+      }
     });
   });
 });
