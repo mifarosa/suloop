@@ -427,10 +427,12 @@ export class GameController {
       this.#setProgress(progress);
       if (earnedHint) notes.push(texts.earnedHint);
     } else {
-      const { progress, earnedUndo } = recordLevelWin(this.#progress, this.#level, {
-        moves,
-        stars
-      });
+      const { progress, earnedUndo } = recordLevelWin(
+        this.#progress,
+        this.#level,
+        { moves, stars },
+        { limitedUndo: this.#settings().undoLimit !== null }
+      );
       this.#setProgress(progress);
       if (earnedUndo) notes.push(texts.earnedUndo);
       attempts = progress.records[this.#level].attempts.slice().reverse();

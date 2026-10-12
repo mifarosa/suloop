@@ -169,7 +169,7 @@ describe('GameController', () => {
     expect(lastRender().title).toBe('Seviye 2');
   });
 
-  it('gives every star for the fewest moves, and a spare undo the first time only', async () => {
+  it('gives every star for the fewest moves, and nothing more where undos are unlimited', async () => {
     const controller = createController();
     await playSolution(controller, createLevelPuzzle(1), { shortest: true });
 
@@ -178,22 +178,35 @@ describe('GameController', () => {
       stars: 3,
       moves: 9,
       fewest: 9,
-      notes: ['İlk kez 3 yıldız: +1 ekstra geri alma!']
+      notes: []
     });
     expect(saved.at(-1)).toMatchObject({
-      spareUndos: 1,
+      spareUndos: 0,
       records: { 1: { best: 3, attempts: [{ moves: 9, stars: 3 }] } }
     });
 
     controller.replay();
     expect(scene.showPuzzle).toHaveBeenLastCalledWith(...shownBoard(1));
     await playSolution(controller, createLevelPuzzle(1), { shortest: true });
-    expect(lastWin().notes).toEqual([]);
-    expect(saved.at(-1).spareUndos).toBe(1);
     expect(lastWin().attempts).toEqual([
       { moves: 9, stars: 3 },
       { moves: 9, stars: 3 }
     ]);
+  });
+
+  it('earns a spare undo for the first three stars of a level with limited undo', async () => {
+    const controller = createController({ solved: 20, current: 16 });
+    await playSolution(controller, createLevelPuzzle(16), { shortest: true });
+    expect(lastWin()).toMatchObject({
+      stars: 3,
+      notes: ['İlk kez 3 yıldız: +1 ekstra geri alma!']
+    });
+    expect(saved.at(-1).spareUndos).toBe(1);
+
+    controller.replay();
+    await playSolution(controller, createLevelPuzzle(16), { shortest: true });
+    expect(lastWin().notes).toEqual([]);
+    expect(saved.at(-1).spareUndos).toBe(1);
   });
 
   it('keeps the last five solutions of a level, newest first, and its best stars', async () => {

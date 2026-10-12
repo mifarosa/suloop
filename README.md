@@ -53,7 +53,9 @@ Renkli suları tüplere ayırdığın bulmaca oyunu. Tarayıcıda çalışır, k
 - **İpucu hakkı:** 2 ipucuyla başlarsın. İpucu en kısa çözümün sonraki hamlesini gösterir ve 1
   hak harcar; geri alınca geri gelmez, aynı durumda tekrar sormak ücretsizdir. Çıkmazdaysan hak
   gitmez. Günün bulmacasını çözünce (günde bir kez) 1 ipucu kazanırsın
-- **Ekstra geri alma:** bir seviyeyi ilk kez 3 yıldızla geçince 1 ekstra geri alma kazanırsın.
+- **Ekstra geri alma:** geri almanın sınırlı olduğu bir seviyeyi (16. seviyeden itibaren) ilk kez
+  3 yıldızla geçince 1 ekstra geri alma kazanırsın; geri almanın sınırsız olduğu Kolay aşamada
+  3 yıldız ödülsüz kutlanır.
   Seviyenin kendi geri alma hakları bitince bunlar kullanılır; butonda "3+2" gibi görünür
 - **Kapaklar ve geri alma:** tamamlanan tüpe sıvı inince kapak kapanır. Geri alınca kapak açılır
   ve sıvı geldiği tüpe geri akar; kilitler yeniden donar, çatlak tüpün dolum hakkı geri gelir
