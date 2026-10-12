@@ -56,7 +56,7 @@ Renkli suları tüplere ayırdığın bulmaca oyunu. Tarayıcıda çalışır, k
 - **Ekstra geri alma:** geri almanın sınırlı olduğu bir seviyeyi (16. seviyeden itibaren) ilk kez
   3 yıldızla geçince 1 ekstra geri alma kazanırsın; geri almanın sınırsız olduğu Kolay aşamada
   3 yıldız ödülsüz kutlanır.
-  Seviyenin kendi geri alma hakları bitince bunlar kullanılır; butonda "3+2" gibi görünür
+  En fazla 9 tane birikir. Seviyenin kendi geri alma hakları bitince bunlar kullanılır; butonda "3+2" gibi görünür
 - **Kapaklar ve geri alma:** tamamlanan tüpe sıvı inince kapak kapanır. Geri alınca kapak açılır
   ve sıvı geldiği tüpe geri akar; kilitler yeniden donar, çatlak tüpün dolum hakkı geri gelir
 - **Yeni kural kartı:** yeni bir kuralın geldiği ilk seviyede (ve oyunun ilk seviyesinde), kural

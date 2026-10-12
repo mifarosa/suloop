@@ -1,4 +1,4 @@
-import { ATTEMPTS_KEPT, INITIAL_HINTS } from './economy.js';
+import { ATTEMPTS_KEPT, INITIAL_HINTS, MAX_SPARE_UNDOS } from './economy.js';
 import { MAX_STARS } from '../game/stars.js';
 
 /**
@@ -62,7 +62,8 @@ export function normalizeProgress(saved) {
     dailyDone: typeof data.dailyDone === 'string' ? data.dailyDone : null,
     // Saves from before hints were counted start with the hints of a new player.
     hints: isCount(data.hints) ? data.hints : INITIAL_HINTS,
-    spareUndos: isCount(data.spareUndos) ? data.spareUndos : 0,
+    // Saves from before the stock had a limit keep what fits in it.
+    spareUndos: isCount(data.spareUndos) ? Math.min(data.spareUndos, MAX_SPARE_UNDOS) : 0,
     records: normalizeRecords(data.records)
   };
 }

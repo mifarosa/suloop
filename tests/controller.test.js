@@ -778,7 +778,7 @@ describe('GameController', () => {
         ],
         supplies: [
           'Bu seviyede 3 geri alma hakkından 3 tanesi kaldı.',
-          expect.stringMatching(/^1 ekstra geri alman var\./),
+          expect.stringMatching(/^1 ekstra geri alman var \(en fazla 9 birikir\)\./),
           expect.stringMatching(/^4 ipucun var\./)
         ],
         attempts: [

@@ -172,8 +172,9 @@ export const texts = {
     undoLimit === null
       ? 'Bu seviyede geri alma sınırsız.'
       : `Bu seviyede ${undoLimit} geri alma hakkından ${undosLeft} tanesi kaldı.`,
-  spareUndoSupply: (count) =>
-    `${count} ekstra geri alman var. Bir seviyeyi ilk kez 3 yıldızla geçtikçe 1 tane daha kazanırsın.`,
+  spareUndoSupply: (count, max) =>
+    `${count} ekstra geri alman var (en fazla ${max} birikir). Bir seviyeyi ilk kez 3 yıldızla ` +
+    'geçtikçe 1 tane daha kazanırsın.',
   hintSupply: (count) =>
     `${count} ipucun var. Her ipucu hamle sayına 1 ekler; geri alınca harcanan ipucu geri ` +
     'gelmez. Günün bulmacasını çözünce 1 tane daha kazanırsın.',

@@ -7,13 +7,16 @@ import { MAX_STARS } from '../game/stars.js';
  *   Solving the daily puzzle earns one, once a day.
  * - Spare undos. Solving a level with every star for the first time earns one, on levels
  *   whose undos are limited; with unlimited undos there is nothing to spare, and those easy
- *   levels would hand out a pile of them. They are spent when the undos of a level run out.
+ *   levels would hand out a pile of them. At most MAX_SPARE_UNDOS are kept, so the limits of
+ *   the levels still matter. They are spent when the undos of a level run out.
  * - Records. Each level keeps its best stars and its last few solutions.
  */
 
 export const INITIAL_HINTS = 2;
 /** How many of a level's solutions its record keeps. */
 export const ATTEMPTS_KEPT = 5;
+/** The most spare undos a player can keep; a full stock earns no more. */
+export const MAX_SPARE_UNDOS = 9;
 
 /**
  * @param {import('./progress.js').Progress} progress
@@ -40,10 +43,15 @@ export function spendSpareUndo(progress) {
  * @param {{ limitedUndo: boolean }} level's rules: whether its undos are limited
  * @returns {{ progress: import('./progress.js').Progress, earnedUndo: boolean }} earnedUndo:
  *   a level with limited undos got every star for the first time, which earns a spare undo
+ *   unless the stock is full
  */
 export function recordLevelWin(progress, level, { moves, stars }, { limitedUndo }) {
   const record = progress.records[level] ?? { best: 0, attempts: [] };
-  const earnedUndo = limitedUndo && stars === MAX_STARS && record.best < MAX_STARS;
+  const earnedUndo =
+    limitedUndo &&
+    stars === MAX_STARS &&
+    record.best < MAX_STARS &&
+    progress.spareUndos < MAX_SPARE_UNDOS;
   const attempts = [...record.attempts, { moves, stars }].slice(-ATTEMPTS_KEPT);
   return {
     progress: {
