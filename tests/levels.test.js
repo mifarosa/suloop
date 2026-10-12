@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { generatePuzzle } from '../src/game/generator.js';
+import { generatePuzzle, tubeSizes } from '../src/game/generator.js';
 import {
   CHAPTER_LEVEL_COUNT,
   chapterIdOfLevel,
@@ -10,7 +10,8 @@ import {
   levelSettings,
   LEVELS_PER_CHAPTER,
   MASTER_SETTINGS,
-  MAX_COLOR_COUNT
+  MAX_COLOR_COUNT,
+  rulesFirstUsedAt
 } from '../src/game/levels.js';
 import { createRandom, hashString } from '../src/game/random.js';
 import { topRun, TUBE_CAPACITY } from '../src/game/rules.js';
@@ -93,14 +94,57 @@ describe('levelSettings', () => {
 
   it('cycles through the hardest settings after the chapters, forever', () => {
     const afterChapters = (offset) => levelSettings(CHAPTER_LEVEL_COUNT + offset);
-    expect([1, 2, 3, 4].map(afterChapters)).toEqual(MASTER_SETTINGS);
-    expect(afterChapters(5)).toEqual(MASTER_SETTINGS[0]);
-    expect(levelSettings(100_000)).toEqual(MASTER_SETTINGS[(100_000 - 61) % 4]);
+    expect(MASTER_SETTINGS.map((_, i) => afterChapters(i + 1))).toEqual(MASTER_SETTINGS);
+    expect(afterChapters(MASTER_SETTINGS.length + 1)).toEqual(MASTER_SETTINGS[0]);
+    expect(levelSettings(100_000)).toEqual(
+      MASTER_SETTINGS[(100_000 - 61) % MASTER_SETTINGS.length]
+    );
+  });
+
+  it('keeps the first master settings, so the master levels already played stay the same', () => {
+    expect(
+      MASTER_SETTINGS.slice(0, 4).map(({ colorCount, emptyTubeCount }) => [
+        colorCount,
+        emptyTubeCount
+      ])
+    ).toEqual([
+      [9, 2],
+      [6, 1],
+      [10, 2],
+      [7, 1]
+    ]);
+  });
+
+  it('keeps the special rules to the master levels', () => {
+    for (let level = 1; level <= CHAPTER_LEVEL_COUNT; level++) {
+      expect(levelSettings(level)).toMatchObject({
+        capacity: 4,
+        hiddenColors: false,
+        halfTubeCount: 0,
+        undoLimit: null
+      });
+    }
+    expect(MASTER_SETTINGS.some((settings) => settings.hiddenColors)).toBe(true);
+    expect(MASTER_SETTINGS.some((settings) => settings.capacity === 5)).toBe(true);
+    expect(MASTER_SETTINGS.some((settings) => settings.halfTubeCount === 1)).toBe(true);
+    expect(MASTER_SETTINGS.every((settings) => settings.undoLimit === 3)).toBe(true);
   });
 
   it('never needs more colors than the maximum', () => {
     for (let level = 1; level <= CHAPTER_LEVEL_COUNT + MASTER_SETTINGS.length; level++) {
       expect(levelSettings(level).colorCount).toBeLessThanOrEqual(MAX_COLOR_COUNT);
+    }
+  });
+});
+
+describe('rulesFirstUsedAt', () => {
+  it('names the special rules at the first level that uses them', () => {
+    expect(rulesFirstUsedAt(61)).toEqual(['limitedUndo']);
+    expect(rulesFirstUsedAt(65)).toEqual(['hiddenColors']);
+    expect(rulesFirstUsedAt(66)).toEqual(['tallTubes']);
+    expect(rulesFirstUsedAt(67)).toEqual(['halfTube']);
+    for (const level of [1, 60, 62, 68, 70, 72, 73, 77, 79]) {
+      expect(rulesFirstUsedAt(level)).toEqual([]);
     }
   });
 });
@@ -122,11 +166,11 @@ describe('chapterIdOfLevel', () => {
 
 describe('generatePuzzle', () => {
   it('deals the same puzzle for the same seed', () => {
-    expect(generatePuzzle(123, 5)).toEqual(generatePuzzle(123, 5));
+    expect(generatePuzzle(123, { colorCount: 5 })).toEqual(generatePuzzle(123, { colorCount: 5 }));
   });
 
   it('deals full tubes of every color plus two empty ones', () => {
-    const tubes = generatePuzzle(99, 6);
+    const tubes = generatePuzzle(99, { colorCount: 6 });
 
     expect(tubes).toHaveLength(8);
     expect(tubes.slice(6)).toEqual([[], []]);
@@ -135,7 +179,7 @@ describe('generatePuzzle', () => {
 
   it('deals only solvable puzzles that do not start half sorted', () => {
     for (let seed = 1; seed <= 20; seed++) {
-      const tubes = generatePuzzle(seed, 4);
+      const tubes = generatePuzzle(seed, { colorCount: 4 });
       expect(solve(tubes)).not.toBeNull();
       expect(tubes.every((tube) => topRun(tube).count < 3)).toBe(true);
     }
@@ -154,20 +198,25 @@ describe('level and daily puzzles', () => {
     // All chapter levels and the first few blocks of master levels.
     for (let level = 1; level <= CHAPTER_LEVEL_COUNT + 40; level++) {
       const tubes = createLevelPuzzle(level);
-      const { colorCount, emptyTubeCount } = levelSettings(level);
+      const settings = levelSettings(level);
+      const { colorCount, emptyTubeCount, halfTubeCount, capacity } = settings;
       expect(countUnits(tubes).size).toBe(colorCount);
-      expect(tubes.filter((tube) => tube.length === 0)).toHaveLength(emptyTubeCount);
-      expect(solve(tubes)).not.toBeNull();
+      expect(new Set(countUnits(tubes).values())).toEqual(new Set([capacity]));
+      expect(tubes.filter((tube) => tube.length === 0)).toHaveLength(
+        emptyTubeCount + halfTubeCount
+      );
+      expect(solve(tubes, { capacity, sizes: tubeSizes(settings) })).not.toBeNull();
     }
   });
 
   it("moves on to another seed when a level's own seed deals no solvable puzzle", () => {
-    // Level 924 has seven colors and one empty tube, and its own seed deals no solvable board.
-    expect(levelSettings(924)).toEqual({ colorCount: 7, emptyTubeCount: 1 });
-    expect(generatePuzzle(hashString('level-924'), 7, 1)).toBeNull();
+    // Level 7888 has seven colors and one empty tube, and its own seed deals no solvable board.
+    const settings = levelSettings(7888);
+    expect(settings).toMatchObject({ colorCount: 7, emptyTubeCount: 1, capacity: 4 });
+    expect(generatePuzzle(hashString('level-7888'), settings)).toBeNull();
 
-    const tubes = createLevelPuzzle(924);
-    expect(tubes).toEqual(createLevelPuzzle(924));
+    const tubes = createLevelPuzzle(7888);
+    expect(tubes).toEqual(createLevelPuzzle(7888));
     expect(countUnits(tubes).size).toBe(7);
     expect(solve(tubes)).not.toBeNull();
   });

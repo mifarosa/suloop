@@ -1,5 +1,6 @@
 import { Animator } from './animator.js';
-import { LIFT_HEIGHT, TUBE_HEIGHT, TUBE_RADIUS } from './dimensions.js';
+import { TUBE_CAPACITY } from '../game/rules.js';
+import { LIFT_HEIGHT, TUBE_RADIUS } from './dimensions.js';
 import { arrangeTubes, fitToView } from './layout.js';
 import * as motions from './motions.js';
 import { animatePour } from './pour.js';
@@ -53,11 +54,15 @@ export class TubeScene {
     this.#onTubeTap = listener;
   }
 
-  /** Replaces every tube, e.g. for a new puzzle. */
-  showPuzzle(tubes) {
+  /**
+   * Replaces every tube, e.g. for a new puzzle.
+   * @param {number[][]} tubes colors bottom first; HIDDEN for a unit not seen yet
+   * @param {{ sizes?: number[] }} [options] units each tube holds
+   */
+  showPuzzle(tubes, { sizes = tubes.map(() => TUBE_CAPACITY) } = {}) {
     this.#animator.stopAll();
     this.#tubes = tubes.map((colors, index) => {
-      const tube = new TubeView(index);
+      const tube = new TubeView(index, sizes[index]);
       tube.showColors(colors);
       return tube;
     });
@@ -135,7 +140,9 @@ export class TubeScene {
     if (this.#tubes.length === 0) return;
 
     const { width, height } = this.#size;
-    const { positions, bounds } = arrangeTubes(this.#tubes.length, width / height);
+    // Rows make room for the tallest tube; shorter ones stand on the same line.
+    const tallest = Math.max(...this.#tubes.map((tube) => tube.height));
+    const { positions, bounds } = arrangeTubes(this.#tubes.length, width / height, tallest);
     this.#tubes.forEach((tube, index) => {
       tube.x = positions[index].x;
       tube.y = positions[index].y;
@@ -182,7 +189,7 @@ export class TubeScene {
       const dx = Math.abs(x - tube.x);
       const dy = y - tube.y;
       return (
-        dx <= TAP_HALF_WIDTH && dy >= -TAP_MARGIN && dy <= TUBE_HEIGHT + LIFT_HEIGHT + TAP_MARGIN
+        dx <= TAP_HALF_WIDTH && dy >= -TAP_MARGIN && dy <= tube.height + LIFT_HEIGHT + TAP_MARGIN
       );
     });
     if (tapped) this.#onTubeTap(tapped.index);

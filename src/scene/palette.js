@@ -16,3 +16,7 @@ export const LIQUID_COLORS = [
   '#84cc16', // lime
   '#1e3a8a' // navy
 ];
+
+/** A unit whose color the player has not seen yet: a dark, neutral fill with a question mark. */
+export const HIDDEN_COLOR = '#3b4260';
+export const HIDDEN_MARK_COLOR = '#c9d1ee';

@@ -14,15 +14,21 @@ Renkli suları tüplere ayırdığın bulmaca oyunu. Tarayıcıda çalışır, k
 
 - Kolaydan zora dört bölüm, ardından bitmeyen Usta seviyeleri:
 
-  | Bölüm | Seviyeler | Tahta                                                             |
-  | ----- | --------- | ----------------------------------------------------------------- |
-  | Kolay | 1–15      | 3–5 renk, 2 boş tüp                                               |
-  | Orta  | 16–30     | 6–8 renk, 2 boş tüp                                               |
-  | Zor   | 31–45     | 9–10 renk, 2 boş tüp                                              |
-  | Uzman | 46–60     | 6–7 renk, yalnızca 1 boş tüp                                      |
-  | Usta  | 61 ve öte | Sırayla: 9 renk · 6 renk, 1 boş tüp · 10 renk · 7 renk, 1 boş tüp |
+  | Bölüm | Seviyeler | Tahta                                                         |
+  | ----- | --------- | ------------------------------------------------------------- |
+  | Kolay | 1–15      | 3–5 renk, 2 boş tüp                                           |
+  | Orta  | 16–30     | 6–8 renk, 2 boş tüp                                           |
+  | Zor   | 31–45     | 9–10 renk, 2 boş tüp                                          |
+  | Uzman | 46–60     | 6–7 renk, yalnızca 1 boş tüp                                  |
+  | Usta  | 61 ve öte | 6–10 renk; sırayla tek boş tüp, gizli renk, uzun ve yarım tüp |
 
   Usta seviyeleri artık zorlaşmaz ama hep zordur. Her seviye numarası herkeste aynı tahtayı verir.
+  **Gizli renkler:** her tüpte başta yalnızca en üstteki renk görünür; alttakiler, üstündekiler
+  döküldükçe açılır ve bir kez görüleni geri al ya da baştan başla tekrar gizlemez. İpucu gerçek
+  renkleri bilir. **Uzun tüpler:** her tüp 4 yerine 5 birim alır. **Yarım tüp:** boş tüplerden
+  biri yalnızca 2 birim alır ve sonunda boş kalmalıdır. **Sınırlı geri alma:** Usta seviyelerinde
+  3 geri alma hakkı vardır; baştan başlayınca yenilenir. Her kural ilk çıktığı seviyede kısaca
+  anlatılır.
 
 - Seviyeler ekranı: çözülen seviyeler bölümün rengiyle dolar, sıradaki seviye açık, ötesi kilitli.
   Çözülmüş bir seviyeye dönüp tekrar oynanabilir
@@ -32,7 +38,7 @@ Renkli suları tüplere ayırdığın bulmaca oyunu. Tarayıcıda çalışır, k
 - Kaldığın seviye tarayıcıda saklanır. "İlerlemeyi taşı" ile kısa bir kod ya da bağlantı alıp
   başka bir cihazda (ya da tarayıcı verisi silindikten sonra) kaldığın yerden devam edersin.
   Yükleme ilerlemeyi hiç geri götürmez: eski bir kod hiçbir şeyi silmez
-- Canvas 2D ile çizilen cam tüpler, döküm animasyonu, açık/koyu tema; ek kütüphane yok, oyun 25 KB
+- Canvas 2D ile çizilen cam tüpler, döküm animasyonu, açık/koyu tema; ek kütüphane yok, oyun 28 KB
 
 ## Proje yapısı
 

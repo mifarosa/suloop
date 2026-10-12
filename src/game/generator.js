@@ -1,5 +1,5 @@
 import { createRandom } from './random.js';
-import { TUBE_CAPACITY, topRun } from './rules.js';
+import { HALF_TUBE_SIZE, TUBE_CAPACITY, topRun } from './rules.js';
 import { solve } from './solver.js';
 
 const MAX_ATTEMPTS = 100;
@@ -8,37 +8,66 @@ const MAX_ATTEMPTS = 100;
 const TOO_EASY_TOP_RUN = 3;
 
 /**
+ * The shape of a board.
+ * @typedef {object} BoardShape
+ * @property {number} colorCount number of colors, and so the number of filled tubes
+ * @property {number} [emptyTubeCount] empty full-size tubes after the filled ones
+ * @property {number} [halfTubeCount] empty half tubes after those
+ * @property {number} [capacity] units of each color, and what a full-size tube holds
+ */
+
+/**
+ * Units each tube of a board holds, in the order the tubes are dealt.
+ * @param {BoardShape} shape
+ * @returns {number[]}
+ */
+export function tubeSizes({
+  colorCount,
+  emptyTubeCount = 2,
+  halfTubeCount = 0,
+  capacity = TUBE_CAPACITY
+}) {
+  return [
+    ...Array(colorCount + emptyTubeCount).fill(capacity),
+    ...Array(halfTubeCount).fill(HALF_TUBE_SIZE)
+  ];
+}
+
+/**
  * Deals a random, solvable puzzle. The same seed always deals the same puzzle.
  *
  * @param {number} seed
- * @param {number} colorCount number of colors, and so the number of filled tubes
- * @param {number} [emptyTubeCount]
+ * @param {BoardShape} shape
  * @returns {number[][] | null} null when no solvable deal turned up, which happens now and then
  *   with a single empty tube
  */
-export function generatePuzzle(seed, colorCount, emptyTubeCount = 2) {
+export function generatePuzzle(seed, shape) {
+  const { colorCount, capacity = TUBE_CAPACITY, halfTubeCount = 0 } = shape;
+  const tubeCount = tubeSizes(shape).length;
+  // One number when all tubes are full-size keeps the solver on its faster path.
+  const sizes = halfTubeCount > 0 ? tubeSizes(shape) : capacity;
   const random = createRandom(seed);
 
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-    const tubes = dealFilledTubes(random, colorCount);
-    for (let i = 0; i < emptyTubeCount; i++) tubes.push([]);
+    const tubes = dealFilledTubes(random, colorCount, capacity);
+    while (tubes.length < tubeCount) tubes.push([]);
 
-    if (!tubes.some(startsTooEasy) && solve(tubes)) return tubes;
+    if (!tubes.some(startsTooEasy) && solve(tubes, { capacity, sizes })) return tubes;
   }
   return null;
 }
 
-/** Shuffles TUBE_CAPACITY units of every color and splits them into full tubes. */
-function dealFilledTubes(random, colorCount) {
+/** Shuffles `capacity` units of every color and splits them into full tubes. */
+function dealFilledTubes(random, colorCount, capacity) {
   const units = [];
   for (let color = 0; color < colorCount; color++) {
-    for (let i = 0; i < TUBE_CAPACITY; i++) units.push(color);
+    for (let i = 0; i < capacity; i++) units.push(color);
   }
   shuffle(units, random);
 
   const tubes = [];
   for (let i = 0; i < colorCount; i++) {
-    tubes.push(units.slice(i * TUBE_CAPACITY, (i + 1) * TUBE_CAPACITY));
+    tubes.push(units.slice(i * capacity, (i + 1) * capacity));
   }
   return tubes;
 }

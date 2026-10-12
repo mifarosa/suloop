@@ -1,5 +1,5 @@
 import { linear } from './animator.js';
-import { LIQUID_FLOOR, POUR_TILT, SEGMENT_HEIGHT, TUBE_HEIGHT } from './dimensions.js';
+import { LIQUID_FLOOR, POUR_TILT, SEGMENT_HEIGHT } from './dimensions.js';
 import { bodyKey } from './motions.js';
 
 const APPROACH_MS = 340;
@@ -26,10 +26,10 @@ export async function animatePour({ animator, stream, source, target, amount }) 
   const side = target.x >= 0 ? 1 : -1;
   const aboveTarget = {
     x: target.x - source.x - side * 0.25,
-    y: target.y - source.y + TUBE_HEIGHT + 0.75,
+    y: target.y + target.height - source.y + 0.75,
     tilt: -side * POUR_TILT
   };
-  const atRest = { x: 0, y: TUBE_HEIGHT, tilt: 0 };
+  const atRest = { x: 0, y: source.height, tilt: 0 };
 
   await moveBody(animator, source, aboveTarget, APPROACH_MS);
   await flow({ animator, stream, source, target, amount, side });
@@ -52,6 +52,8 @@ function moveBody(animator, tube, to, duration) {
 
 async function flow({ animator, stream, source, target, amount, side }) {
   const outgoing = source.segments.slice(-amount);
+  // A pour takes the whole same-colored run, hidden units included; they show as they leave.
+  for (const segment of outgoing) segment.color = source.topColor;
   const firstFreeSlot = target.colors.length;
   const incoming = [];
   for (let i = 0; i < amount; i++) {

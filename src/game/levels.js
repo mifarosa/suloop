@@ -1,7 +1,32 @@
 import { generatePuzzle } from './generator.js';
 import { hashString } from './random.js';
+import { TALL_TUBE_CAPACITY, TUBE_CAPACITY } from './rules.js';
+
+/**
+ * How a puzzle is dealt and played.
+ * @typedef {object} PuzzleSettings
+ * @property {number} colorCount
+ * @property {number} emptyTubeCount empty full-size tubes
+ * @property {number} halfTubeCount empty tubes that hold only HALF_TUBE_SIZE units
+ * @property {number} capacity units of each color, and what a full-size tube holds
+ * @property {boolean} hiddenColors whether only the top unit of each tube shows at first
+ * @property {number | null} undoLimit moves the player may take back; null for no limit
+ */
+
+const PLAIN = Object.freeze({
+  halfTubeCount: 0,
+  capacity: TUBE_CAPACITY,
+  hiddenColors: false,
+  undoLimit: null
+});
 
 export const DAILY_COLOR_COUNT = 7;
+/** @type {Readonly<PuzzleSettings>} */
+export const DAILY_SETTINGS = Object.freeze({
+  ...PLAIN,
+  colorCount: DAILY_COLOR_COUNT,
+  emptyTubeCount: 2
+});
 
 /**
  * The first levels, easiest first, in chapters of LEVELS_PER_CHAPTER. Within a chapter the
@@ -22,16 +47,52 @@ export const LEVELS_PER_CHAPTER = 15;
 /** Levels in the chapters; every level after them is a master level. */
 export const CHAPTER_LEVEL_COUNT = CHAPTERS.length * LEVELS_PER_CHAPTER;
 
+/** Moves a player may take back in a master level; a restart gives them all back. */
+export const MASTER_UNDO_LIMIT = 3;
+const MASTER = Object.freeze({ ...PLAIN, undoLimit: MASTER_UNDO_LIMIT });
+
 /**
- * Master levels go on forever. They no longer get harder: each one takes the next of the
- * hardest settings in turn. More colors would need tubes too small for a phone and colors
- * too alike to tell apart, and with eight colors a single empty tube is often unsolvable.
+ * Master levels go on forever. They no longer get harder: each one takes the next of these
+ * settings in turn, and all of them limit undo. More colors would need tubes too small for a
+ * phone and colors too alike to tell apart, so other rules make a board hard:
+ * - a single empty tube (with eight colors it is often unsolvable on its own),
+ * - hidden colors, which take away what the player can plan with,
+ * - tall tubes: eight colors in them are about as hard for random play as ten in plain ones
+ *   (7% against 6% solved), with two tubes fewer,
+ * - a half tube next to a single empty one: hardest of all (eight colors: 2.5%; nine: 1.5%),
+ *   and it makes eight and nine colors with one free full-size tube solvable.
+ * Every new rule first appears on its own, then in pairs.
+ *
+ * The first four settings were the whole list once; they stay in place so those levels
+ * keep their boards.
+ *
+ * @type {ReadonlyArray<Readonly<PuzzleSettings>>}
  */
 export const MASTER_SETTINGS = Object.freeze([
-  { colorCount: 9, emptyTubeCount: 2 },
-  { colorCount: 6, emptyTubeCount: 1 },
-  { colorCount: 10, emptyTubeCount: 2 },
-  { colorCount: 7, emptyTubeCount: 1 }
+  { ...MASTER, colorCount: 9, emptyTubeCount: 2 },
+  { ...MASTER, colorCount: 6, emptyTubeCount: 1 },
+  { ...MASTER, colorCount: 10, emptyTubeCount: 2 },
+  { ...MASTER, colorCount: 7, emptyTubeCount: 1 },
+  { ...MASTER, colorCount: 7, emptyTubeCount: 2, hiddenColors: true },
+  { ...MASTER, colorCount: 8, emptyTubeCount: 2, capacity: TALL_TUBE_CAPACITY },
+  { ...MASTER, colorCount: 8, emptyTubeCount: 1, halfTubeCount: 1 },
+  {
+    ...MASTER,
+    colorCount: 7,
+    emptyTubeCount: 2,
+    capacity: TALL_TUBE_CAPACITY,
+    hiddenColors: true
+  },
+  { ...MASTER, colorCount: 8, emptyTubeCount: 2, hiddenColors: true },
+  {
+    ...MASTER,
+    colorCount: 6,
+    emptyTubeCount: 1,
+    halfTubeCount: 1,
+    capacity: TALL_TUBE_CAPACITY
+  },
+  { ...MASTER, colorCount: 7, emptyTubeCount: 1, halfTubeCount: 1, hiddenColors: true },
+  { ...MASTER, colorCount: 9, emptyTubeCount: 1, halfTubeCount: 1 }
 ]);
 
 export const MAX_COLOR_COUNT = Math.max(
@@ -58,9 +119,9 @@ function chapterIndexOfLevel(level) {
 }
 
 /**
- * How a level is dealt.
+ * How a level is dealt and played.
  * @param {number} level 1 or more
- * @returns {{ colorCount: number, emptyTubeCount: number }}
+ * @returns {Readonly<PuzzleSettings>}
  */
 export function levelSettings(level) {
   if (isMasterLevel(level)) {
@@ -70,7 +131,35 @@ export function levelSettings(level) {
   const position = (level - 1) % LEVELS_PER_CHAPTER;
   const steps = maxColors - minColors + 1;
   const colorCount = minColors + Math.floor((position * steps) / LEVELS_PER_CHAPTER);
-  return { colorCount, emptyTubeCount };
+  return { ...PLAIN, colorCount, emptyTubeCount };
+}
+
+/** @typedef {'limitedUndo' | 'hiddenColors' | 'tallTubes' | 'halfTube'} SpecialRule */
+
+/**
+ * The special rules in a puzzle's settings.
+ * @param {PuzzleSettings} settings
+ * @returns {SpecialRule[]}
+ */
+export function specialRules({ undoLimit, hiddenColors, capacity, halfTubeCount }) {
+  const rules = [];
+  if (undoLimit !== null) rules.push('limitedUndo');
+  if (hiddenColors) rules.push('hiddenColors');
+  if (capacity > TUBE_CAPACITY) rules.push('tallTubes');
+  if (halfTubeCount > 0) rules.push('halfTube');
+  return rules;
+}
+
+/**
+ * The special rules a level is the first to use, so the game can explain them there.
+ * @returns {SpecialRule[]}
+ */
+export function rulesFirstUsedAt(level) {
+  const index = level - CHAPTER_LEVEL_COUNT - 1;
+  if (index < 0 || index >= MASTER_SETTINGS.length) return [];
+
+  const usedBefore = MASTER_SETTINGS.slice(0, index).flatMap(specialRules);
+  return specialRules(MASTER_SETTINGS[index]).filter((rule) => !usedBefore.includes(rule));
 }
 
 /**
@@ -78,23 +167,24 @@ export function levelSettings(level) {
  * looks the same on every device and after every release.
  */
 export function createLevelPuzzle(level) {
-  const { colorCount, emptyTubeCount } = levelSettings(level);
-  return dealPuzzle(`level-${level}`, colorCount, emptyTubeCount);
+  return dealPuzzle(`level-${level}`, levelSettings(level));
 }
 
 /** The daily puzzle, shared by everyone on the same calendar date ("YYYY-MM-DD"). */
 export function createDailyPuzzle(dateKey) {
-  return dealPuzzle(`daily-${dateKey}`, DAILY_COLOR_COUNT, 2);
+  return dealPuzzle(`daily-${dateKey}`, DAILY_SETTINGS);
 }
 
 /**
  * Deals from the seed of `key`, or, in the rare case that seed yields no solvable puzzle,
  * from the seeds of "key#1", "key#2" and so on.
+ * @param {string} key
+ * @param {PuzzleSettings} settings
  */
-function dealPuzzle(key, colorCount, emptyTubeCount) {
+function dealPuzzle(key, settings) {
   for (let attempt = 0; attempt < SEED_ATTEMPTS; attempt++) {
     const seedKey = attempt === 0 ? key : `${key}#${attempt}`;
-    const tubes = generatePuzzle(hashString(seedKey), colorCount, emptyTubeCount);
+    const tubes = generatePuzzle(hashString(seedKey), settings);
     if (tubes) return tubes;
   }
   throw new Error(`Could not deal a solvable puzzle for ${key}`);
