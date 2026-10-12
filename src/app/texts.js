@@ -150,7 +150,7 @@ export const texts = {
   yourMoves: 'Hamlen',
   fewestMoves: (proven) => (proven ? 'En az' : 'En kısa bulunan'),
   stageOpened: (stageId) => `Yeni aşama açıldı: ${stageNames[stageId]}!`,
-  earnedUndo: 'İlk kez 3 yıldız: +1 ekstra geri alma!',
+  earnedUndo: '+1 ekstra geri alma',
   earnedHint: 'Günün bulmacası: +1 ipucu!',
   attemptsTitle: 'Son denemeler',
   attemptMoves: (moves) => `${moves} hamle`,

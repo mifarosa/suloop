@@ -214,7 +214,7 @@ describe('GameController', () => {
     await playSolution(controller, createLevelPuzzle(16), { shortest: true });
     expect(lastWin()).toMatchObject({
       stars: 3,
-      notes: ['İlk kez 3 yıldız: +1 ekstra geri alma!']
+      notes: ['+1 ekstra geri alma']
     });
     expect(saved.at(-1).spareUndos).toBe(1);
 
