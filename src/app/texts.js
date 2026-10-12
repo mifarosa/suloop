@@ -10,6 +10,7 @@ const chapterNames = {
   master: 'Usta'
 };
 const moves = (count) => `${count} hamle`;
+const ruleTags = { hiddenColors: 'Gizli renk', tallTubes: 'Uzun tüp' };
 
 export const texts = {
   levelTitle: (level) => `Seviye ${level}`,
@@ -17,7 +18,12 @@ export const texts = {
     `Günün bulmacası · ${dayAndMonth.format(date)}${solved ? ' ✓' : ''}`,
   moves,
   chapterName: (chapterId) => chapterNames[chapterId],
-  levelSubtitle: (chapterId, moveCount) => `${chapterNames[chapterId]} · ${moves(moveCount)}`,
+  levelSubtitle: (chapterId, rules, moveCount) =>
+    [chapterNames[chapterId], ...rules.map((rule) => ruleTags[rule]), moves(moveCount)].join(' · '),
+  ruleIntro: {
+    hiddenColors: 'Gizli renkler: alttaki renkler, üstündekiler döküldükçe görünür.',
+    tallTubes: 'Uzun tüpler: her tüp 5 birim alır.'
+  },
   solvedIn: (count) => `${count} hamlede çözdün.`,
   chapterOpened: (chapterId) => `${chapterNames[chapterId]} seviyeler açıldı!`,
   nextLevel: 'Sonraki seviye',
@@ -31,7 +37,7 @@ export const texts = {
   dailyCardAction: (solved) => (solved ? 'Çözüldü ✓' : 'Oyna'),
   chapterDetail: ({ minColors, maxColors, emptyTubeCount }) =>
     `${minColors}–${maxColors} renk${emptyTubeCount === 1 ? ' · tek boş tüp' : ''}`,
-  masterDetail: 'Sonsuz · 9–10 renk ya da tek boş tüp',
+  masterDetail: 'Sonsuz · tek boş tüp, gizli renk, uzun tüp',
   chapterProgress: (solved, total) => `${solved}/${total}`,
   masterProgress: (solved) => `${solved} çözüldü`,
   // Carrying progress to another device

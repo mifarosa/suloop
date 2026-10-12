@@ -1,4 +1,12 @@
-import { applyPour, canPour, cloneTubes, isSolved, isTubeComplete, topRun } from './rules.js';
+import {
+  applyPour,
+  canPour,
+  cloneTubes,
+  isSolved,
+  isTubeComplete,
+  topRun,
+  TUBE_CAPACITY
+} from './rules.js';
 
 /**
  * Finds a sequence of moves that solves the puzzle with a depth-first search.
@@ -9,17 +17,21 @@ import { applyPour, canPour, cloneTubes, isSolved, isTubeComplete, topRun } from
  * order, so the same position reached in a different arrangement is not searched twice.
  *
  * @param {number[][]} tubes
- * @param {{ maxNodes?: number, maxDepth?: number }} [limits] stop searching after this many
- *   positions or this many moves deep; the search then reports no solution
+ * @param {{ capacity?: number, maxNodes?: number, maxDepth?: number }} [options] the units a
+ *   tube holds, and limits: stop searching after this many positions or this many moves deep;
+ *   the search then reports no solution
  * @returns {Array<[number, number]> | null} `[from, to]` moves, or null when none was found
  */
-export function solve(tubes, { maxNodes = 200_000, maxDepth = 400 } = {}) {
+export function solve(
+  tubes,
+  { capacity = TUBE_CAPACITY, maxNodes = 200_000, maxDepth = 400 } = {}
+) {
   const visited = new Set();
   const path = [];
   let nodes = 0;
 
   function search(state) {
-    if (isSolved(state)) return true;
+    if (isSolved(state, capacity)) return true;
     if (++nodes > maxNodes || path.length > maxDepth) return false;
 
     const key = positionKey(state);
@@ -28,7 +40,7 @@ export function solve(tubes, { maxNodes = 200_000, maxDepth = 400 } = {}) {
 
     for (let from = 0; from < state.length; from++) {
       const source = state[from];
-      if (source.length === 0 || isTubeComplete(source)) continue;
+      if (source.length === 0 || isTubeComplete(source, capacity)) continue;
 
       const sourceIsSingleColor = topRun(source).count === source.length;
       let triedEmptyTarget = false;
@@ -39,10 +51,10 @@ export function solve(tubes, { maxNodes = 200_000, maxDepth = 400 } = {}) {
           if (sourceIsSingleColor || triedEmptyTarget) continue;
           triedEmptyTarget = true;
         }
-        if (!canPour(state, from, to)) continue;
+        if (!canPour(state, from, to, capacity)) continue;
 
         path.push([from, to]);
-        if (search(applyPour(state, from, to).tubes)) return true;
+        if (search(applyPour(state, from, to, capacity).tubes)) return true;
         path.pop();
       }
     }

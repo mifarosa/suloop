@@ -1,9 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { MAX_COLOR_COUNT } from '../src/game/levels.js';
 import { Animator, easeInOutCubic, linear } from '../src/scene/animator.js';
-import { SEGMENT_HEIGHT, TUBE_HEIGHT, TUBE_SPACING } from '../src/scene/dimensions.js';
+import { HIDDEN } from '../src/game/rules.js';
+import {
+  ROW_GAP,
+  SEGMENT_HEIGHT,
+  TUBE_HEIGHT,
+  TUBE_SPACING,
+  tubeHeight
+} from '../src/scene/dimensions.js';
 import { arrangeTubes, fitToView } from '../src/scene/layout.js';
-import { LIQUID_COLORS } from '../src/scene/palette.js';
+import { HIDDEN_COLOR, LIQUID_COLORS } from '../src/scene/palette.js';
 import { animatePour } from '../src/scene/pour.js';
 import { drawScene } from '../src/scene/renderer.js';
 import { TubeView } from '../src/scene/tubeView.js';
@@ -111,26 +118,76 @@ describe('animatePour', () => {
     ]);
     expect(source.body).toEqual({ x: 0, y: TUBE_HEIGHT, tilt: 0 });
   });
+
+  it('shows hidden units of the poured color as they leave', async () => {
+    const animator = new Animator();
+    const stream = { visible: false, color: 0, x: 0, top: 0, bottom: 0 };
+    const source = new TubeView(0);
+    const target = new TubeView(1);
+    source.showColors([HIDDEN, HIDDEN, 4]);
+    target.showColors([]);
+
+    await play(animator, animatePour({ animator, stream, source, target, amount: 2 }));
+    expect(source.segments.map((s) => s.color)).toEqual([HIDDEN, 4, 4]);
+    expect(target.segments.map((s) => s.color)).toEqual([4, 4]);
+  });
+});
+
+describe('tall tubes', () => {
+  it('are taller by one segment for each extra unit', () => {
+    const tall = new TubeView(0, 5);
+    expect(tall.height).toBeCloseTo(TUBE_HEIGHT + SEGMENT_HEIGHT);
+    expect(tall.body.y).toBe(tall.height);
+    expect(tubeHeight(4)).toBe(TUBE_HEIGHT);
+  });
+
+  it('get rows spaced for their height', () => {
+    const { positions, bounds } = arrangeTubes(9, 0.5, tubeHeight(5));
+    const rowYs = [...new Set(positions.map((p) => p.y))];
+    expect(rowYs[0] - rowYs[1]).toBeCloseTo(tubeHeight(5) + ROW_GAP);
+    expect(bounds.top).toBeGreaterThan(arrangeTubes(9, 0.5).bounds.top);
+  });
 });
 
 describe('drawScene', () => {
-  // A stand-in canvas context that accepts every drawing call and records fills.
+  // A stand-in canvas context that accepts every drawing call and records fills and text.
   function recordingContext() {
     const fills = [];
+    const texts = [];
+    const record = {
+      fillRect: (...args) => fills.push({ style: ctx.fillStyle, args }),
+      fillText: (text) => texts.push(text)
+    };
     const ctx = new Proxy(
-      { fills },
+      { fills, texts },
       {
-        get: (target, name) =>
-          name in target
-            ? target[name]
-            : name === 'fillRect'
-              ? (...args) => fills.push({ style: ctx.fillStyle, args })
-              : () => {},
+        get: (target, name) => (name in target ? target[name] : (record[name] ?? (() => {}))),
         set: (target, name, value) => ((target[name] = value), true)
       }
     );
     return ctx;
   }
+
+  const sceneWith = (tubes) => ({
+    width: 400,
+    height: 800,
+    tubes,
+    stream: { visible: false, color: 0, x: 0, top: 0, bottom: 0 },
+    view: { scale: 50, originX: 200, originY: 600 },
+    glassColor: '#ffffff'
+  });
+
+  it('draws a hidden unit as a question mark instead of its color', () => {
+    const tube = new TubeView(0);
+    tube.showColors([HIDDEN, HIDDEN, 3]);
+    const ctx = recordingContext();
+    drawScene(ctx, sceneWith([tube]));
+
+    const styles = ctx.fills.map((fill) => fill.style);
+    expect(styles.filter((style) => style === HIDDEN_COLOR)).toHaveLength(2);
+    expect(styles).toContain(LIQUID_COLORS[3]);
+    expect(ctx.texts).toEqual(['?', '?']);
+  });
 
   it('draws each liquid segment and the stream in its own color', () => {
     const tube = new TubeView(0);

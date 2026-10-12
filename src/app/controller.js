@@ -4,8 +4,12 @@ import {
   CHAPTERS,
   createDailyPuzzle,
   createLevelPuzzle,
+  DAILY_SETTINGS,
   isMasterLevel,
-  LEVELS_PER_CHAPTER
+  levelSettings,
+  LEVELS_PER_CHAPTER,
+  rulesFirstUsedAt,
+  specialRules
 } from '../game/levels.js';
 import { GameSession } from '../game/session.js';
 import { localDateKey } from './calendar.js';
@@ -61,12 +65,18 @@ export class GameController {
     const tubes = this.#isDaily()
       ? createDailyPuzzle(localDateKey(this.#puzzleDay))
       : createLevelPuzzle(this.#level);
+    const { capacity, hiddenColors } = this.#settings();
 
-    this.#session = new GameSession(tubes);
-    this.#scene.showPuzzle(this.#session.tubes);
+    this.#session = new GameSession(tubes, { capacity, hiddenColors });
+    this.#scene.showPuzzle(this.#session.visibleTubes, { capacity });
     this.#hud.hideWin();
     this.#menu.hide();
     this.#refreshHud();
+
+    const newRules = this.#isDaily() ? [] : rulesFirstUsedAt(this.#level);
+    if (newRules.length > 0) {
+      this.#hud.showToast(newRules.map((rule) => texts.ruleIntro[rule]).join(' '), { long: true });
+    }
   }
 
   /** @param {number} index */
@@ -98,7 +108,7 @@ export class GameController {
     if (this.#animating || !this.#session.canUndo) return;
 
     this.#session.undo();
-    this.#scene.showContents(this.#session.tubes);
+    this.#scene.showContents(this.#session.visibleTubes);
     this.#refreshHud();
   }
 
@@ -106,7 +116,7 @@ export class GameController {
     if (this.#animating || this.#session.solved) return;
 
     this.#session.restart();
-    this.#scene.showContents(this.#session.tubes);
+    this.#scene.showContents(this.#session.visibleTubes);
     this.#refreshHud();
   }
 
@@ -205,7 +215,7 @@ export class GameController {
     this.#animating = true;
     this.#refreshHud();
     try {
-      await this.#scene.pour(from, to, amount, this.#session.tubes);
+      await this.#scene.pour(from, to, amount, this.#session.visibleTubes);
       if (filled) this.#scene.hop(to);
       if (solved) await this.#celebrateWin();
     } finally {
@@ -318,6 +328,11 @@ export class GameController {
     return this.#progress.mode === 'daily';
   }
 
+  /** How the puzzle on the board is played. */
+  #settings() {
+    return this.#isDaily() ? DAILY_SETTINGS : levelSettings(this.#level);
+  }
+
   #refreshHud() {
     const moveCount = this.#session.moveCount;
     const daily = this.#isDaily();
@@ -330,7 +345,11 @@ export class GameController {
         : texts.levelTitle(this.#level),
       subtitle: daily
         ? texts.moves(moveCount)
-        : texts.levelSubtitle(chapterIdOfLevel(this.#level), moveCount),
+        : texts.levelSubtitle(
+            chapterIdOfLevel(this.#level),
+            specialRules(this.#settings()),
+            moveCount
+          ),
       canUndo: this.#session.canUndo
     });
   }

@@ -1,4 +1,5 @@
 const TOAST_DURATION_MS = 2400;
+const LONG_TOAST_DURATION_MS = 5000;
 
 /**
  * The page around the game board: title, move counter, buttons, toast message and win dialog.
@@ -54,13 +55,20 @@ export class Hud {
     this.#elements.undo.disabled = !canUndo;
   }
 
-  /** Shows a short message for a few seconds. */
-  showToast(message) {
+  /**
+   * Shows a short message for a few seconds.
+   * @param {string} message
+   * @param {{ long?: boolean }} [options] long: leaves time to read an explanation
+   */
+  showToast(message, { long = false } = {}) {
     const { toast } = this.#elements;
     toast.textContent = message;
     toast.classList.add('show');
     clearTimeout(this.#toastTimer);
-    this.#toastTimer = setTimeout(() => toast.classList.remove('show'), TOAST_DURATION_MS);
+    this.#toastTimer = setTimeout(
+      () => toast.classList.remove('show'),
+      long ? LONG_TOAST_DURATION_MS : TOAST_DURATION_MS
+    );
   }
 
   /** @param {{ message: string, continueLabel: string }} win */

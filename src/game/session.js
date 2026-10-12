@@ -1,4 +1,12 @@
-import { applyPour, cloneTubes, isSolved, isTubeComplete, pourAmount } from './rules.js';
+import {
+  applyPour,
+  cloneTubes,
+  HIDDEN,
+  isSolved,
+  isTubeComplete,
+  pourAmount,
+  TUBE_CAPACITY
+} from './rules.js';
 import { solve } from './solver.js';
 
 // Hints run while the player waits, so they search less than level generation does.
@@ -21,12 +29,34 @@ const HINT_SEARCH_LIMIT = 150_000;
 /**
  * One play-through of a puzzle: the board, the selected tube and the move history.
  * It holds no UI; every action reports what changed so the caller can animate it.
+ *
+ * With hidden colors only the top unit of each tube shows at first. A unit below shows once
+ * everything above it has been poured off, and stays shown: undo and restart do not hide
+ * again what the player has seen. The rules and the hints always use the real colors.
  */
 export class GameSession {
-  /** @param {number[][]} initialTubes */
-  constructor(initialTubes) {
+  /**
+   * @param {number[][]} initialTubes
+   * @param {{ capacity?: number, hiddenColors?: boolean }} [options]
+   */
+  constructor(initialTubes, { capacity = TUBE_CAPACITY, hiddenColors = false } = {}) {
     this.initialTubes = cloneTubes(initialTubes);
+    this.capacity = capacity;
+    /**
+     * Per tube, how many units at the bottom are still hidden. The units there never move
+     * while hidden, since a unit has to be on top to be poured, so the count only shrinks.
+     */
+    this.hiddenCounts = initialTubes.map((tube) =>
+      hiddenColors ? Math.max(0, tube.length - 1) : 0
+    );
     this.restart();
+  }
+
+  /** The board as the player sees it: hidden units are HIDDEN. */
+  get visibleTubes() {
+    return this.tubes.map((tube, index) =>
+      tube.map((color, slot) => (slot < this.hiddenCounts[index] ? HIDDEN : color))
+    );
   }
 
   get moveCount() {
@@ -80,13 +110,15 @@ export class GameSession {
    * @returns {[number, number] | null} null when the position is a dead end
    */
   hint() {
-    const solution = solve(this.tubes, { maxNodes: HINT_SEARCH_LIMIT });
+    const solution = solve(this.tubes, { capacity: this.capacity, maxNodes: HINT_SEARCH_LIMIT });
     return solution && solution.length > 0 ? solution[0] : null;
   }
 
   #pickUp(index) {
     const tube = this.tubes[index];
-    if (tube.length === 0 || isTubeComplete(tube)) return { type: 'rejected', tube: index };
+    if (tube.length === 0 || isTubeComplete(tube, this.capacity)) {
+      return { type: 'rejected', tube: index };
+    }
 
     this.selected = index;
     return { type: 'selected', tube: index };
@@ -96,19 +128,21 @@ export class GameSession {
     const from = this.selected;
     this.selected = null;
 
-    const amount = pourAmount(this.tubes, from, to);
+    const amount = pourAmount(this.tubes, from, to, this.capacity);
     if (amount === 0) return { type: 'blocked', from, to };
 
     this.history.push(this.tubes);
-    this.tubes = applyPour(this.tubes, from, to).tubes;
-    this.solved = isSolved(this.tubes);
-    return {
-      type: 'poured',
-      from,
-      to,
-      amount,
-      filled: isTubeComplete(this.tubes[to]),
-      solved: this.solved
-    };
+    this.tubes = applyPour(this.tubes, from, to, this.capacity).tubes;
+    this.solved = isSolved(this.tubes, this.capacity);
+    const filled = isTubeComplete(this.tubes[to], this.capacity);
+    this.#reveal(from, to, filled);
+    return { type: 'poured', from, to, amount, filled, solved: this.solved };
+  }
+
+  /** Shows the new top of the source, and all of a target the pour completed. */
+  #reveal(from, to, filled) {
+    const source = this.tubes[from];
+    this.hiddenCounts[from] = Math.min(this.hiddenCounts[from], Math.max(0, source.length - 1));
+    if (filled) this.hiddenCounts[to] = 0;
   }
 }

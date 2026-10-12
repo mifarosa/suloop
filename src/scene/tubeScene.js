@@ -1,5 +1,6 @@
 import { Animator } from './animator.js';
-import { LIFT_HEIGHT, TUBE_HEIGHT, TUBE_RADIUS } from './dimensions.js';
+import { TUBE_CAPACITY } from '../game/rules.js';
+import { LIFT_HEIGHT, TUBE_RADIUS } from './dimensions.js';
 import { arrangeTubes, fitToView } from './layout.js';
 import * as motions from './motions.js';
 import { animatePour } from './pour.js';
@@ -53,11 +54,15 @@ export class TubeScene {
     this.#onTubeTap = listener;
   }
 
-  /** Replaces every tube, e.g. for a new puzzle. */
-  showPuzzle(tubes) {
+  /**
+   * Replaces every tube, e.g. for a new puzzle.
+   * @param {number[][]} tubes colors bottom first; HIDDEN for a unit not seen yet
+   * @param {{ capacity?: number }} [options] units each tube holds
+   */
+  showPuzzle(tubes, { capacity = TUBE_CAPACITY } = {}) {
     this.#animator.stopAll();
     this.#tubes = tubes.map((colors, index) => {
-      const tube = new TubeView(index);
+      const tube = new TubeView(index, capacity);
       tube.showColors(colors);
       return tube;
     });
@@ -135,7 +140,11 @@ export class TubeScene {
     if (this.#tubes.length === 0) return;
 
     const { width, height } = this.#size;
-    const { positions, bounds } = arrangeTubes(this.#tubes.length, width / height);
+    const { positions, bounds } = arrangeTubes(
+      this.#tubes.length,
+      width / height,
+      this.#tubes[0].height
+    );
     this.#tubes.forEach((tube, index) => {
       tube.x = positions[index].x;
       tube.y = positions[index].y;
@@ -182,7 +191,7 @@ export class TubeScene {
       const dx = Math.abs(x - tube.x);
       const dy = y - tube.y;
       return (
-        dx <= TAP_HALF_WIDTH && dy >= -TAP_MARGIN && dy <= TUBE_HEIGHT + LIFT_HEIGHT + TAP_MARGIN
+        dx <= TAP_HALF_WIDTH && dy >= -TAP_MARGIN && dy <= tube.height + LIFT_HEIGHT + TAP_MARGIN
       );
     });
     if (tapped) this.#onTubeTap(tapped.index);

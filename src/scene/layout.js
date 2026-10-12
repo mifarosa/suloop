@@ -1,4 +1,4 @@
-import { LIFT_HEIGHT, ROW_SPACING, TUBE_HEIGHT, TUBE_RADIUS, TUBE_SPACING } from './dimensions.js';
+import { LIFT_HEIGHT, ROW_GAP, TUBE_HEIGHT, TUBE_RADIUS, TUBE_SPACING } from './dimensions.js';
 
 /** Empty space kept around the tubes, in world units. */
 const FRAME_MARGIN = 0.9;
@@ -16,24 +16,26 @@ function maxTubesPerRow(aspect) {
  * Arranges tubes in centered rows of equal length, the last row possibly shorter.
  * @param {number} count
  * @param {number} aspect width / height of the view
+ * @param {number} [tubeHeight]
  * @returns {{ positions: Array<{ x: number, y: number }>, bounds: { width: number, top: number, bottom: number } }}
  */
-export function arrangeTubes(count, aspect) {
+export function arrangeTubes(count, aspect, tubeHeight = TUBE_HEIGHT) {
   const rows = Math.ceil(count / maxTubesPerRow(aspect));
   const perRow = Math.ceil(count / rows);
+  const rowSpacing = tubeHeight + ROW_GAP;
 
   const positions = [];
   for (let i = 0; i < count; i++) {
     const row = Math.floor(i / perRow);
     const column = i % perRow;
     const tubesInRow = Math.min(perRow, count - row * perRow);
-    positions.push({ x: (column - (tubesInRow - 1) / 2) * TUBE_SPACING, y: -row * ROW_SPACING });
+    positions.push({ x: (column - (tubesInRow - 1) / 2) * TUBE_SPACING, y: -row * rowSpacing });
   }
 
   const bounds = {
     width: (perRow - 1) * TUBE_SPACING + TUBE_RADIUS * 2,
-    top: TUBE_HEIGHT + LIFT_HEIGHT,
-    bottom: -(rows - 1) * ROW_SPACING
+    top: tubeHeight + LIFT_HEIGHT,
+    bottom: -(rows - 1) * rowSpacing
   };
   return { positions, bounds };
 }

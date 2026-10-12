@@ -1,5 +1,5 @@
 import { linear } from './animator.js';
-import { LIFT_HEIGHT, TUBE_HEIGHT } from './dimensions.js';
+import { LIFT_HEIGHT } from './dimensions.js';
 
 const DURATION_MS = {
   lift: 160,
@@ -26,7 +26,7 @@ export function bodyKey(tube) {
 export function lift(animator, tube, lifted) {
   const { body } = tube;
   const from = body.y;
-  const to = TUBE_HEIGHT + (lifted ? LIFT_HEIGHT : 0);
+  const to = tube.height + (lifted ? LIFT_HEIGHT : 0);
   return animator.run(
     DURATION_MS.lift,
     (t) => {
@@ -81,7 +81,7 @@ function jump(animator, tube, height, duration) {
   return animator.run(
     duration,
     (t) => {
-      body.y = TUBE_HEIGHT + Math.sin(t * Math.PI) * height;
+      body.y = tube.height + Math.sin(t * Math.PI) * height;
     },
     { ease: linear, key: bodyKey(tube) }
   );

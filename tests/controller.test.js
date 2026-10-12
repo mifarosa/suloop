@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { GameController } from '../src/app/controller.js';
 import { decodeProgressCode, encodeProgressCode } from '../src/app/progressCode.js';
 import { CHAPTER_LEVEL_COUNT, createLevelPuzzle, LEVELS_PER_CHAPTER } from '../src/game/levels.js';
+import { HIDDEN } from '../src/game/rules.js';
 import { solve } from '../src/game/solver.js';
 
 function fakeScene() {
@@ -81,7 +82,7 @@ describe('GameController', () => {
   it('starts the saved level', () => {
     createController({ solved: 5, current: 3 });
 
-    expect(scene.showPuzzle).toHaveBeenCalledWith(createLevelPuzzle(3));
+    expect(scene.showPuzzle).toHaveBeenCalledWith(createLevelPuzzle(3), { capacity: 4 });
     expect(lastRender()).toEqual({
       title: 'Seviye 3',
       subtitle: 'Kolay · 0 hamle',
@@ -113,7 +114,7 @@ describe('GameController', () => {
     });
 
     controller.continueAfterWin();
-    expect(scene.showPuzzle).toHaveBeenLastCalledWith(createLevelPuzzle(2));
+    expect(scene.showPuzzle).toHaveBeenLastCalledWith(createLevelPuzzle(2), { capacity: 4 });
     expect(lastRender().title).toBe('Seviye 2');
   });
 
@@ -134,7 +135,7 @@ describe('GameController', () => {
 
     controller.continueAfterWin();
     expect(saved.at(-1)).toMatchObject({ mode: 'level', current: 4 });
-    expect(scene.showPuzzle).toHaveBeenLastCalledWith(createLevelPuzzle(4));
+    expect(scene.showPuzzle).toHaveBeenLastCalledWith(createLevelPuzzle(4), { capacity: 4 });
   });
 
   it('announces the next chapter after its last level', async () => {
@@ -253,7 +254,7 @@ describe('GameController', () => {
     controller.showLevels();
     expect(masterLevels()).toEqual(range(61, 75));
     expect(lastMenu().chapters.at(-1)).toMatchObject({
-      detail: 'Sonsuz · 9–10 renk ya da tek boş tüp',
+      detail: 'Sonsuz · tek boş tüp, gizli renk, uzun tüp',
       progress: '0 çözüldü'
     });
 
@@ -270,7 +271,7 @@ describe('GameController', () => {
     controller.playLevel(2);
 
     expect(saved.at(-1)).toMatchObject({ mode: 'level', current: 2 });
-    expect(scene.showPuzzle).toHaveBeenLastCalledWith(createLevelPuzzle(2));
+    expect(scene.showPuzzle).toHaveBeenLastCalledWith(createLevelPuzzle(2), { capacity: 4 });
     expect(menu.hide).toHaveBeenCalled();
     expect(lastRender().title).toBe('Seviye 2');
   });
@@ -299,9 +300,58 @@ describe('GameController', () => {
     await playSolution(controller, createLevelPuzzle(1));
 
     controller.continueToLevels();
-    expect(scene.showPuzzle).toHaveBeenLastCalledWith(createLevelPuzzle(2));
+    expect(scene.showPuzzle).toHaveBeenLastCalledWith(createLevelPuzzle(2), { capacity: 4 });
     expect(tile(1).state).toBe('solved');
     expect(tile(2)).toMatchObject({ state: 'open', playing: true });
+  });
+
+  describe('hidden colors and tall tubes', () => {
+    it('shows only the top colors on a hidden-color level and names the rule', () => {
+      createController({ solved: 70, current: 65 });
+
+      const [shown, options] = scene.showPuzzle.mock.lastCall;
+      const real = createLevelPuzzle(65);
+      expect(options).toEqual({ capacity: 4 });
+      shown.forEach((tube, i) => {
+        expect(tube.length).toBe(real[i].length);
+        if (tube.length > 0) expect(tube.at(-1)).toBe(real[i].at(-1));
+        expect(tube.slice(0, -1).every((color) => color === HIDDEN)).toBe(true);
+      });
+      expect(lastRender().subtitle).toBe('Usta · Gizli renk · 0 hamle');
+    });
+
+    it('gives a tall-tube level its capacity', () => {
+      createController({ solved: 70, current: 66 });
+
+      expect(scene.showPuzzle).toHaveBeenLastCalledWith(createLevelPuzzle(66), { capacity: 5 });
+      expect(lastRender().subtitle).toBe('Usta · Uzun tüp · 0 hamle');
+    });
+
+    it('names both rules when a level has both', () => {
+      createController({ solved: 70, current: 68 });
+      expect(lastRender().subtitle).toBe('Usta · Gizli renk · Uzun tüp · 0 hamle');
+    });
+
+    it('explains a rule at the first level that uses it, and only there', () => {
+      createController({ solved: 70, current: 65 });
+      expect(hud.showToast).toHaveBeenCalledWith(expect.stringMatching(/^Gizli renkler:/), {
+        long: true
+      });
+
+      hud.showToast.mockClear();
+      createController({ solved: 80, current: 73 });
+      expect(hud.showToast).not.toHaveBeenCalled();
+    });
+
+    it('can be solved by tapping, with the real colors underneath', async () => {
+      const controller = createController({ solved: 67, current: 68 });
+      for (const [from, to] of solve(createLevelPuzzle(68), { capacity: 5 })) {
+        await controller.tapTube(from);
+        await controller.tapTube(to);
+      }
+      expect(scene.celebrate).toHaveBeenCalledOnce();
+      expect(saved.at(-1)).toMatchObject({ solved: 68, current: 69 });
+    });
   });
 
   describe('carrying progress to another device', () => {
@@ -319,7 +369,7 @@ describe('GameController', () => {
       controller.importProgress(encodeProgressCode(79));
 
       expect(saved.at(-1)).toMatchObject({ mode: 'level', solved: 79, current: 80 });
-      expect(scene.showPuzzle).toHaveBeenLastCalledWith(createLevelPuzzle(80));
+      expect(scene.showPuzzle).toHaveBeenLastCalledWith(createLevelPuzzle(80), { capacity: 4 });
       expect(transfer.hide).toHaveBeenCalled();
       expect(hud.showToast).toHaveBeenCalledWith('İlerleme yüklendi: 79 seviye çözülmüş.');
     });
