@@ -57,12 +57,12 @@ export class TubeScene {
   /**
    * Replaces every tube, e.g. for a new puzzle.
    * @param {number[][]} tubes colors bottom first; HIDDEN for a unit not seen yet
-   * @param {{ capacity?: number }} [options] units each tube holds
+   * @param {{ sizes?: number[] }} [options] units each tube holds
    */
-  showPuzzle(tubes, { capacity = TUBE_CAPACITY } = {}) {
+  showPuzzle(tubes, { sizes = tubes.map(() => TUBE_CAPACITY) } = {}) {
     this.#animator.stopAll();
     this.#tubes = tubes.map((colors, index) => {
-      const tube = new TubeView(index, capacity);
+      const tube = new TubeView(index, sizes[index]);
       tube.showColors(colors);
       return tube;
     });
@@ -140,11 +140,9 @@ export class TubeScene {
     if (this.#tubes.length === 0) return;
 
     const { width, height } = this.#size;
-    const { positions, bounds } = arrangeTubes(
-      this.#tubes.length,
-      width / height,
-      this.#tubes[0].height
-    );
+    // Rows make room for the tallest tube; shorter ones stand on the same line.
+    const tallest = Math.max(...this.#tubes.map((tube) => tube.height));
+    const { positions, bounds } = arrangeTubes(this.#tubes.length, width / height, tallest);
     this.#tubes.forEach((tube, index) => {
       tube.x = positions[index].x;
       tube.y = positions[index].y;

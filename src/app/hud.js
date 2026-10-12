@@ -47,11 +47,12 @@ export class Hud {
   }
 
   /**
-   * @param {{ title: string, subtitle: string, canUndo: boolean }} state
+   * @param {{ title: string, subtitle: string, canUndo: boolean, undoLabel: string }} state
    */
-  render({ title, subtitle, canUndo }) {
+  render({ title, subtitle, canUndo, undoLabel }) {
     this.#elements.title.textContent = title;
     this.#elements.subtitle.textContent = subtitle;
+    this.#elements.undo.textContent = undoLabel;
     this.#elements.undo.disabled = !canUndo;
   }
 

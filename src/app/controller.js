@@ -11,6 +11,7 @@ import {
   rulesFirstUsedAt,
   specialRules
 } from '../game/levels.js';
+import { tubeSizes } from '../game/generator.js';
 import { GameSession } from '../game/session.js';
 import { localDateKey } from './calendar.js';
 import { lastOpenLevel } from './progress.js';
@@ -65,17 +66,20 @@ export class GameController {
     const tubes = this.#isDaily()
       ? createDailyPuzzle(localDateKey(this.#puzzleDay))
       : createLevelPuzzle(this.#level);
-    const { capacity, hiddenColors } = this.#settings();
+    const settings = this.#settings();
+    const { capacity, hiddenColors, undoLimit } = settings;
+    const sizes = tubeSizes(settings);
 
-    this.#session = new GameSession(tubes, { capacity, hiddenColors });
-    this.#scene.showPuzzle(this.#session.visibleTubes, { capacity });
+    this.#session = new GameSession(tubes, { capacity, sizes, hiddenColors, undoLimit });
+    this.#scene.showPuzzle(this.#session.visibleTubes, { sizes });
     this.#hud.hideWin();
     this.#menu.hide();
     this.#refreshHud();
 
     const newRules = this.#isDaily() ? [] : rulesFirstUsedAt(this.#level);
     if (newRules.length > 0) {
-      this.#hud.showToast(newRules.map((rule) => texts.ruleIntro[rule]).join(' '), { long: true });
+      const intro = newRules.map((rule) => texts.ruleIntro(rule, settings)).join(' ');
+      this.#hud.showToast(intro, { long: true });
     }
   }
 
@@ -126,7 +130,8 @@ export class GameController {
     this.#putSelectionDown();
     const move = this.#session.hint();
     if (!move) {
-      this.#hud.showToast(texts.hintDeadEnd);
+      const outOfUndos = this.#session.undosLeft === 0;
+      this.#hud.showToast(outOfUndos ? texts.hintDeadEndNoUndo : texts.hintDeadEnd);
       return;
     }
     const [from, to] = move;
@@ -350,7 +355,8 @@ export class GameController {
             specialRules(this.#settings()),
             moveCount
           ),
-      canUndo: this.#session.canUndo
+      canUndo: this.#session.canUndo,
+      undoLabel: texts.undo(this.#session.undosLeft)
     });
   }
 }

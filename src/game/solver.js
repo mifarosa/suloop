@@ -4,6 +4,7 @@ import {
   cloneTubes,
   isSolved,
   isTubeComplete,
+  sizeOf,
   topRun,
   TUBE_CAPACITY
 } from './rules.js';
@@ -12,19 +13,21 @@ import {
  * Finds a sequence of moves that solves the puzzle with a depth-first search.
  *
  * Moves that can never help are skipped: pouring out of a complete tube, pouring a
- * single-colored tube into an empty one, and trying more than one empty tube as the
- * target (empty tubes are interchangeable). Positions are compared regardless of tube
- * order, so the same position reached in a different arrangement is not searched twice.
+ * single-colored tube into an empty one, and trying more than one empty tube of the same
+ * size as the target (they are interchangeable). Positions are compared regardless of the
+ * order of same-sized tubes, so the same position reached in a different arrangement is not
+ * searched twice.
  *
  * @param {number[][]} tubes
- * @param {{ capacity?: number, maxNodes?: number, maxDepth?: number }} [options] the units a
- *   tube holds, and limits: stop searching after this many positions or this many moves deep;
- *   the search then reports no solution
+ * @param {{ capacity?: number, sizes?: number | number[], maxNodes?: number, maxDepth?: number }}
+ *   [options] units of each color, units each tube holds (see rules.js), and limits: stop
+ *   searching after this many positions or this many moves deep; the search then reports no
+ *   solution
  * @returns {Array<[number, number]> | null} `[from, to]` moves, or null when none was found
  */
 export function solve(
   tubes,
-  { capacity = TUBE_CAPACITY, maxNodes = 200_000, maxDepth = 400 } = {}
+  { capacity = TUBE_CAPACITY, sizes = capacity, maxNodes = 200_000, maxDepth = 400 } = {}
 ) {
   const visited = new Set();
   const path = [];
@@ -34,7 +37,7 @@ export function solve(
     if (isSolved(state, capacity)) return true;
     if (++nodes > maxNodes || path.length > maxDepth) return false;
 
-    const key = positionKey(state);
+    const key = positionKey(state, sizes);
     if (visited.has(key)) return false;
     visited.add(key);
 
@@ -43,18 +46,19 @@ export function solve(
       if (source.length === 0 || isTubeComplete(source, capacity)) continue;
 
       const sourceIsSingleColor = topRun(source).count === source.length;
-      let triedEmptyTarget = false;
+      const triedEmptySizes = new Set();
 
       for (let to = 0; to < state.length; to++) {
         if (to === from) continue;
         if (state[to].length === 0) {
-          if (sourceIsSingleColor || triedEmptyTarget) continue;
-          triedEmptyTarget = true;
+          const size = sizeOf(sizes, to);
+          if (sourceIsSingleColor || triedEmptySizes.has(size)) continue;
+          triedEmptySizes.add(size);
         }
-        if (!canPour(state, from, to, capacity)) continue;
+        if (!canPour(state, from, to, sizes)) continue;
 
         path.push([from, to]);
-        if (search(applyPour(state, from, to, capacity).tubes)) return true;
+        if (search(applyPour(state, from, to, sizes).tubes)) return true;
         path.pop();
       }
     }
@@ -64,9 +68,11 @@ export function solve(
   return search(cloneTubes(tubes)) ? path : null;
 }
 
-function positionKey(tubes) {
-  return tubes
-    .map((tube) => tube.join(','))
-    .sort()
-    .join('|');
+function positionKey(tubes, sizes) {
+  // Tubes of different sizes are not interchangeable, so mixed sizes go into the key.
+  const describe =
+    typeof sizes === 'number'
+      ? (tube) => tube.join(',')
+      : (tube, index) => `${sizes[index]}:${tube.join(',')}`;
+  return tubes.map(describe).sort().join('|');
 }

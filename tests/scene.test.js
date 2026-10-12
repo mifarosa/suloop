@@ -133,6 +133,14 @@ describe('animatePour', () => {
   });
 });
 
+describe('half tubes', () => {
+  it('are shorter, and stand on the same line as the others in their row', () => {
+    const half = new TubeView(0, 2);
+    expect(half.height).toBeCloseTo(TUBE_HEIGHT - 2 * SEGMENT_HEIGHT);
+    expect(half.body.y).toBe(half.height);
+  });
+});
+
 describe('tall tubes', () => {
   it('are taller by one segment for each extra unit', () => {
     const tall = new TubeView(0, 5);

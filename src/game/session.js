@@ -33,15 +33,27 @@ const HINT_SEARCH_LIMIT = 150_000;
  * With hidden colors only the top unit of each tube shows at first. A unit below shows once
  * everything above it has been poured off, and stays shown: undo and restart do not hide
  * again what the player has seen. The rules and the hints always use the real colors.
+ *
+ * With an undo limit the player may take back only that many moves; a restart gives them
+ * all back.
  */
 export class GameSession {
   /**
    * @param {number[][]} initialTubes
-   * @param {{ capacity?: number, hiddenColors?: boolean }} [options]
+   * @param {object} [options]
+   * @param {number} [options.capacity] units of each color
+   * @param {number | number[]} [options.sizes] units each tube holds (see rules.js)
+   * @param {boolean} [options.hiddenColors]
+   * @param {number | null} [options.undoLimit] null for no limit
    */
-  constructor(initialTubes, { capacity = TUBE_CAPACITY, hiddenColors = false } = {}) {
+  constructor(
+    initialTubes,
+    { capacity = TUBE_CAPACITY, sizes = capacity, hiddenColors = false, undoLimit = null } = {}
+  ) {
     this.initialTubes = cloneTubes(initialTubes);
     this.capacity = capacity;
+    this.sizes = sizes;
+    this.undoLimit = undoLimit;
     /**
      * Per tube, how many units at the bottom are still hidden. The units there never move
      * while hidden, since a unit has to be on top to be poured, so the count only shrinks.
@@ -64,7 +76,7 @@ export class GameSession {
   }
 
   get canUndo() {
-    return this.history.length > 0 && !this.solved;
+    return this.history.length > 0 && !this.solved && this.undosLeft !== 0;
   }
 
   restart() {
@@ -73,6 +85,8 @@ export class GameSession {
     /** @type {number | null} */
     this.selected = null;
     this.solved = false;
+    /** @type {number | null} null when undo has no limit */
+    this.undosLeft = this.undoLimit;
   }
 
   /**
@@ -102,6 +116,7 @@ export class GameSession {
 
     this.selected = null;
     this.tubes = this.history.pop();
+    if (this.undosLeft !== null) this.undosLeft--;
     return true;
   }
 
@@ -110,7 +125,11 @@ export class GameSession {
    * @returns {[number, number] | null} null when the position is a dead end
    */
   hint() {
-    const solution = solve(this.tubes, { capacity: this.capacity, maxNodes: HINT_SEARCH_LIMIT });
+    const solution = solve(this.tubes, {
+      capacity: this.capacity,
+      sizes: this.sizes,
+      maxNodes: HINT_SEARCH_LIMIT
+    });
     return solution && solution.length > 0 ? solution[0] : null;
   }
 
@@ -128,11 +147,11 @@ export class GameSession {
     const from = this.selected;
     this.selected = null;
 
-    const amount = pourAmount(this.tubes, from, to, this.capacity);
+    const amount = pourAmount(this.tubes, from, to, this.sizes);
     if (amount === 0) return { type: 'blocked', from, to };
 
     this.history.push(this.tubes);
-    this.tubes = applyPour(this.tubes, from, to, this.capacity).tubes;
+    this.tubes = applyPour(this.tubes, from, to, this.sizes).tubes;
     this.solved = isSolved(this.tubes, this.capacity);
     const filled = isTubeComplete(this.tubes[to], this.capacity);
     this.#reveal(from, to, filled);
