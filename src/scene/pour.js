@@ -34,6 +34,8 @@ const MAX_TILT = 1.52;
  * @param {(color: number) => boolean} [pour.isOil] oil floats: water poured into a tube sinks
  *   under its oil
  * @param {{ cancelled: boolean }} [pour.handle] set `cancelled` to stop the pour where it is
+ * @param {(flow: { duration: number, amount: number }) => void} [pour.onFlow] called as the
+ *   liquid starts to run, with how long it runs (ms)
  */
 export async function animatePour({
   animator,
@@ -42,7 +44,8 @@ export async function animatePour({
   target,
   amount,
   isOil = () => false,
-  handle = { cancelled: false }
+  handle = { cancelled: false },
+  onFlow = () => {}
 }) {
   // Pour toward the target from the side that faces the screen center, so the tilted tube
   // stays in view; tilting toward +x is a negative (clockwise) tilt.
@@ -69,7 +72,8 @@ export async function animatePour({
     lip,
     tiltFor,
     poseAt,
-    unitsBefore
+    unitsBefore,
+    onFlow
   });
   if (handle.cancelled) return;
 
@@ -111,7 +115,8 @@ async function flow({
   lip,
   tiltFor,
   poseAt,
-  unitsBefore
+  unitsBefore,
+  onFlow
 }) {
   const color = source.topColor;
   const outgoing = source.segments
@@ -133,6 +138,7 @@ async function flow({
   }
 
   const duration = FLOW_BASE_MS + amount * FLOW_PER_UNIT_MS;
+  onFlow({ duration, amount });
   // The liquid leaves the source during the first part and lands in the target during the
   // last part; in between, the stream hangs from the lip.
   const fall = Math.min(0.3, FALL_MS / duration);

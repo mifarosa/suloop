@@ -25,6 +25,14 @@ const stageRules = {
   master: 'Sonsuz · her seviyede 3–4 kural'
 };
 const moves = (count) => `${count} hamle`;
+/** Seconds as m:ss, or h:mm:ss past an hour. */
+const duration = (seconds) => {
+  const pad = (value) => String(value).padStart(2, '0');
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const rest = pad(seconds % 60);
+  return hours > 0 ? `${hours}:${pad(minutes)}:${rest}` : `${minutes}:${rest}`;
+};
 // Rules that change the board get a word in the subtitle; the undo limit shows on its button.
 const ruleTags = {
   hiddenColors: 'Gizli renk',
@@ -81,6 +89,42 @@ export const texts = {
       moves(moveCount)
     ].join(' · ');
   },
+  customTitle: (fromEditor) => (fromEditor ? 'Senin bulmacan' : 'Paylaşılan bulmaca'),
+  /** The rules a custom puzzle uses; past two, just how many. */
+  customSubtitle: (rules, moveCount) => {
+    const tags = rules.filter((rule) => rule in ruleTags).map((rule) => ruleTags[rule]);
+    return [...(tags.length > 2 ? [`${tags.length} kural`] : tags), moves(moveCount)].join(' · ');
+  },
+  backToEditor: 'Atölyeye dön',
+
+  // The puzzle editor
+  editorUndoLimit: (limit) => (limit === null ? 'Sınırsız' : `${limit}`),
+  editorColorCount: (count) => `${count} renk`,
+  editorSwatch: (color, count, capacity) => `Renk ${color + 1}: ${count}/${capacity} birim`,
+  editorProblem: ({ code, count, tube }, capacity) =>
+    ({
+      tooFewColors: 'En az iki renk koy.',
+      colorCount: `Her renkten ${capacity} birim olmalı; birinde ${count} var (kırmızı işaretli).`,
+      lockKeyMissing: `${tube + 1}. tüpün kilit rengi tahtada yok.`,
+      lockKeyInside: `${tube + 1}. tüpün kilit rengi kendi içinde; o renk hiç tamamlanamaz.`,
+      alreadySolved: 'Bu tahta zaten çözülmüş; renkleri karıştır.'
+    })[code],
+  editorChecking: 'Çözüm aranıyor…',
+  editorSolvable: ({ moves, proven }) =>
+    proven
+      ? `Çözülebilir · en az ${moves} hamle`
+      : `Çözülebilir · bulunan en kısa çözüm ${moves} hamle`,
+  editorUnsolvable: 'Çözüm bulunamadı. Boş tüp eklemeyi ya da renkleri değiştirmeyi dene.',
+  editorShareTitle: 'suloop bulmacam',
+  editorLinkCopied: 'Bağlantı kopyalandı ✓',
+  editorImportFailed: 'Bu bir bulmaca kodu değil. Kodu ya da bağlantıyı kontrol et.',
+  editorImported: 'Bulmaca yüklendi.',
+  sharedPuzzleInvalid: 'Bu bulmaca bağlantısı bozuk.',
+  editorCardTitle: 'Bulmaca atölyesi',
+  editorCardText: 'Kendi bulmacanı yap, kodla paylaş',
+  editorCardAction: 'Aç',
+  editorButton: 'Atölye',
+  levelsButton: 'Seviyeler',
   ruleName: (rule) => ruleNames[rule],
   ruleText: (rule, settings) => ruleTexts[rule](settings),
 
@@ -149,6 +193,24 @@ export const texts = {
   transferInvalid: 'Bu kod geçersiz. Harfleri kontrol et.',
   transferLoaded: (solved) => `İlerleme yüklendi: ${solved} seviye çözülmüş.`,
   transferUnchanged: (solved) => `Bu cihazda zaten ${solved} seviye çözülmüş, ilerleme değişmedi.`,
+
+  // The daily leaderboard
+  leaderboardLoading: 'Sıralama yükleniyor…',
+  dailyToday: (moves, seconds) => `Bugün: ${moves} hamle · ${duration(seconds)}`,
+  dailyNotSolved: 'Bugünkü bulmacayı henüz çözmedin.',
+  playDaily: 'Günün bulmacasını oyna',
+  dailyStreak: (days) => `Seri: ${days} gün üst üste 🔥`,
+  leaderboardTop: 'Bugünün en iyileri',
+  leaderboardFailed: 'Sıralama yüklenemedi. Bağlantını kontrol et.',
+  leaderboardEmpty: 'Bugün henüz kimse sıralamaya girmedi.',
+  leaderboardName: 'Sıralamada görünecek adın',
+  leaderboardNamePlaceholder: 'Takma ad',
+  save: 'Kaydet',
+  dailyHistory: 'Son günlerin',
+  dailyNoHistory: 'Henüz günün bulmacasını çözmedin.',
+  leaderboardLocalOnly: 'Her günün ilk çözümün sayılır.',
+  dailyDate: (day) => dayAndMonth.format(new Date(`${day}T12:00:00`)),
+  duration,
 
   levelTileLabel: (level, state, stars) =>
     ({

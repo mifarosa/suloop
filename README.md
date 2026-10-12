@@ -63,6 +63,25 @@ Renkli suları tüplere ayırdığın bulmaca oyunu. Tarayıcıda çalışır, k
   oyundaki tüpün aynısıyla çizilmiş bir kartla anlatılır. **(i) butonu** o seviyedeki bütün
   kuralları, yıldız sınırlarını, haklarını ve son 5 denemeni gösterir
 - Geri al, ipucu ve baştan butonları başparmağın yetiştiği alt çubukta, kalan haklarıyla
+- **Temalar:** ayarlardan (⚙︎) Klasik Laboratuvar (cihazın açık/koyu ayarını izler), Neon Gece
+  (parlayan cam, neon renkler) ve Kokteyl Bar (amber ışık, içki renkleri). Seçilen tema sayfa
+  açılırken hemen uygulanır, başka tema hiç görünmez
+- **ASMR sesler ve titreşim:** sesler Web Audio API ile anında üretilir (indirilen ses dosyası
+  yok): tüpü kaldırma "pop"u, döküm boyunca köpüren ve tüp doldukça inceleşen sıvı sesi, kapağın
+  "tok"u, buzun çatırtısı, kazanma çanı. Destekleyen telefonlarda hafif titreşim. İkisi de
+  ayarlardan kapatılabilir
+- **PWA:** ana ekrana uygulama olarak yüklenebilir (Android/masaüstünde ayarlardaki "Uygulama
+  olarak yükle", iPhone'da Safari → Paylaş → Ana Ekrana Ekle). İlk ziyaretten sonra internetsiz de
+  oynanır; yeni sürüm yayınlanınca bağlantı varken hemen gelir
+- **Günlük sıralama:** seviyeler ekranındaki kupa simgesinden. Günün bulmacasında ilk çözümün
+  (hamle, süre, yıldız) ve kaç gün üst üste çözdüğün (seri) cihazda tutulur. Supabase bağlanınca
+  herkesle sıralama açılır (aşağıda)
+- **Bulmaca atölyesi:** seviyeler ekranındaki karttan. 8 kuralın hepsiyle kendi bulmacanı yaparsın:
+  renk koy/al, kilit ve yağ ata, yarım/tek yönlü/çatlak tüp ekle, uzun tüp, gizli renk ve geri
+  alma hakkı seç ya da rastgele doldur. Her değişiklikte bulmacanın çözülebildiği ve en az kaç
+  hamlede çözüldüğü arka planda bulunur. "Dene" ile oynarsın (ipucu ücretsiz). Bulmaca JSON
+  tabanlı bir kodla ya da `#bulmaca=…` bağlantısıyla paylaşılır; kod, bağlantı ya da düz JSON
+  geri yüklenebilir. Taslağın cihazda saklanır
 - Kaldığın seviye tarayıcıda saklanır. "İlerlemeyi taşı" ile kısa bir kod ya da bağlantı alıp
   başka bir cihazda (ya da tarayıcı verisi silindikten sonra) kaldığın yerden devam edersin.
   Yükleme ilerlemeyi hiç geri götürmez: eski bir kod hiçbir şeyi silmez
@@ -72,7 +91,7 @@ Renkli suları tüplere ayırdığın bulmaca oyunu. Tarayıcıda çalışır, k
 - Kazanınca iki köşeden konfeti patlar (cihazda "hareketi azalt" açıksa çıkmaz)
 - Seviyeler ekranında "Kahve ısmarla" butonu: oyunu beğenen
   [Buy Me a Coffee](https://buymeacoffee.com/mifarosa) üzerinden destek olabilir
-- Canvas 2D ile çizilen cam tüpler, açık/koyu tema; ek kütüphane yok, oyun 57 KB (gzip 21 KB)
+- Canvas 2D ile çizilen cam tüpler, açık/koyu tema; ek kütüphane yok, oyun 86 KB (gzip 31 KB)
 
 ## Proje yapısı
 
@@ -84,6 +103,8 @@ src/
     shortest.js   En kısa çözüm (A*): yıldızlar ve ipucu için
     fewestWorker.js En az hamleyi arka planda bulan Web Worker
     stars.js      Yıldız sınırları
+    customPuzzle.js Oyuncu bulmacaları: düzenleme, kontrol, paylaşım kodu
+    puzzleFewest.js En az hamle (seviye, günlük ya da oyuncu bulmacası)
     generator.js  Tohumlu, çözülebilir bulmaca üretimi
     levels.js     Aşamalar, kuralların karışımı, seviye ve günlük bulmaca
     random.js     Tohumlu rastgele sayı üretici ve metin hash'i
@@ -105,6 +126,13 @@ src/
     hud.js        Başlık, araç çubuğu, bildirim ve bitiş penceresi
     rulesDialog.js Yeni kural kartı ve (i) bilgi penceresi
     starIcons.js  Yıldız simgeleri
+    editorDialog.js Bulmaca atölyesi
+    settings.js, settingsDialog.js, theme.js Ayarlar ve temalar
+    sound.js      Web Audio ile üretilen sesler
+    feedback.js   Ses ve titreşim, oyun anlarına bağlı
+    dailyResults.js, dailyBoard.js Günlük sonuçlar, seri ve sıralama
+    leaderboard.js Sıralama servisi (Supabase REST adaptörü)
+    leaderboardDialog.js Günlük sıralama penceresi
     economy.js    İpucu, ekstra geri alma ve seviye kayıtları
     fewestMoves.js En az hamleyi worker'a sorar, cevapları hatırlar
     levelMenu.js  Seviyeler ekranı
@@ -136,3 +164,15 @@ npm run preview   # derlemeyi yerelde sunar
 ```
 
 `main` dalına her push'ta GitHub Actions testleri çalıştırır ve oyunu GitHub Pages'e yayınlar.
+
+### Herkesle günlük sıralama (isteğe bağlı)
+
+Sıralama, oyun içinde küçük bir arayüzün (`src/app/leaderboard.js`) arkasındadır; Supabase hazır
+gelir, başka bir servis (ör. Firebase) aynı iki metodu (`submit`, `top`) sağlaması yeterlidir.
+
+1. Bir Supabase projesi aç, SQL düzenleyicide `docs/leaderboard.sql` dosyasını çalıştır.
+2. GitHub deposunda Settings → Secrets and variables → Actions → **Variables** altına
+   `SUPABASE_URL` ve `SUPABASE_ANON_KEY` ekle (anon anahtar zaten herkese açık bir anahtardır).
+3. Bir sonraki yayında sıralama açılır. Ad girmeyen oyuncunun sonucu cihazda bekler; ad girince
+   gönderilir. Her oyuncunun günde yalnızca ilk sonucu sayılır ve kimse başkasının sonucunu
+   değiştiremez. Hile koruması yoktur: skorlar oyuncunun cihazından gelir.

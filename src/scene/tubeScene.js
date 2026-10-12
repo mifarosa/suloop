@@ -2,12 +2,22 @@ import { Animator } from './animator.js';
 import { TUBE_CAPACITY } from '../game/rules.js';
 import { LIFT_HEIGHT, TUBE_RADIUS } from './dimensions.js';
 import { arrangeTubes, fitToView } from './layout.js';
+import { confettiColors, LIQUID_COLORS } from './palette.js';
 import * as motions from './motions.js';
 import { animatePour } from './pour.js';
 import { drawScene } from './renderer.js';
 import { TubeView } from './tubeView.js';
 
-const DEFAULT_GLASS_COLOR = '#ffffff';
+/**
+ * How the scene is drawn: the color of the glass, the CSS color of each liquid color id, and
+ * a color the glass glows in (null for none).
+ * @typedef {{ glassColor: string, palette: string[], glassGlow: string | null }} Look
+ */
+const DEFAULT_LOOK = Object.freeze({
+  glassColor: '#ffffff',
+  palette: LIQUID_COLORS,
+  glassGlow: null
+});
 // Sharp on 2x screens; 3x would more than double the pixels to fill for no visible gain.
 const MAX_PIXEL_RATIO = 2;
 // Taps count a little around a tube and above it, where a lifted tube floats.
@@ -32,13 +42,15 @@ export class TubeScene {
   /** The falling liquid of every pour being animated. */
   #streams = new Set();
   #isOil = () => false;
-  #glassColor = DEFAULT_GLASS_COLOR;
+  /** @type {Look} */
+  #look = DEFAULT_LOOK;
   #size = { width: 0, height: 0 };
   #view = { scale: 1, originX: 0, originY: 0 };
   #bounds = null;
   #layoutPending = false;
   #frameRequested = false;
   #onTubeTap = () => {};
+  #onCue = () => {};
 
   /**
    * @param {HTMLCanvasElement} canvas
@@ -62,6 +74,15 @@ export class TubeScene {
   /** @param {(index: number) => void} listener called with the index of the tapped tube */
   onTubeTap(listener) {
     this.#onTubeTap = listener;
+  }
+
+  /**
+   * Listens for moments worth a sound: liquid starting to run (`flow`, with its duration in
+   * ms and the units), a cap landing (`capOn`) or coming off (`capOff`), ice melting (`melt`).
+   * @param {(cue: { type: string, duration?: number, amount?: number }) => void} listener
+   */
+  onCue(listener) {
+    this.#onCue = listener;
   }
 
   /**
@@ -113,15 +134,18 @@ export class TubeScene {
       tube.fills = fills;
       this.#setCapped(tube, capped, instant);
       if (tube.lockKey === null) return;
-      if (!locked && tube.ice === 1) motions.melt(this.#animator, tube);
-      else if (locked) tube.ice = 1;
+      if (!locked && tube.ice === 1) {
+        motions.melt(this.#animator, tube);
+        this.#onCue({ type: 'melt' });
+      } else if (locked) tube.ice = 1;
     });
     this.#requestRender();
   }
 
-  /** @param {string} color any CSS color */
-  setGlassColor(color) {
-    this.#glassColor = color || DEFAULT_GLASS_COLOR;
+  /** @param {Partial<Look>} look */
+  setLook(look) {
+    this.#look = { ...DEFAULT_LOOK, ...look };
+    this.#confetti?.setColors?.(confettiColors(this.#look.palette));
     this.#requestRender();
   }
 
@@ -182,7 +206,8 @@ export class TubeScene {
       target: this.#tubes[to],
       amount,
       isOil: this.#isOil,
-      handle
+      handle,
+      onFlow: (flow) => this.#onCue({ type: 'flow', ...flow })
     });
     if (!handle.cancelled) this.#settle(handle);
   }
@@ -204,9 +229,13 @@ export class TubeScene {
     if (tube.cap === (tube.capped ? 1 : 0)) return;
     if (!tube.capped) {
       motions.openCap(this.#animator, tube);
+      this.#onCue({ type: 'capOff' });
       return;
     }
+    const landing = setTimeout(() => this.#onCue({ type: 'capOn' }), motions.CAP_LANDS_MS);
     await motions.closeCap(this.#animator, tube);
+    // A cap whose drop was cut short never landed.
+    if (tube.cap !== 1) clearTimeout(landing);
     if (tube.capped && tube.cap === 1 && this.#tubes[tube.index] === tube) this.hop(tube.index);
   }
 
@@ -333,7 +362,7 @@ export class TubeScene {
       tubes: this.#tubes,
       streams: this.#streams,
       view: this.#view,
-      glassColor: this.#glassColor,
+      ...this.#look,
       isOil: this.#isOil
     });
     if (this.#animator.isRunning) this.#requestRender();

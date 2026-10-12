@@ -20,6 +20,7 @@ export class Hud {
       title: find('#title'),
       subtitle: find('#subtitle'),
       info: find('#info'),
+      settings: find('#settings-open'),
       undo: find('#undo'),
       undoCount: find('#undo .count'),
       hint: find('#hint'),
@@ -37,6 +38,7 @@ export class Hud {
       winAttemptsSection: find('#win-attempts-section'),
       winAttempts: find('#win-attempts'),
       replay: find('#replay'),
+      winLeaderboard: find('#win-leaderboard'),
       next: find('#next'),
       winLevels: find('#win-levels')
     };
@@ -48,21 +50,26 @@ export class Hud {
    * @param {() => void} actions.onHint
    * @param {() => void} actions.onRestart
    * @param {() => void} actions.onInfo
+   * @param {() => void} actions.onSettings
    * @param {() => void} actions.onShowLevels
    * @param {() => void} actions.onContinue
    * @param {() => void} actions.onReplay
    * @param {() => void} actions.onContinueToLevels
+   * @param {() => void} actions.onLeaderboard
    */
   bindActions(actions) {
-    const { undo, hint, restart, info, levels, next, replay, winLevels } = this.#elements;
+    const { undo, hint, restart, info, settings, levels, next, replay, winLevels, winLeaderboard } =
+      this.#elements;
     undo.addEventListener('click', actions.onUndo);
     hint.addEventListener('click', actions.onHint);
     restart.addEventListener('click', actions.onRestart);
     info.addEventListener('click', actions.onInfo);
+    settings.addEventListener('click', actions.onSettings);
     levels.addEventListener('click', actions.onShowLevels);
     next.addEventListener('click', actions.onContinue);
     replay.addEventListener('click', actions.onReplay);
     winLevels.addEventListener('click', actions.onContinueToLevels);
+    winLeaderboard.addEventListener('click', actions.onLeaderboard);
   }
 
   /**
@@ -74,8 +81,9 @@ export class Hud {
    * @param {string} state.undoLabel the undo button described for screen readers
    * @param {string} state.hintCount hints left
    * @param {string} state.hintLabel
+   * @param {string} [state.levelsLabel] the label of the button that leaves the board
    */
-  render({ title, subtitle, canUndo, undoCount, undoLabel, hintCount, hintLabel }) {
+  render({ title, subtitle, canUndo, undoCount, undoLabel, hintCount, hintLabel, levelsLabel }) {
     const elements = this.#elements;
     elements.title.textContent = title;
     elements.subtitle.textContent = subtitle;
@@ -86,6 +94,7 @@ export class Hud {
     elements.hint.setAttribute('aria-label', hintLabel);
     elements.hintCount.textContent = hintCount;
     elements.hint.classList.toggle('empty', hintCount === '0');
+    if (levelsLabel) elements.levels.textContent = levelsLabel;
   }
 
   /**
@@ -115,8 +124,19 @@ export class Hud {
    * @param {Array<{ moves: number, stars: number }> | null} win.attempts the last solutions,
    *   newest first; null for none to show
    * @param {string} win.continueLabel
+   * @param {boolean} [win.leaderboard] offer the daily leaderboard
    */
-  showWin({ title, stars, moves, fewest, fewestLabel, notes, attempts, continueLabel }) {
+  showWin({
+    title,
+    stars,
+    moves,
+    fewest,
+    fewestLabel,
+    notes,
+    attempts,
+    continueLabel,
+    leaderboard = false
+  }) {
     const elements = this.#elements;
     elements.winStars.replaceChildren(starRow(stars, 'stars big'));
     elements.winStars.setAttribute('aria-label', texts.starsLabel(stars));
@@ -129,6 +149,7 @@ export class Hud {
     elements.winAttemptsSection.hidden = !attempts;
     if (attempts) elements.winAttempts.replaceChildren(...attempts.map(attemptItem));
     elements.next.textContent = continueLabel;
+    elements.winLeaderboard.hidden = !leaderboard;
     elements.win.hidden = false;
     elements.next.focus();
   }

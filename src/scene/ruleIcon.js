@@ -31,9 +31,9 @@ export function hasRuleIcon(rule) {
  * Draws the sample tube of a rule on a small canvas, sized by CSS.
  * @param {HTMLCanvasElement} canvas
  * @param {string} rule
- * @param {string} glassColor any CSS color
+ * @param {import('./tubeScene.js').Look} look
  */
-export function drawRuleIcon(canvas, rule, glassColor) {
+export function drawRuleIcon(canvas, rule, look) {
   const { tube, oil } = SAMPLES[rule]();
   const width = canvas.clientWidth;
   const height = canvas.clientHeight;
@@ -52,7 +52,7 @@ export function drawRuleIcon(canvas, rule, glassColor) {
     tubes: [tube],
     streams: [],
     view: { scale, originX: width / 2, originY: height - FOOTROOM * scale },
-    glassColor,
+    ...look,
     isOil: (color) => oil.includes(color)
   });
 }

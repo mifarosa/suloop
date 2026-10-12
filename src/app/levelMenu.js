@@ -1,6 +1,7 @@
 /**
  * @typedef {object} LevelMenuModel
  * @property {{ title: string, date: string, action: string, solved: boolean, playing: boolean }} daily
+ * @property {{ title: string, text: string, action: string }} editor
  * @property {Array<{
  *   id: string,
  *   name: string,
@@ -34,6 +35,8 @@ export class LevelMenu {
     onPickLevel: () => {},
     onPickDaily: () => {},
     onTransfer: () => {},
+    onLeaderboard: () => {},
+    onEditor: () => {},
     onClose: () => {}
   };
 
@@ -47,6 +50,9 @@ export class LevelMenu {
     root
       .querySelector('#transfer-open')
       .addEventListener('click', () => this.#actions.onTransfer());
+    root
+      .querySelector('#leaderboard-open')
+      .addEventListener('click', () => this.#actions.onLeaderboard());
     this.#body.addEventListener('click', (event) => this.#handlePick(event));
   }
 
@@ -55,6 +61,8 @@ export class LevelMenu {
    * @param {(level: number) => void} actions.onPickLevel
    * @param {() => void} actions.onPickDaily
    * @param {() => void} actions.onTransfer opens the dialog that carries progress to another device
+   * @param {() => void} actions.onLeaderboard opens the daily leaderboard
+   * @param {() => void} actions.onEditor opens the puzzle editor
    * @param {() => void} actions.onClose
    */
   bindActions(actions) {
@@ -63,7 +71,11 @@ export class LevelMenu {
 
   /** @param {LevelMenuModel} model */
   show(model) {
-    this.#body.replaceChildren(dailyCard(model.daily), ...model.chapters.map(chapterSection));
+    this.#body.replaceChildren(
+      dailyCard(model.daily),
+      editorCard(model.editor),
+      ...model.chapters.map(chapterSection)
+    );
 
     const playing = this.#body.querySelector('[aria-current="true"]') ?? this.#closeButton;
     this.#overlay.open(playing);
@@ -79,6 +91,7 @@ export class LevelMenu {
     if (!button || button.disabled) return;
 
     if (button.dataset.daily !== undefined) this.#actions.onPickDaily();
+    else if (button.dataset.editor !== undefined) this.#actions.onEditor();
     else this.#actions.onPickLevel(Number(button.dataset.level));
   }
 }
@@ -93,6 +106,16 @@ function dailyCard({ title, date, action, solved, playing }) {
   const text = element('span', 'daily-text');
   text.append(element('strong', '', title), element('span', 'daily-date', date));
   card.append(text, element('span', 'daily-action', action));
+  return card;
+}
+
+function editorCard({ title, text, action }) {
+  const card = element('button', 'daily-card editor-card');
+  card.type = 'button';
+  card.dataset.editor = '';
+  const words = element('span', 'daily-text');
+  words.append(element('strong', '', title), element('span', 'daily-date', text));
+  card.append(words, element('span', 'daily-action', action));
   return card;
 }
 
