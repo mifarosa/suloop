@@ -7,7 +7,6 @@ import {
   normalizeProgress,
   saveProgress
 } from '../src/app/progress.js';
-import { LEVEL_COUNT } from '../src/game/levels.js';
 
 function memoryStorage() {
   const items = new Map();
@@ -33,9 +32,13 @@ describe('normalizeProgress', () => {
 
   it('never lets the current level be a locked one', () => {
     expect(normalizeProgress({ solved: 4, current: 9 }).current).toBe(5);
-    expect(normalizeProgress({ solved: LEVEL_COUNT + 5, current: LEVEL_COUNT + 5 })).toMatchObject({
-      solved: LEVEL_COUNT,
-      current: LEVEL_COUNT
+    expect(normalizeProgress({ solved: 4, current: 0 }).current).toBe(1);
+  });
+
+  it('has no last level', () => {
+    expect(normalizeProgress({ solved: 900, current: 901 })).toMatchObject({
+      solved: 900,
+      current: 901
     });
   });
 
@@ -50,10 +53,9 @@ describe('normalizeProgress', () => {
 });
 
 describe('lastOpenLevel', () => {
-  it('opens one level past the solved ones, up to the last level', () => {
+  it('opens one level past the solved ones', () => {
     expect(lastOpenLevel({ solved: 0 })).toBe(1);
-    expect(lastOpenLevel({ solved: 12 })).toBe(13);
-    expect(lastOpenLevel({ solved: LEVEL_COUNT })).toBe(LEVEL_COUNT);
+    expect(lastOpenLevel({ solved: 120 })).toBe(121);
   });
 });
 

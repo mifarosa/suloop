@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { GameController } from '../src/app/controller.js';
-import { createLevelPuzzle, LEVEL_COUNT, LEVELS_PER_CHAPTER } from '../src/game/levels.js';
+import { CHAPTER_LEVEL_COUNT, createLevelPuzzle, LEVELS_PER_CHAPTER } from '../src/game/levels.js';
 import { solve } from '../src/game/solver.js';
 
 function fakeScene() {
@@ -30,6 +30,8 @@ function fakeMenu() {
 }
 
 const TODAY = new Date(2026, 9, 9, 12, 0);
+
+const range = (first, last) => Array.from({ length: last - first + 1 }, (_, i) => first + i);
 
 describe('GameController', () => {
   let scene;
@@ -142,15 +144,28 @@ describe('GameController', () => {
     expect(saved.at(-1)).toMatchObject({ solved: 20, current: LEVELS_PER_CHAPTER + 1 });
   });
 
-  it('offers to play the last level again once every level is solved', async () => {
-    const controller = createController({ solved: LEVEL_COUNT - 1, current: LEVEL_COUNT });
-    await playSolution(controller, createLevelPuzzle(LEVEL_COUNT));
+  it('opens the master levels after the last chapter, and goes on after them', async () => {
+    const controller = createController({ solved: 59, current: CHAPTER_LEVEL_COUNT });
+    await playSolution(controller, createLevelPuzzle(CHAPTER_LEVEL_COUNT));
 
-    expect(saved.at(-1)).toMatchObject({ solved: LEVEL_COUNT, current: LEVEL_COUNT });
-    expect(hud.showWin).toHaveBeenCalledWith({
-      message: expect.stringMatching(/^Bütün seviyeleri bitirdin!/),
-      continueLabel: 'Tekrar oyna'
+    expect(hud.showWin.mock.lastCall[0]).toEqual({
+      message: expect.stringMatching(/Usta seviyeler açıldı!$/),
+      continueLabel: 'Sonraki seviye'
     });
+    controller.continueAfterWin();
+    expect(lastRender()).toEqual({
+      title: 'Seviye 61',
+      subtitle: 'Usta · 0 hamle',
+      canUndo: false
+    });
+  });
+
+  it('does not announce anything at the end of a block of master levels', async () => {
+    const controller = createController({ solved: 74, current: 75 });
+    await playSolution(controller, createLevelPuzzle(75));
+
+    expect(hud.showWin.mock.lastCall[0].message).toMatch(/^\d+ hamlede çözdün\.$/);
+    expect(saved.at(-1)).toMatchObject({ solved: 75, current: 76 });
   });
 
   it('ignores restart once the puzzle is solved', async () => {
@@ -205,7 +220,8 @@ describe('GameController', () => {
       'Kolay',
       'Orta',
       'Zor',
-      'Uzman'
+      'Uzman',
+      'Usta'
     ]);
     expect(lastMenu().chapters[0]).toMatchObject({ detail: '3–5 renk', progress: '3/15' });
     expect(lastMenu().chapters[3].detail).toBe('6–7 renk · tek boş tüp');
@@ -218,6 +234,26 @@ describe('GameController', () => {
     expect(tile(2)).toMatchObject({ playing: true, label: 'Seviye 2, çözüldü' });
     expect(tile(5).label).toBe('Seviye 5, kilitli');
     expect(lastMenu().daily).toMatchObject({ solved: false, playing: false, action: 'Oyna' });
+  });
+
+  it('shows the master levels a block at a time, up to the furthest open level', () => {
+    const masterLevels = () =>
+      lastMenu()
+        .chapters.at(-1)
+        .levels.map((tile) => tile.level);
+    const controller = createController({ solved: 3, current: 4 });
+    controller.showLevels();
+    expect(masterLevels()).toEqual(range(61, 75));
+    expect(lastMenu().chapters.at(-1)).toMatchObject({
+      detail: 'Sonsuz · 9–10 renk ya da tek boş tüp',
+      progress: '0 çözüldü'
+    });
+
+    createController({ solved: 75, current: 76 }).showLevels();
+    expect(masterLevels()).toEqual(range(61, 90));
+    expect(lastMenu().chapters.at(-1).progress).toBe('15 çözüldü');
+    expect(tile(76).state).toBe('open');
+    expect(tile(77).state).toBe('locked');
   });
 
   it('plays a level picked from the list', () => {

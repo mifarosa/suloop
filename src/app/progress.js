@@ -1,5 +1,3 @@
-import { LEVEL_COUNT } from '../game/levels.js';
-
 /**
  * The player's progress, kept in the browser's localStorage.
  *
@@ -8,7 +6,7 @@ import { LEVEL_COUNT } from '../game/levels.js';
  *
  * @typedef {object} Progress
  * @property {'level' | 'daily'} mode which puzzle is being played
- * @property {number} solved how many levels are solved (0 to LEVEL_COUNT)
+ * @property {number} solved how many levels are solved
  * @property {number} current the level to play, at most one past the solved ones
  * @property {string | null} dailyDone date key of the last solved daily puzzle
  */
@@ -25,7 +23,7 @@ export const INITIAL_PROGRESS = Object.freeze({
 
 /** The highest level the player may open. */
 export function lastOpenLevel({ solved }) {
-  return Math.min(solved + 1, LEVEL_COUNT);
+  return solved + 1;
 }
 
 /**
@@ -39,7 +37,7 @@ export function normalizeProgress(saved) {
   const legacyLevel = Number.isInteger(data.level) && data.level > 0 ? data.level : null;
 
   const solvedValue = Number.isInteger(data.solved) ? data.solved : (legacyLevel ?? 1) - 1;
-  const solved = clamp(solvedValue, 0, LEVEL_COUNT);
+  const solved = Math.max(solvedValue, 0);
   const currentValue = Number.isInteger(data.current) ? data.current : (legacyLevel ?? 1);
   return {
     mode: data.mode === 'daily' ? 'daily' : 'level',

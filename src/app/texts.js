@@ -2,7 +2,13 @@
 
 const dayAndMonth = new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'long' });
 
-const chapterNames = { easy: 'Kolay', medium: 'Orta', hard: 'Zor', expert: 'Uzman' };
+const chapterNames = {
+  easy: 'Kolay',
+  medium: 'Orta',
+  hard: 'Zor',
+  expert: 'Uzman',
+  master: 'Usta'
+};
 const moves = (count) => `${count} hamle`;
 
 export const texts = {
@@ -14,9 +20,7 @@ export const texts = {
   levelSubtitle: (chapterId, moveCount) => `${chapterNames[chapterId]} · ${moves(moveCount)}`,
   solvedIn: (count) => `${count} hamlede çözdün.`,
   chapterOpened: (chapterId) => `${chapterNames[chapterId]} seviyeler açıldı!`,
-  allLevelsSolved: 'Bütün seviyeleri bitirdin!',
   nextLevel: 'Sonraki seviye',
-  playAgain: 'Tekrar oyna',
   backToLevels: 'Devam et',
   hintMove: (from, to) => `${from + 1}. tüpten ${to + 1}. tüpe dök.`,
   hintDeadEnd: 'Buradan çözüm bulunamadı. Birkaç hamle geri al.',
@@ -27,7 +31,9 @@ export const texts = {
   dailyCardAction: (solved) => (solved ? 'Çözüldü ✓' : 'Oyna'),
   chapterDetail: ({ minColors, maxColors, emptyTubeCount }) =>
     `${minColors}–${maxColors} renk${emptyTubeCount === 1 ? ' · tek boş tüp' : ''}`,
+  masterDetail: 'Sonsuz · 9–10 renk ya da tek boş tüp',
   chapterProgress: (solved, total) => `${solved}/${total}`,
+  masterProgress: (solved) => `${solved} çözüldü`,
   levelTileLabel: (level, state) =>
     ({
       solved: `Seviye ${level}, çözüldü`,

@@ -12,14 +12,17 @@ Renkli suları tüplere ayırdığın bulmaca oyunu. Tarayıcıda çalışır, k
 
 ## Özellikler
 
-- Kolaydan zora 60 seviye, dört bölümde:
+- Kolaydan zora dört bölüm, ardından bitmeyen Usta seviyeleri:
 
-  | Bölüm | Seviyeler | Tahta                        |
-  | ----- | --------- | ---------------------------- |
-  | Kolay | 1–15      | 3–5 renk, 2 boş tüp          |
-  | Orta  | 16–30     | 6–8 renk, 2 boş tüp          |
-  | Zor   | 31–45     | 9–10 renk, 2 boş tüp         |
-  | Uzman | 46–60     | 6–7 renk, yalnızca 1 boş tüp |
+  | Bölüm | Seviyeler | Tahta                                                             |
+  | ----- | --------- | ----------------------------------------------------------------- |
+  | Kolay | 1–15      | 3–5 renk, 2 boş tüp                                               |
+  | Orta  | 16–30     | 6–8 renk, 2 boş tüp                                               |
+  | Zor   | 31–45     | 9–10 renk, 2 boş tüp                                              |
+  | Uzman | 46–60     | 6–7 renk, yalnızca 1 boş tüp                                      |
+  | Usta  | 61 ve öte | Sırayla: 9 renk · 6 renk, 1 boş tüp · 10 renk · 7 renk, 1 boş tüp |
+
+  Usta seviyeleri artık zorlaşmaz ama hep zordur. Her seviye numarası herkeste aynı tahtayı verir.
 
 - Seviyeler ekranı: çözülen seviyeler bölümün rengiyle dolar, sıradaki seviye açık, ötesi kilitli.
   Çözülmüş bir seviyeye dönüp tekrar oynanabilir
