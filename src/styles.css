@@ -26,15 +26,17 @@
   --star-off: #dfe6ff33;
   /* Text on a tile filled with a difficulty color; dark in both themes. */
   --on-difficulty: #0b1430;
-  /* Read by the scene to tint the glass tubes. */
+  /* Read by the scene to tint the glass tubes, and to make them glow (none here). */
   --glass: #ffffff;
+  --glass-glow: none;
   --font-display: 'Bricolage Grotesque', 'Segoe UI', system-ui, sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, 'Cascadia Mono', monospace;
   color-scheme: dark;
 }
 
+/* Klasik Laboratuvar follows the system between dark and light; the other themes are dark. */
 @media (prefers-color-scheme: light) {
-  :root {
+  :root[data-theme='classic'] {
     --bg-top: #f3f6fc;
     --bg-bottom: #d6deef;
     --glow: #0369a114;
@@ -57,6 +59,45 @@
     --star-off: #141a3326;
     color-scheme: light;
   }
+}
+
+/* Neon Gece: a dark night lit by glowing glass. */
+:root[data-theme='neon'] {
+  --bg-top: #1a0638;
+  --bg-bottom: #06010f;
+  --glow: #ff2fd62e;
+  --ink: #f6f3ff;
+  --muted: #a99fd6;
+  --panel: #150a2ec2;
+  --panel-solid: #150a2e;
+  --line: #c8b6ff2e;
+  --accent: #19f0e0;
+  --accent-ink: #06010f;
+  --scrim: #06010f8c;
+  --glass: #b8fbff;
+  --glass-glow: rgba(25, 240, 224, 0.55);
+  --star: #ffe94d;
+  --star-off: #c8b6ff33;
+  color-scheme: dark;
+}
+
+/* Kokteyl Bar: the warm amber light of a bar. */
+:root[data-theme='cocktail'] {
+  --bg-top: #3d2116;
+  --bg-bottom: #150b07;
+  --glow: #ffb3472e;
+  --ink: #fff4e6;
+  --muted: #cfae8e;
+  --panel: #26150dc2;
+  --panel-solid: #26150d;
+  --line: #ffdcb02e;
+  --accent: #f4a259;
+  --accent-ink: #1d0f08;
+  --scrim: #150b078c;
+  --glass: #ffe3b3;
+  --star: #ffc94d;
+  --star-off: #ffdcb033;
+  color-scheme: dark;
 }
 
 [hidden] {
@@ -935,5 +976,502 @@ button.icon {
 @media (prefers-reduced-motion: reduce) {
   .stars.big svg {
     animation: none;
+  }
+}
+
+/* The HUD's icon buttons draw their symbols with lines. */
+#settings-open svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Settings: a theme picker with a small preview of each, then switches. */
+.card.settings {
+  box-sizing: border-box;
+  width: min(380px, 100%);
+  justify-items: stretch;
+  gap: 16px;
+  background: var(--panel-solid);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  text-align: left;
+}
+
+.theme-picker {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+.theme-picker legend,
+.switches > .switch > span {
+  font-weight: 600;
+}
+
+.theme-picker legend {
+  margin-bottom: 8px;
+  color: var(--muted);
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.theme-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  cursor: pointer;
+}
+
+.theme-option:has(input:checked) {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.theme-option input {
+  accent-color: var(--accent);
+}
+
+/* A tiny window onto each theme: its background and three of its liquids. */
+.theme-swatch {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  width: 54px;
+  height: 34px;
+  padding: 0 8px 6px;
+  box-sizing: border-box;
+  border-radius: 8px;
+}
+
+.theme-swatch i {
+  width: 8px;
+  height: 18px;
+  border-radius: 2px 2px 4px 4px;
+}
+
+.theme-swatch[data-swatch='classic'] {
+  background: linear-gradient(#1b2142, #0b0e1d);
+}
+.theme-swatch[data-swatch='classic'] i:nth-child(1) {
+  background: #ef4444;
+}
+.theme-swatch[data-swatch='classic'] i:nth-child(2) {
+  background: #3b82f6;
+}
+.theme-swatch[data-swatch='classic'] i:nth-child(3) {
+  background: #22c55e;
+}
+
+.theme-swatch[data-swatch='neon'] {
+  background: linear-gradient(#1a0638, #06010f);
+}
+.theme-swatch[data-swatch='neon'] i {
+  box-shadow: 0 0 6px currentColor;
+}
+.theme-swatch[data-swatch='neon'] i:nth-child(1) {
+  color: #ff4fd8;
+  background: #ff4fd8;
+}
+.theme-swatch[data-swatch='neon'] i:nth-child(2) {
+  color: #19f0e0;
+  background: #19f0e0;
+}
+.theme-swatch[data-swatch='neon'] i:nth-child(3) {
+  color: #c6ff1a;
+  background: #c6ff1a;
+}
+
+.theme-swatch[data-swatch='cocktail'] {
+  background: linear-gradient(#3d2116, #150b07);
+}
+.theme-swatch[data-swatch='cocktail'] i:nth-child(1) {
+  background: #f77f00;
+}
+.theme-swatch[data-swatch='cocktail'] i:nth-child(2) {
+  background: #2ec4b6;
+}
+.theme-swatch[data-swatch='cocktail'] i:nth-child(3) {
+  background: #ff6fae;
+}
+
+.switches {
+  display: grid;
+  gap: 4px;
+}
+
+.switch {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 2px;
+  cursor: pointer;
+}
+
+/* A sliding switch drawn on the checkbox itself. */
+.switch input {
+  position: relative;
+  width: 44px;
+  height: 26px;
+  margin: 0;
+  border-radius: 999px;
+  background: var(--line);
+  appearance: none;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.switch input::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--ink);
+  transition: transform 0.15s;
+}
+
+.switch input:checked {
+  background: var(--accent);
+}
+
+.switch input:checked::after {
+  background: var(--accent-ink);
+  transform: translateX(18px);
+}
+
+.switch input:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.switch input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.card.settings .note {
+  margin: 0;
+  color: var(--muted);
+  font-family: var(--font-display);
+  font-size: 0.82rem;
+}
+
+/* The level list header: the leaderboard next to the close button. */
+.header-actions {
+  display: flex;
+  gap: 6px;
+}
+
+#leaderboard-open svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* The daily leaderboard. */
+.card.leaderboard {
+  box-sizing: border-box;
+  width: min(400px, 100%);
+  max-height: calc(100dvh - 32px);
+  grid-template-rows: auto minmax(0, 1fr);
+  justify-items: stretch;
+  gap: 14px;
+  background: var(--panel-solid);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  text-align: left;
+}
+
+.leaderboard-body {
+  display: grid;
+  gap: 18px;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.daily-summary {
+  display: grid;
+  gap: 8px;
+}
+
+.card .daily-today {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--ink);
+  font-size: 1rem;
+}
+
+.card .daily-streak {
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-weight: 600;
+}
+
+.name-form {
+  display: grid;
+  gap: 8px;
+}
+
+.name-form label {
+  font-size: 0.92rem;
+}
+
+.ranking {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.ranking li {
+  display: grid;
+  grid-template-columns: 1.6em minmax(0, 1fr) auto auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border-radius: 10px;
+}
+
+.ranking.history li {
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+}
+
+.ranking li:nth-child(odd) {
+  background: color-mix(in srgb, var(--ink) 4%, transparent);
+}
+
+/* The player's own score. */
+.ranking li.mine {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  font-weight: 600;
+}
+
+.ranking .rank {
+  color: var(--muted);
+}
+
+.ranking .who {
+  overflow: hidden;
+  font-family: var(--font-display);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#win-leaderboard {
+  justify-self: center;
+}
+
+/* The editor card in the level list stands apart from the daily puzzle. */
+.editor-card .daily-action {
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--ink);
+}
+
+/* The puzzle editor: the board on top, then the tools, with the play button always in reach. */
+.card.editor {
+  box-sizing: border-box;
+  width: min(460px, 100%);
+  max-height: calc(100dvh - 32px);
+  grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+  justify-items: stretch;
+  gap: 10px;
+  padding: 18px 16px 14px;
+  background: var(--panel-solid);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  text-align: left;
+}
+
+.editor-board {
+  display: block;
+  width: 100%;
+  height: clamp(170px, 32dvh, 320px);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--bg-bottom) 70%, transparent);
+  touch-action: manipulation;
+}
+
+.card .editor-status {
+  min-height: 1.3em;
+  font-family: var(--font-display);
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.card .editor-status[data-kind='problem'] {
+  color: var(--error);
+}
+
+.card .editor-status[data-kind='ok'] {
+  color: var(--easy);
+}
+
+.editor-controls {
+  display: grid;
+  /* One column as wide as the card: wide fields must not push the controls past its edge. */
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.editor-tools,
+.editor-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.editor-tools button[aria-pressed='true'] {
+  border-color: transparent;
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+/* Ten colors, each with how many of its units are on the board. */
+.editor-palette {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.swatch {
+  position: relative;
+  display: grid;
+  place-items: end center;
+  height: 40px;
+  padding: 0 0 3px;
+  border: 2px solid transparent;
+  border-radius: 10px;
+  background: var(--swatch);
+}
+
+.swatch[aria-pressed='true'] {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+/* Oil looks glossy here too. */
+.swatch.oil {
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0.45)) top / 100% 4px no-repeat,
+    var(--swatch);
+}
+
+.swatch span {
+  padding: 0 4px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  line-height: 1.4;
+}
+
+.swatch span:empty {
+  display: none;
+}
+
+/* A color with the wrong number of units. */
+.swatch.wrong span {
+  background: var(--error);
+}
+
+.editor-section {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 6px;
+}
+
+#editor-share {
+  justify-self: start;
+}
+
+.editor-section h3 {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.card.editor select {
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.9rem;
+}
+
+#editor-import input {
+  min-width: 0;
+}
+
+.editor-code {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  resize: none;
+  -webkit-user-select: all;
+  user-select: all;
+}
+
+.editor-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+
+.editor-footer button {
+  min-width: 120px;
+}
+
+/* Narrow phones: three buttons share the top bar with the title. */
+@media (max-width: 400px) {
+  #title {
+    font-size: 1.2rem;
+  }
+
+  .hud-actions {
+    gap: 4px;
+  }
+
+  .hud-actions button.primary {
+    padding: 8px 12px;
   }
 }

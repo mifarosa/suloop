@@ -3,7 +3,9 @@ import { GameController } from '../src/app/controller.js';
 import { INITIAL_PROGRESS } from '../src/app/progress.js';
 import { decodeProgressCode, encodeProgressCode } from '../src/app/progressCode.js';
 import { tubeSizes } from '../src/game/generator.js';
+import { boardOf, withRandomFill, emptyPuzzle } from '../src/game/customPuzzle.js';
 import { createDailyPuzzle, createLevelPuzzle, levelSettings } from '../src/game/levels.js';
+import { createRandom } from '../src/game/random.js';
 import { HIDDEN } from '../src/game/rules.js';
 import { fewestMoves, solveShortest } from '../src/game/shortest.js';
 import { solve } from '../src/game/solver.js';
@@ -27,8 +29,12 @@ function fakeRules() {
 }
 
 /** Works out the fewest moves at once, as the worker would in the background. */
-function findFewestMoves({ level, day }) {
-  const { tubes, board } = level !== undefined ? createLevelPuzzle(level) : createDailyPuzzle(day);
+function findFewestMoves({ level, day, custom }) {
+  const { tubes, board } = custom
+    ? boardOf(custom)
+    : level !== undefined
+      ? createLevelPuzzle(level)
+      : createDailyPuzzle(day);
   return Promise.resolve(fewestMoves(tubes, { board }));
 }
 
@@ -67,7 +73,10 @@ describe('GameController', () => {
   let rules;
   let saved;
 
-  function createController(progress = {}) {
+  function createController(
+    progress = {},
+    { clock = () => TODAY, onDailySolved, onEditPuzzle } = {}
+  ) {
     const controller = new GameController({
       scene,
       hud,
@@ -75,9 +84,11 @@ describe('GameController', () => {
       transfer,
       rules,
       findFewestMoves,
+      onDailySolved,
+      onEditPuzzle,
       progress: { ...INITIAL_PROGRESS, ...progress },
       saveProgress: (value) => saved.push(value),
-      now: () => TODAY
+      now: clock
     });
     controller.start();
     return controller;
@@ -131,7 +142,8 @@ describe('GameController', () => {
       undoCount: null,
       undoLabel: 'Geri al',
       hintCount: '2',
-      hintLabel: 'İpucu: 2 hakkın var'
+      hintLabel: 'İpucu: 2 hakkın var',
+      levelsLabel: 'Seviyeler'
     });
   });
 
@@ -161,7 +173,8 @@ describe('GameController', () => {
       fewestLabel: 'En az',
       notes: [],
       attempts: [{ moves: moves.length, stars: 1 }],
-      continueLabel: 'Sonraki seviye'
+      continueLabel: 'Sonraki seviye',
+      leaderboard: false
     });
 
     controller.continueAfterWin();
@@ -169,7 +182,7 @@ describe('GameController', () => {
     expect(lastRender().title).toBe('Seviye 2');
   });
 
-  it('gives every star for the fewest moves, and a spare undo the first time only', async () => {
+  it('gives every star for the fewest moves, and nothing more where undos are unlimited', async () => {
     const controller = createController();
     await playSolution(controller, createLevelPuzzle(1), { shortest: true });
 
@@ -178,22 +191,35 @@ describe('GameController', () => {
       stars: 3,
       moves: 9,
       fewest: 9,
-      notes: ['İlk kez 3 yıldız: +1 ekstra geri alma!']
+      notes: []
     });
     expect(saved.at(-1)).toMatchObject({
-      spareUndos: 1,
+      spareUndos: 0,
       records: { 1: { best: 3, attempts: [{ moves: 9, stars: 3 }] } }
     });
 
     controller.replay();
     expect(scene.showPuzzle).toHaveBeenLastCalledWith(...shownBoard(1));
     await playSolution(controller, createLevelPuzzle(1), { shortest: true });
-    expect(lastWin().notes).toEqual([]);
-    expect(saved.at(-1).spareUndos).toBe(1);
     expect(lastWin().attempts).toEqual([
       { moves: 9, stars: 3 },
       { moves: 9, stars: 3 }
     ]);
+  });
+
+  it('earns a spare undo for the first three stars of a level with limited undo', async () => {
+    const controller = createController({ solved: 20, current: 16 });
+    await playSolution(controller, createLevelPuzzle(16), { shortest: true });
+    expect(lastWin()).toMatchObject({
+      stars: 3,
+      notes: ['İlk kez 3 yıldız: +1 ekstra geri alma!']
+    });
+    expect(saved.at(-1).spareUndos).toBe(1);
+
+    controller.replay();
+    await playSolution(controller, createLevelPuzzle(16), { shortest: true });
+    expect(lastWin().notes).toEqual([]);
+    expect(saved.at(-1).spareUndos).toBe(1);
   });
 
   it('keeps the last five solutions of a level, newest first, and its best stars', async () => {
@@ -229,7 +255,8 @@ describe('GameController', () => {
     expect(lastWin()).toMatchObject({
       notes: ['Günün bulmacası: +1 ipucu!'],
       attempts: null,
-      continueLabel: 'Devam et'
+      continueLabel: 'Devam et',
+      leaderboard: true
     });
 
     controller.replay();
@@ -240,6 +267,23 @@ describe('GameController', () => {
     controller.continueAfterWin();
     expect(saved.at(-1)).toMatchObject({ mode: 'level', current: 4 });
     expect(scene.showPuzzle).toHaveBeenLastCalledWith(...shownBoard(4));
+  });
+
+  it('reports each daily solution with the time since the puzzle was opened', async () => {
+    let time = TODAY.getTime();
+    const onDailySolved = vi.fn();
+    const controller = createController(
+      { mode: 'daily' },
+      { clock: () => new Date(time), onDailySolved }
+    );
+    time += 95_400;
+    const moves = await playSolution(controller, scene.showPuzzle.mock.lastCall[0]);
+
+    expect(onDailySolved).toHaveBeenCalledWith('2026-10-09', {
+      moves: moves.length,
+      seconds: 95,
+      stars: lastWin().stars
+    });
   });
 
   it('announces the next stage after the last level of a stage', async () => {
@@ -891,6 +935,80 @@ describe('GameController', () => {
         await playSolution(controller, createLevelPuzzle(level));
         expect(scene.celebrate).toHaveBeenCalledOnce();
       }
+    });
+  });
+
+  describe('custom puzzles', () => {
+    const custom = () => ({
+      ...withRandomFill(emptyPuzzle(6), 4, createRandom(3)),
+      undoLimit: 2
+    });
+
+    it('plays a puzzle from the editor without touching the progress, and goes back to it', async () => {
+      const onEditPuzzle = vi.fn();
+      const controller = createController(
+        { solved: 5, current: 6, spareUndos: 3 },
+        { onEditPuzzle }
+      );
+      controller.playCustom(custom(), { fromEditor: true });
+
+      expect(scene.showPuzzle).toHaveBeenLastCalledWith(boardOf(custom()).tubes, expect.anything());
+      expect(lastRender()).toMatchObject({
+        title: 'Senin bulmacan',
+        subtitle: '0 hamle',
+        undoCount: '2',
+        levelsLabel: 'Atölye'
+      });
+
+      const moves = await playSolution(controller, boardOf(custom()), { shortest: true });
+      expect(lastWin()).toMatchObject({
+        stars: 3,
+        moves: moves.length,
+        attempts: null,
+        notes: [],
+        continueLabel: 'Atölyeye dön'
+      });
+      expect(saved).toEqual([]);
+
+      controller.continueAfterWin();
+      expect(onEditPuzzle).toHaveBeenCalledWith(custom());
+      expect(lastRender().title).toBe('Seviye 6');
+    });
+
+    it('gives free hints on your own puzzle, and goes back to the editor from the levels button', () => {
+      const onEditPuzzle = vi.fn();
+      const controller = createController({ hints: 0 }, { onEditPuzzle });
+      controller.playCustom(custom(), { fromEditor: true });
+      controller.showHint();
+      expect(scene.highlight).toHaveBeenCalled();
+      expect(saved).toEqual([]);
+
+      controller.showLevels();
+      expect(menu.show).not.toHaveBeenCalled();
+      expect(onEditPuzzle).toHaveBeenCalled();
+    });
+
+    it('plays a shared puzzle like a level, with its hints counted, and leaves it for the levels', async () => {
+      const controller = createController({ solved: 5, current: 6 });
+      controller.playCustom(custom());
+      expect(lastRender()).toMatchObject({ title: 'Paylaşılan bulmaca', levelsLabel: 'Seviyeler' });
+      controller.showHint();
+      expect(saved.at(-1).hints).toBe(1);
+
+      await playSolution(controller, boardOf(custom()));
+      expect(lastWin().continueLabel).toBe('Devam et');
+      controller.continueAfterWin();
+      expect(lastRender().title).toBe('Seviye 6');
+    });
+
+    it('spends no spare undos on a custom puzzle', async () => {
+      const controller = createController({ spareUndos: 4 });
+      const puzzle = { ...custom(), undoLimit: 0 };
+      controller.playCustom(puzzle, { fromEditor: true });
+      const [[from, to]] = solve(boardOf(puzzle).tubes, { board: boardOf(puzzle).board });
+      await controller.tapTube(from);
+      await controller.tapTube(to);
+      expect(lastRender()).toMatchObject({ canUndo: false, undoCount: '0' });
     });
   });
 });

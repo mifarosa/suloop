@@ -29,16 +29,16 @@ const UNDO_ICON = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 7 4 1
 export class RulesDialog {
   #overlay;
   #elements;
-  #getGlassColor;
+  #getLook;
   #showingInfo = false;
   #actions = { onClose: () => {} };
 
   /**
    * @param {ParentNode} root
-   * @param {{ getGlassColor: () => string }} options the color the glass of the sample tubes
-   *   is drawn in
+   * @param {{ getLook: () => import('../scene/tubeScene.js').Look }} options how the sample
+   *   tubes are drawn: the look of the theme
    */
-  constructor(root, { getGlassColor }) {
+  constructor(root, { getLook }) {
     const find = (selector) => root.querySelector(selector);
     this.#overlay = new Overlay(find('#rules'), () => this.#actions.onClose());
     this.#elements = {
@@ -47,7 +47,7 @@ export class RulesDialog {
       body: find('#rules-body'),
       action: find('#rules-action')
     };
-    this.#getGlassColor = getGlassColor;
+    this.#getLook = getLook;
     find('#rules-close').addEventListener('click', () => this.#actions.onClose());
     this.#elements.action.addEventListener('click', () => this.#actions.onClose());
   }
@@ -72,9 +72,9 @@ export class RulesDialog {
     this.#overlay.open(action);
 
     // The sample tubes need the laid out size of their canvas, so they are drawn once shown.
-    const glassColor = this.#getGlassColor();
+    const look = this.#getLook();
     for (const canvas of body.querySelectorAll('canvas[data-rule]')) {
-      drawRuleIcon(canvas, canvas.dataset.rule, glassColor);
+      drawRuleIcon(canvas, canvas.dataset.rule, look);
     }
   }
 

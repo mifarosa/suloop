@@ -40,6 +40,7 @@ export class Confetti {
   #canvas;
   #context;
   #random;
+  #colors = CONFETTI_COLORS;
   /** @type {Piece[]} */
   #pieces = [];
   #size = { width: 0, height: 0, ratio: 1 };
@@ -57,11 +58,16 @@ export class Confetti {
     canvas.hidden = true;
   }
 
+  /** @param {string[]} colors CSS colors the pieces come in */
+  setColors(colors) {
+    this.#colors = colors;
+  }
+
   burst() {
     if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
 
     this.#resize();
-    this.#pieces.push(...launchPieces(this.#random, this.#size));
+    this.#pieces.push(...launchPieces(this.#random, this.#size, this.#colors));
     this.#canvas.hidden = false;
     if (this.#frame === null) {
       this.#lastTime = null;
@@ -128,9 +134,10 @@ export class Confetti {
  * The pieces of one burst, half from each bottom corner, aimed up and toward the middle.
  * @param {() => number} random
  * @param {{ width: number, height: number }} size of the screen, in CSS pixels
+ * @param {string[]} [colors]
  * @returns {Piece[]}
  */
-export function launchPieces(random, { width, height }) {
+export function launchPieces(random, { width, height }, colors = CONFETTI_COLORS) {
   const between = ([low, high]) => low + random() * (high - low);
   const pieces = [];
   for (const side of [1, -1]) {
@@ -148,7 +155,7 @@ export function launchPieces(random, { width, height }) {
         sway: random() * Math.PI * 2,
         width: between(PIECE_SIZE_PX.width),
         height: between(PIECE_SIZE_PX.height),
-        color: CONFETTI_COLORS[Math.floor(random() * CONFETTI_COLORS.length)],
+        color: colors[Math.floor(random() * colors.length)],
         age: -random() * MAX_DELAY_S
       });
     }

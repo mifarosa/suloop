@@ -41,14 +41,27 @@ const CAP_DROP = 0.75;
  * @param {{ scale: number, originX: number, originY: number }} scene.view
  * @param {string} scene.glassColor any CSS color
  * @param {(color: number) => boolean} [scene.isOil]
+ * @param {string[]} [scene.palette] the CSS color of each liquid color id
+ * @param {string | null} [scene.glassGlow] a CSS color the glass glows in, e.g. for neon
  */
 export function drawScene(
   ctx,
-  { width, height, tubes, streams, view, glassColor, isOil = () => false }
+  {
+    width,
+    height,
+    tubes,
+    streams,
+    view,
+    glassColor,
+    isOil = () => false,
+    palette = LIQUID_COLORS,
+    glassGlow = null
+  }
 ) {
+  const look = { glassColor, palette, glassGlow };
   ctx.clearRect(0, 0, width, height);
-  for (const tube of inDrawOrder(tubes)) drawTube(ctx, tube, view, glassColor, isOil);
-  for (const stream of streams) if (stream.visible) drawStream(ctx, stream, view);
+  for (const tube of inDrawOrder(tubes)) drawTube(ctx, tube, view, look, isOil);
+  for (const stream of streams) if (stream.visible) drawStream(ctx, stream, view, palette);
 }
 
 /** Tubes that moved away from rest are drawn last, so a pouring tube passes in front. */
@@ -58,7 +71,7 @@ function inDrawOrder(tubes) {
   return tubes.slice().sort((a, b) => displacement(a) - displacement(b));
 }
 
-function drawTube(ctx, tube, view, glassColor, isOil) {
+function drawTube(ctx, tube, view, look, isOil) {
   const { scale, originX, originY } = view;
   ctx.save();
   // Move to the mouth and tilt around it, then down to the base. From here on one unit is
@@ -68,18 +81,18 @@ function drawTube(ctx, tube, view, glassColor, isOil) {
   ctx.translate(0, tube.height * scale);
   ctx.scale(scale, scale);
 
-  if (Math.abs(tube.body.tilt) < UPRIGHT) drawLiquid(ctx, tube, scale, isOil);
-  else drawTiltedLiquid(ctx, tube);
-  drawGlass(ctx, tube, glassColor);
+  if (Math.abs(tube.body.tilt) < UPRIGHT) drawLiquid(ctx, tube, scale, isOil, look.palette);
+  else drawTiltedLiquid(ctx, tube, look.palette);
+  drawGlass(ctx, tube, look);
   if (tube.ice > 0) drawIce(ctx, tube);
   // A cap hides the badge: what made the tube special no longer matters once it is complete.
-  if (tube.cap < 1) drawBadge(ctx, tube, glassColor, 1 - Math.min(1, tube.cap));
-  if (tube.cap > 0) drawCap(ctx, tube);
+  if (tube.cap < 1) drawBadge(ctx, tube, look, 1 - Math.min(1, tube.cap));
+  if (tube.cap > 0) drawCap(ctx, tube, look.palette);
   ctx.restore();
 }
 
 /** Liquid in an upright tube: level bands, one per segment. */
-function drawLiquid(ctx, tube, scale, isOil) {
+function drawLiquid(ctx, tube, scale, isOil, palette) {
   ctx.save();
   tubeOutline(ctx, LIQUID_RADIUS, LIQUID_FLOOR, tube.height);
   ctx.closePath();
@@ -91,7 +104,7 @@ function drawLiquid(ctx, tube, scale, isOil) {
     const bottom = LIQUID_FLOOR + slot * SEGMENT_HEIGHT;
     const top = bottom + SEGMENT_HEIGHT * fill;
     surface = Math.max(surface, top);
-    ctx.fillStyle = colorOf(color);
+    ctx.fillStyle = colorOf(color, palette);
     // The lowest segment reaches into the rounded bottom; the clip shapes it.
     const drawFrom = slot === 0 ? 0 : bottom - SEAM;
     ctx.fillRect(-LIQUID_RADIUS, -top, LIQUID_RADIUS * 2, top - drawFrom);
@@ -107,14 +120,14 @@ function drawLiquid(ctx, tube, scale, isOil) {
  * Liquid in a tilted tube: every layer keeps a level surface, so the liquid stays flat while
  * the glass turns around it (see liquid.js).
  */
-function drawTiltedLiquid(ctx, tube) {
+function drawTiltedLiquid(ctx, tube, palette) {
   const layers = tube.layers;
   if (layers.length === 0) return;
 
   ctx.save();
   const shapes = tiltedLayers(tube.height, layers, tube.body.tilt);
   for (const { color, polygon } of shapes) {
-    ctx.fillStyle = colorOf(color);
+    ctx.fillStyle = colorOf(color, palette);
     ctx.beginPath();
     polygon.forEach(({ x, y }, i) => (i === 0 ? ctx.moveTo(x, -y) : ctx.lineTo(x, -y)));
     ctx.closePath();
@@ -123,8 +136,8 @@ function drawTiltedLiquid(ctx, tube) {
   ctx.restore();
 }
 
-function colorOf(color) {
-  return color === HIDDEN ? HIDDEN_COLOR : LIQUID_COLORS[color];
+function colorOf(color, palette) {
+  return color === HIDDEN ? HIDDEN_COLOR : palette[color];
 }
 
 /** A light stripe on the left and a shade on the right make the liquid look round. */
@@ -170,7 +183,7 @@ function drawHiddenMark(ctx, centerY, scale) {
   ctx.restore();
 }
 
-function drawGlass(ctx, tube, glassColor) {
+function drawGlass(ctx, tube, { glassColor, glassGlow }) {
   const { glow, height } = tube;
   // A cracked tube that cannot take any more liquid looks spent.
   const spent = tube.fills === 0;
@@ -183,6 +196,18 @@ function drawGlass(ctx, tube, glassColor) {
     ctx.shadowBlur = 24 * glow;
     ctx.strokeStyle = `rgba(${GLOW_RGB}, ${glow})`;
     ctx.lineWidth = GLASS_LINE_WIDTH * 3;
+    tubeOutline(ctx, TUBE_RADIUS, 0, height);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  if (glassGlow) {
+    // Neon glass: a soft halo of light around the outline.
+    ctx.save();
+    ctx.shadowColor = glassGlow;
+    ctx.shadowBlur = 14;
+    ctx.strokeStyle = glassGlow;
+    ctx.lineWidth = GLASS_LINE_WIDTH;
     tubeOutline(ctx, TUBE_RADIUS, 0, height);
     ctx.stroke();
     ctx.restore();
@@ -279,13 +304,13 @@ function drawIce(ctx, tube) {
  * The sign above a special tube: a padlock in the key color on a locked tube, the fills left
  * on a cracked tube, and an arrow pointing in on a one-way tube.
  */
-function drawBadge(ctx, tube, glassColor, opacity) {
+function drawBadge(ctx, tube, { glassColor, palette }, opacity) {
   const y = -tube.height - BADGE_HEIGHT;
   ctx.save();
   ctx.globalAlpha = opacity;
   if (tube.lockKey !== null && tube.ice > 0) {
     ctx.globalAlpha = opacity * tube.ice;
-    ctx.fillStyle = LIQUID_COLORS[tube.lockKey];
+    ctx.fillStyle = palette[tube.lockKey];
     ctx.beginPath();
     ctx.arc(0, y, 0.2, 0, Math.PI * 2);
     ctx.fill();
@@ -319,12 +344,12 @@ function drawBadge(ctx, tube, glassColor, opacity) {
  * The cap of a complete tube, in the color it holds. It drops in from above as `tube.cap`
  * goes from 0 to 1, a little past 1 while it presses in, and lifts away as it goes back.
  */
-function drawCap(ctx, tube) {
+function drawCap(ctx, tube, palette) {
   const { plugDepth, lidHeight, lidOverhang, knobWidth, knobHeight } = CAP;
   const lift = (1 - tube.cap) * CAP_DROP;
   const mouth = -tube.height - lift;
   const lidHalf = TUBE_RADIUS + lidOverhang;
-  const color = LIQUID_COLORS[tube.topColor] ?? HIDDEN_COLOR;
+  const color = palette[tube.topColor] ?? HIDDEN_COLOR;
 
   ctx.save();
   ctx.globalAlpha = Math.min(1, tube.cap * 1.6);
@@ -392,13 +417,13 @@ function tubeOutline(ctx, radius, floor, height) {
 }
 
 /** The falling liquid: a line with round ends, from the lip down to the surface below. */
-function drawStream(ctx, stream, view) {
+function drawStream(ctx, stream, view, palette) {
   if (stream.top - stream.bottom <= 0) return;
 
   const { scale, originX, originY } = view;
   const x = originX + stream.x * scale;
   ctx.save();
-  ctx.strokeStyle = LIQUID_COLORS[stream.color];
+  ctx.strokeStyle = palette[stream.color];
   ctx.lineWidth = STREAM_WIDTH * scale;
   ctx.lineCap = 'round';
   ctx.beginPath();

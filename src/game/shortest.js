@@ -9,8 +9,9 @@ import { solve } from './solver.js';
  * run per color. So the runs on the board minus the colors is a lower bound on the moves
  * left, and the first solution A* takes off its queue is a shortest one.
  *
- * The search keeps every position it reaches, so it stops after `maxNodes` positions; it then
- * reports no solution, and the caller falls back to a quicker search.
+ * The search keeps every position it reaches, so it stops once it holds `maxNodes` of them,
+ * which also bounds its memory; it then reports no solution, and the caller falls back to a
+ * quicker search. The hardest levels need under 50,000.
  *
  * @param {import('./rules.js').Position | number[][]} start
  * @param {{ board?: Board, maxNodes?: number }} [options]
@@ -28,12 +29,11 @@ export function solveShortest(start, { board = new Board(), maxNodes = 200_000 }
   seen.set(startKey, { moves: 0, parent: null, move: null });
   queue.push(lowerBound(position.tubes, colors), 0, { position, key: startKey, moves: 0 });
 
-  let expanded = 0;
   while (queue.size > 0) {
     const { position: current, key, moves } = queue.pop();
     if (seen.get(key).moves < moves) continue;
     if (board.isSolved(current)) return pathTo(seen, key);
-    if (++expanded > maxNodes) return null;
+    if (seen.size > maxNodes) return null;
 
     for (const [from, to] of usefulMoves(board, current)) {
       const next = board.pour(current, from, to).position;
@@ -165,7 +165,7 @@ function before(a, b) {
  * @returns {{ moves: number, proven: boolean } | null} proven: false when the shortest search
  *   gave up and `moves` is just the length of some solution; null when there is none
  */
-export function fewestMoves(start, { board = new Board(), maxNodes = 1_000_000 } = {}) {
+export function fewestMoves(start, { board = new Board(), maxNodes = 250_000 } = {}) {
   const shortest = solveShortest(start, { board, maxNodes });
   if (shortest) return { moves: shortest.length, proven: true };
   const any = solve(start, { board });

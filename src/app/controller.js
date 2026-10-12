@@ -12,6 +12,7 @@ import {
   stageOfLevel,
   STAGES
 } from '../game/levels.js';
+import { boardOf, rulesOf } from '../game/customPuzzle.js';
 import { GameSession } from '../game/session.js';
 import { starsFor, twoStarLimit } from '../game/stars.js';
 import { localDateKey } from './calendar.js';
@@ -25,6 +26,16 @@ import { texts } from './texts.js';
  *   (see fewestMoves in shortest.js)
  */
 
+/** Feedback that makes no sound and no vibration, for when none is given. */
+const SILENT = Object.freeze({
+  pick() {},
+  putDown() {},
+  reject() {},
+  undo() {},
+  hint() {},
+  win() {}
+});
+
 /**
  * Runs the game: applies the player's actions to the session, plays the matching
  * animations, keeps the HUD and the level list up to date and saves progress.
@@ -35,16 +46,27 @@ export class GameController {
   #menu;
   #transfer;
   #rules;
+  #feedback;
+  #onDailySolved;
+  #onEditPuzzle;
   #findFewestMoves;
   #progress;
   #saveProgress;
   #now;
   /** @type {GameSession} */
   #session;
-  /** The numbered level on the board; null while the daily puzzle is played. */
+  /** The numbered level on the board; null while the daily or a custom puzzle is played. */
   #level = null;
+  /**
+   * A custom puzzle on the board, made in the editor or opened from a shared link; it is not
+   * saved, and leaves the progress as it is.
+   * @type {{ puzzle: import('../game/customPuzzle.js').CustomPuzzle, fromEditor: boolean } | null}
+   */
+  #custom = null;
   /** The calendar day of the daily puzzle being played. */
   #puzzleDay;
+  /** When the puzzle on the board was put there, in ms: the daily puzzle's clock. */
+  #startedAt = 0;
   /** @type {Promise<Fewest>} the fewest moves of the puzzle on the board, once worked out */
   #fewest;
   /** @type {Fewest | undefined} the same, as soon as it is known */
@@ -62,6 +84,11 @@ export class GameController {
    * @param {import('./transferDialog.js').TransferDialog} deps.transfer
    * @param {import('./rulesDialog.js').RulesDialog} deps.rules
    * @param {(puzzle: { level: number } | { day: string }) => Promise<Fewest>} deps.findFewestMoves
+   * @param {import('./feedback.js').Feedback} [deps.feedback] sounds and vibration
+   * @param {(day: string, result: { moves: number, seconds: number, stars: number }) => void}
+   *   [deps.onDailySolved] called with each solution of a daily puzzle
+   * @param {(puzzle: import('../game/customPuzzle.js').CustomPuzzle) => void} [deps.onEditPuzzle]
+   *   takes a custom puzzle back to the editor after a test play
    * @param {import('./progress.js').Progress} deps.progress
    * @param {(progress: import('./progress.js').Progress) => void} deps.saveProgress
    * @param {() => Date} [deps.now]
@@ -73,6 +100,9 @@ export class GameController {
     transfer,
     rules,
     findFewestMoves,
+    feedback = SILENT,
+    onDailySolved = () => {},
+    onEditPuzzle = () => {},
     progress,
     saveProgress,
     now = () => new Date()
@@ -82,6 +112,9 @@ export class GameController {
     this.#menu = menu;
     this.#transfer = transfer;
     this.#rules = rules;
+    this.#feedback = feedback;
+    this.#onDailySolved = onDailySolved;
+    this.#onEditPuzzle = onEditPuzzle;
     this.#findFewestMoves = findFewestMoves;
     this.#progress = { ...progress };
     this.#saveProgress = saveProgress;
@@ -91,10 +124,13 @@ export class GameController {
   /** Starts the puzzle for the current mode: today's daily puzzle or the current level. */
   start() {
     this.#puzzleDay = this.#now();
-    this.#level = this.#isDaily() ? null : this.#progress.current;
-    const { tubes, board } = this.#isDaily()
-      ? createDailyPuzzle(localDateKey(this.#puzzleDay))
-      : createLevelPuzzle(this.#level);
+    this.#startedAt = this.#puzzleDay.getTime();
+    this.#level = this.#custom || this.#isDaily() ? null : this.#progress.current;
+    const { tubes, board } = this.#custom
+      ? boardOf(this.#custom.puzzle)
+      : this.#isDaily()
+        ? createDailyPuzzle(localDateKey(this.#puzzleDay))
+        : createLevelPuzzle(this.#level);
     const settings = this.#settings();
     const { hiddenColors, undoLimit } = settings;
 
@@ -123,9 +159,11 @@ export class GameController {
    */
   #watchFewestMoves() {
     const session = this.#session;
-    const puzzle = this.#isDaily()
-      ? { day: localDateKey(this.#puzzleDay) }
-      : { level: this.#level };
+    const puzzle = this.#custom
+      ? { custom: this.#custom.puzzle }
+      : this.#isDaily()
+        ? { day: localDateKey(this.#puzzleDay) }
+        : { level: this.#level };
     this.#fewestKnown = undefined;
     this.#fewest = this.#findFewestMoves(puzzle);
     this.#fewest.then((fewest) => {
@@ -142,7 +180,7 @@ export class GameController {
    * the game.
    */
   #introduceNewRules() {
-    if (this.#isDaily() || this.#level <= this.#progress.solved) return;
+    if (this.#level === null || this.#level <= this.#progress.solved) return;
 
     const newRules = this.#level === 1 ? ['basics'] : rulesFirstUsedAt(this.#level);
     if (newRules.length === 0) return;
@@ -160,11 +198,13 @@ export class GameController {
     this.#putSelectionDown();
     const settings = this.#settings();
     const fewest = this.#fewestKnown;
-    const attempts = this.#isDaily() ? null : (this.#progress.records[this.#level]?.attempts ?? []);
+    const attempts =
+      this.#level === null ? null : (this.#progress.records[this.#level]?.attempts ?? []);
+    const rules = this.#custom ? rulesOf(this.#custom.puzzle) : specialRules(settings);
     this.#rules.show({
       title: this.#title(),
       info: true,
-      rules: ['basics', ...specialRules(settings)].map((rule) => this.#describeRule(rule)),
+      rules: ['basics', ...rules].map((rule) => this.#describeRule(rule)),
       stars: fewest
         ? [3, 2, 1].map((stars) => ({
             stars,
@@ -198,16 +238,20 @@ export class GameController {
     switch (result.type) {
       case 'selected':
         this.#scene.setLifted(result.tube, true);
+        this.#feedback.pick();
         break;
       case 'deselected':
         this.#scene.setLifted(result.tube, false);
+        this.#feedback.putDown();
         break;
       case 'rejected':
         this.#scene.shake(result.tube);
+        this.#feedback.reject();
         break;
       case 'blocked':
         this.#scene.setLifted(result.from, false);
         this.#scene.shake(result.to);
+        this.#feedback.reject();
         break;
       case 'poured':
         await this.#playPour(result);
@@ -231,6 +275,7 @@ export class GameController {
       this.#setProgress(spendSpareUndo(this.#progress));
       this.#hud.showToast(texts.spareUndoUsed(this.#progress.spareUndos));
     }
+    this.#feedback.undo();
     this.#refreshHud();
 
     if (move.onTop) {
@@ -264,8 +309,10 @@ export class GameController {
 
     this.#putSelectionDown();
     let move = this.#lastHint?.position === session.position ? this.#lastHint.move : null;
+    // Hints on a puzzle the player made themselves cost nothing.
+    const free = this.#custom?.fromEditor === true;
     if (!move) {
-      if (this.#progress.hints === 0) {
+      if (!free && this.#progress.hints === 0) {
         this.#hud.showToast(texts.noHints, { long: true });
         return;
       }
@@ -275,18 +322,23 @@ export class GameController {
         this.#hud.showToast(outOfUndos ? texts.hintDeadEndNoUndo : texts.hintDeadEnd);
         return;
       }
-      this.#setProgress(spendHint(this.#progress));
+      if (!free) this.#setProgress(spendHint(this.#progress));
       this.#lastHint = { position: session.position, move };
       this.#refreshHud();
     }
     const [from, to] = move;
     this.#scene.highlight([from, to]);
+    this.#feedback.hint();
     this.#hud.showToast(texts.hintMove(from, to));
   }
 
-  /** Opens the level list over the board. */
+  /** Opens the level list over the board; from a puzzle under test, goes back to the editor. */
   showLevels() {
     if (this.#animating) return;
+    if (this.#custom?.fromEditor) {
+      this.leaveCustom();
+      return;
+    }
 
     this.#putSelectionDown();
     this.#menu.show(this.#levelMenuModel());
@@ -330,6 +382,7 @@ export class GameController {
       return;
     }
     this.#updateProgress({ mode: 'level', solved, current: solved + 1 });
+    this.#custom = null;
     this.start();
     this.#hud.showToast(texts.transferLoaded(solved));
   }
@@ -338,6 +391,7 @@ export class GameController {
   playLevel(level) {
     if (this.#animating || level < 1 || level > lastOpenLevel(this.#progress)) return;
 
+    this.#custom = null;
     this.#updateProgress({ mode: 'level', current: level });
     this.start();
   }
@@ -345,20 +399,45 @@ export class GameController {
   playDaily() {
     if (this.#animating) return;
 
+    this.#custom = null;
     this.#updateProgress({ mode: 'daily' });
     this.start();
   }
 
-  /** Closes the win dialog: on to the next level, or back to the levels after the daily puzzle. */
+  /**
+   * Closes the win dialog: on to the next level, back to the levels after the daily or a
+   * shared puzzle, or back to the editor after testing a custom one.
+   */
   continueAfterWin() {
+    const custom = this.#custom;
+    this.#custom = null;
     if (this.#isDaily()) this.#updateProgress({ mode: 'level' });
     this.start();
+    if (custom?.fromEditor) this.#onEditPuzzle(custom.puzzle);
   }
 
   /** Plays the puzzle just solved once more, e.g. to try for more stars. */
   replay() {
-    if (!this.#isDaily()) this.#updateProgress({ current: this.#level });
+    if (this.#level !== null) this.#updateProgress({ current: this.#level });
     this.start();
+  }
+
+  /**
+   * Plays a custom puzzle: one being made in the editor, or one shared by link.
+   * @param {import('../game/customPuzzle.js').CustomPuzzle} puzzle
+   * @param {{ fromEditor?: boolean }} [options]
+   */
+  playCustom(puzzle, { fromEditor = false } = {}) {
+    if (this.#animating) return;
+
+    this.#custom = { puzzle, fromEditor };
+    this.start();
+  }
+
+  /** Leaves a custom puzzle for the editor it came from, or for the levels. */
+  leaveCustom() {
+    if (this.#animating || !this.#custom) return;
+    this.continueAfterWin();
   }
 
   /** Moves on as after a win, but lets the player pick from the level list first. */
@@ -410,27 +489,31 @@ export class GameController {
   async #celebrateWin() {
     const moves = this.#session.moveCount;
     const notes = [];
-    if (!this.#isDaily()) {
+    if (this.#level !== null) {
       const opened = this.#recordSolvedLevel(this.#level);
       if (opened) notes.push(texts.stageOpened(opened));
     }
 
+    this.#feedback.win();
     const [fewest] = await Promise.all([this.#fewest, this.#scene.celebrate()]);
     const fewestMoves = fewest?.moves ?? moves;
     const stars = starsFor(moves, fewestMoves);
     let attempts = null;
     if (this.#isDaily()) {
-      const { progress, earnedHint } = recordDailyWin(
-        this.#progress,
-        localDateKey(this.#puzzleDay)
-      );
+      const day = localDateKey(this.#puzzleDay);
+      const { progress, earnedHint } = recordDailyWin(this.#progress, day);
       this.#setProgress(progress);
       if (earnedHint) notes.push(texts.earnedHint);
-    } else {
-      const { progress, earnedUndo } = recordLevelWin(this.#progress, this.#level, {
-        moves,
-        stars
-      });
+      // The clock runs from when the puzzle was opened; a restart does not reset it.
+      const seconds = Math.max(1, Math.round((this.#now().getTime() - this.#startedAt) / 1000));
+      this.#onDailySolved(day, { moves, seconds, stars });
+    } else if (this.#level !== null) {
+      const { progress, earnedUndo } = recordLevelWin(
+        this.#progress,
+        this.#level,
+        { moves, stars },
+        { limitedUndo: this.#settings().undoLimit !== null }
+      );
       this.#setProgress(progress);
       if (earnedUndo) notes.push(texts.earnedUndo);
       attempts = progress.records[this.#level].attempts.slice().reverse();
@@ -445,7 +528,12 @@ export class GameController {
       fewestLabel: texts.fewestMoves(fewest?.proven ?? true),
       notes,
       attempts,
-      continueLabel: this.#isDaily() ? texts.backToLevels : texts.nextLevel
+      continueLabel: this.#custom?.fromEditor
+        ? texts.backToEditor
+        : this.#level === null
+          ? texts.backToLevels
+          : texts.nextLevel,
+      leaderboard: this.#isDaily()
     });
   }
 
@@ -466,7 +554,12 @@ export class GameController {
   /** Whether an undo is possible: within the level's limit, or with a spare undo. */
   #canUndo() {
     const session = this.#session;
-    return session.canUndo || (session.hasMoves && this.#progress.spareUndos > 0);
+    return session.canUndo || (session.hasMoves && this.#spareUndos() > 0);
+  }
+
+  /** Spare undos the puzzle on the board can use: on numbered levels with a limit only. */
+  #spareUndos() {
+    return this.#level !== null && this.#session.undosLeft !== null ? this.#progress.spareUndos : 0;
   }
 
   #levelMenuModel() {
@@ -503,6 +596,11 @@ export class GameController {
     });
 
     return {
+      editor: {
+        title: texts.editorCardTitle,
+        text: texts.editorCardText,
+        action: texts.editorCardAction
+      },
       daily: {
         title: texts.dailyCardTitle,
         date: texts.dailyCardDate(today),
@@ -547,11 +645,15 @@ export class GameController {
   }
 
   #isDaily() {
-    return this.#progress.mode === 'daily';
+    return !this.#custom && this.#progress.mode === 'daily';
   }
 
   /** How the puzzle on the board is played. */
   #settings() {
+    if (this.#custom) {
+      const { hidden, undoLimit, capacity } = this.#custom.puzzle;
+      return { hiddenColors: hidden, undoLimit, capacity };
+    }
     return this.#isDaily() ? DAILY_SETTINGS : levelSettings(this.#level);
   }
 
@@ -563,6 +665,7 @@ export class GameController {
   }
 
   #title() {
+    if (this.#custom) return texts.customTitle(this.#custom.fromEditor);
     return this.#isDaily()
       ? texts.dailyTitle(
           this.#puzzleDay,
@@ -573,19 +676,21 @@ export class GameController {
 
   #refreshHud() {
     const session = this.#session;
-    const { spareUndos, hints } = this.#progress;
-    // Spare undos only matter on levels with a limit.
-    const spare = session.undosLeft === null ? 0 : spareUndos;
+    const { hints } = this.#progress;
+    const spare = this.#spareUndos();
     this.#hud.render({
       title: this.#title(),
-      subtitle: this.#isDaily()
-        ? texts.moves(session.moveCount)
-        : this.#levelSubtitle(session.moveCount),
+      subtitle: this.#custom
+        ? texts.customSubtitle(rulesOf(this.#custom.puzzle), session.moveCount)
+        : this.#isDaily()
+          ? texts.moves(session.moveCount)
+          : this.#levelSubtitle(session.moveCount),
       canUndo: this.#canUndo(),
       undoCount: texts.undoCount(session.undosLeft, spare),
       undoLabel: texts.undoLabel(session.undosLeft, spare),
       hintCount: String(hints),
-      hintLabel: texts.hintLabel(hints)
+      hintLabel: texts.hintLabel(hints),
+      levelsLabel: this.#custom?.fromEditor ? texts.editorButton : texts.levelsButton
     });
   }
 }

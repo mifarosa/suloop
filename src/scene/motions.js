@@ -51,6 +51,9 @@ export function melt(animator, tube) {
   );
 }
 
+/** When a dropping cap first touches the mouth, in milliseconds after it starts. */
+export const CAP_LANDS_MS = Math.round(DURATION_MS.capOn * 0.45);
+
 /** Animation key for a tube's cap. */
 export function capKey(tube) {
   return `cap-${tube.index}`;

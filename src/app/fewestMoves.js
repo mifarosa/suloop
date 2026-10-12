@@ -1,11 +1,10 @@
-import { createDailyPuzzle, createLevelPuzzle } from '../game/levels.js';
-import { fewestMoves } from '../game/shortest.js';
+import { fewestMovesOfPuzzle } from '../game/puzzleFewest.js';
 
 /**
  * Returns a function that works out the fewest moves of a puzzle in a background worker, so
  * the search never makes the game stutter, and remembers the answers. Without workers (or if
  * the worker fails) it works them out on the page instead. It never rejects.
- * @returns {(puzzle: { level: number } | { day: string }) =>
+ * @returns {(puzzle: { level: number } | { day: string } | { custom: object }) =>
  *   Promise<{ moves: number, proven: boolean } | null>}
  */
 export function createFewestMovesFinder() {
@@ -56,9 +55,7 @@ export function createFewestMovesFinder() {
 
 function workOutHere(puzzle) {
   try {
-    const { tubes, board } =
-      puzzle.level !== undefined ? createLevelPuzzle(puzzle.level) : createDailyPuzzle(puzzle.day);
-    return fewestMoves(tubes, { board });
+    return fewestMovesOfPuzzle(puzzle);
   } catch {
     return null;
   }

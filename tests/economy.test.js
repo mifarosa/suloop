@@ -3,6 +3,7 @@ import { recordDailyWin, recordLevelWin, spendHint, spendSpareUndo } from '../sr
 import { INITIAL_PROGRESS } from '../src/app/progress.js';
 
 const start = () => ({ ...INITIAL_PROGRESS });
+const limited = { limitedUndo: true };
 
 describe('hints', () => {
   it('starts with two and costs one each', () => {
@@ -40,7 +41,7 @@ describe('level records', () => {
       [33, 1],
       [28, 1]
     ]) {
-      ({ progress } = recordLevelWin(progress, 7, { moves, stars }));
+      ({ progress } = recordLevelWin(progress, 7, { moves, stars }, limited));
     }
     expect(progress.records[7]).toEqual({
       best: 3,
@@ -55,20 +56,32 @@ describe('level records', () => {
   });
 
   it('earns a spare undo for the first three-star solution of a level only', () => {
-    let { progress, earnedUndo } = recordLevelWin(start(), 4, { moves: 15, stars: 2 });
+    let { progress, earnedUndo } = recordLevelWin(start(), 4, { moves: 15, stars: 2 }, limited);
     expect(earnedUndo).toBe(false);
 
-    ({ progress, earnedUndo } = recordLevelWin(progress, 4, { moves: 12, stars: 3 }));
+    ({ progress, earnedUndo } = recordLevelWin(progress, 4, { moves: 12, stars: 3 }, limited));
     expect(earnedUndo).toBe(true);
     expect(progress.spareUndos).toBe(1);
 
-    ({ progress, earnedUndo } = recordLevelWin(progress, 4, { moves: 12, stars: 3 }));
+    ({ progress, earnedUndo } = recordLevelWin(progress, 4, { moves: 12, stars: 3 }, limited));
     expect(earnedUndo).toBe(false);
     expect(progress.spareUndos).toBe(1);
 
-    ({ progress, earnedUndo } = recordLevelWin(progress, 5, { moves: 9, stars: 3 }));
+    ({ progress, earnedUndo } = recordLevelWin(progress, 5, { moves: 9, stars: 3 }, limited));
     expect(earnedUndo).toBe(true);
     expect(progress.spareUndos).toBe(2);
+  });
+
+  it('earns no spare undo where undos are unlimited, though it keeps the record', () => {
+    const { progress, earnedUndo } = recordLevelWin(
+      start(),
+      3,
+      { moves: 9, stars: 3 },
+      { limitedUndo: false }
+    );
+    expect(earnedUndo).toBe(false);
+    expect(progress.spareUndos).toBe(0);
+    expect(progress.records[3]).toEqual({ best: 3, attempts: [{ moves: 9, stars: 3 }] });
   });
 
   it('spends spare undos one at a time', () => {

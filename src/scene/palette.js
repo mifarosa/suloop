@@ -25,5 +25,41 @@ export const HIDDEN_MARK_COLOR = '#c9d1ee';
 export const ICE_COLOR = 'rgba(190, 225, 255, 0.55)';
 export const LOCK_INK = '#0b1430';
 
-/** Confetti: the brightest liquid colors, so it matches the tubes it celebrates. */
-export const CONFETTI_COLORS = [0, 1, 2, 3, 4, 5, 6, 7, 10].map((color) => LIQUID_COLORS[color]);
+/** Neon Gece: the same twelve hues, lit up, to glow on a dark night. */
+export const NEON_COLORS = [
+  '#ff3864', // red
+  '#3d7bff', // blue
+  '#2bff88', // green
+  '#ffe94d', // yellow
+  '#b14dff', // purple
+  '#ff8a1f', // orange
+  '#ff4fd8', // pink
+  '#19f0e0', // teal
+  '#d9a066', // brown, as warm sand
+  '#e4e8ff', // gray, as white light
+  '#c6ff1a', // lime
+  '#5b4bff' // navy, as indigo
+];
+
+/** Kokteyl Bar: the same hues as drinks, warmer, for a bar's amber light. */
+export const COCKTAIL_COLORS = [
+  '#e63946', // strawberry daiquiri
+  '#1e90ff', // blue curaçao
+  '#52b788', // mojito
+  '#ffd166', // lemonade
+  '#9d4edd', // grape
+  '#f77f00', // spritz
+  '#ff6fae', // cosmopolitan
+  '#2ec4b6', // blue lagoon
+  '#7f4f24', // cola
+  '#efe6d2', // piña colada
+  '#a7c957', // lime
+  '#5a189a' // blackberry
+];
+
+/** Confetti: the brightest colors of a palette, so it matches the tubes it celebrates. */
+export function confettiColors(palette = LIQUID_COLORS) {
+  return [0, 1, 2, 3, 4, 5, 6, 7, 10].map((color) => palette[color]);
+}
+
+export const CONFETTI_COLORS = confettiColors();
