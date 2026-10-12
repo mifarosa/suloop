@@ -1475,3 +1475,26 @@ button.icon {
     padding: 8px 12px;
   }
 }
+
+/* The daily puzzle's card: today's result and the streak under the date. */
+.daily-result,
+.daily-streak-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.daily-result {
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.daily-streak-line {
+  color: var(--star);
+  font-family: var(--font-display);
+  font-weight: 600;
+}
