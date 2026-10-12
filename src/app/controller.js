@@ -1,15 +1,16 @@
 import {
-  CHAPTER_LEVEL_COUNT,
-  chapterIdOfLevel,
-  CHAPTERS,
   createDailyPuzzle,
   createLevelPuzzle,
   DAILY_SETTINGS,
-  isMasterLevel,
+  levelCountOf,
   levelSettings,
-  LEVELS_PER_CHAPTER,
+  MASTER_STAGE,
   rulesFirstUsedAt,
-  specialRules
+  specialRules,
+  STAGE_LEVEL_COUNT,
+  STAGE_STARTS,
+  stageOfLevel,
+  STAGES
 } from '../game/levels.js';
 import { GameSession } from '../game/session.js';
 import { localDateKey } from './calendar.js';
@@ -281,12 +282,11 @@ export class GameController {
     const firstSolve = level > this.#progress.solved;
     this.#updateProgress({ solved: Math.max(this.#progress.solved, level), current: level + 1 });
 
-    // Master levels run on without chapters, so only the chapters announce what comes next.
-    const opensChapter = firstSolve && !isMasterLevel(level) && level % LEVELS_PER_CHAPTER === 0;
+    const next = level + 1;
+    const opensStage =
+      firstSolve && (STAGE_STARTS.includes(next) || next === STAGE_LEVEL_COUNT + 1);
     return {
-      message: opensChapter
-        ? `${solvedIn} ${texts.chapterOpened(chapterIdOfLevel(level + 1))}`
-        : solvedIn,
+      message: opensStage ? `${solvedIn} ${texts.stageOpened(stageOfLevel(next).id)}` : solvedIn,
       continueLabel: texts.nextLevel
     };
   }
@@ -296,32 +296,31 @@ export class GameController {
     const today = this.#now();
     const dailySolved = dailyDone === localDateKey(today);
 
-    const chapters = CHAPTERS.map((chapter, index) => {
-      const levels = this.#levelTiles(index * LEVELS_PER_CHAPTER + 1, LEVELS_PER_CHAPTER);
+    const chapters = STAGES.map((stage, index) => {
+      const count = levelCountOf(stage);
+      const levels = this.#levelTiles(STAGE_STARTS[index], count);
       return {
-        id: chapter.id,
-        name: texts.chapterName(chapter.id),
-        detail: texts.chapterDetail(chapter),
-        progress: texts.chapterProgress(countSolved(levels), LEVELS_PER_CHAPTER),
-        difficulty: index + 1,
+        id: stage.id,
+        name: texts.stageName(stage.id),
+        detail: texts.stageDetail(stage.id, stage.undoLimit),
+        progress: texts.chapterProgress(countSolved(levels), count),
+        // Two stages to a bar, so the meter fills up toward the end.
+        difficulty: Math.min(4, Math.ceil((index + 1) / 2)),
         levels
       };
     });
 
     // The master levels never end, so the list shows them a block at a time: up to the end of
     // the block holding the furthest open level, and at least the first block.
-    const openMasterLevels = lastOpenLevel(this.#progress) - CHAPTER_LEVEL_COUNT;
-    const shownBlocks = Math.max(1, Math.ceil(openMasterLevels / LEVELS_PER_CHAPTER));
-    const masterLevels = this.#levelTiles(
-      CHAPTER_LEVEL_COUNT + 1,
-      shownBlocks * LEVELS_PER_CHAPTER
-    );
+    const openMasterLevels = lastOpenLevel(this.#progress) - STAGE_LEVEL_COUNT;
+    const shownBlocks = Math.max(1, Math.ceil(openMasterLevels / MASTER_BLOCK));
+    const masterLevels = this.#levelTiles(STAGE_LEVEL_COUNT + 1, shownBlocks * MASTER_BLOCK);
     chapters.push({
-      id: 'master',
-      name: texts.chapterName('master'),
-      detail: texts.masterDetail,
+      id: MASTER_STAGE.id,
+      name: texts.stageName(MASTER_STAGE.id),
+      detail: texts.stageDetail(MASTER_STAGE.id, MASTER_STAGE.undoLimit),
       progress: texts.masterProgress(countSolved(masterLevels)),
-      difficulty: CHAPTERS.length,
+      difficulty: 4,
       levels: masterLevels
     });
 
@@ -372,6 +371,13 @@ export class GameController {
     return this.#isDaily() ? DAILY_SETTINGS : levelSettings(this.#level);
   }
 
+  /** The stage, then the rules the level adds to the stage's own, then the moves. */
+  #levelSubtitle(moveCount) {
+    const stage = stageOfLevel(this.#level);
+    const extras = specialRules(this.#settings()).filter((rule) => rule !== stage.rule);
+    return texts.levelSubtitle(stage.id, extras, moveCount);
+  }
+
   #refreshHud() {
     const moveCount = this.#session.moveCount;
     const daily = this.#isDaily();
@@ -382,18 +388,15 @@ export class GameController {
             this.#progress.dailyDone === localDateKey(this.#puzzleDay)
           )
         : texts.levelTitle(this.#level),
-      subtitle: daily
-        ? texts.moves(moveCount)
-        : texts.levelSubtitle(
-            chapterIdOfLevel(this.#level),
-            specialRules(this.#settings()),
-            moveCount
-          ),
+      subtitle: daily ? texts.moves(moveCount) : this.#levelSubtitle(moveCount),
       canUndo: this.#session.canUndo,
       undoLabel: texts.undo(this.#session.undosLeft)
     });
   }
 }
+
+/** How many master levels the level list adds at a time. */
+const MASTER_BLOCK = 10;
 
 function countSolved(levels) {
   return levels.filter((level) => level.state === 'solved').length;

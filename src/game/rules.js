@@ -183,7 +183,7 @@ export class Board {
     const color = topColor(tubes[from]);
     tubes[from].length -= amount;
     const target = tubes[to];
-    const insertAt = this.isOil(color) ? target.length : this.#waterCount(target);
+    const insertAt = this.isOil(color) ? target.length : this.waterCount(target);
     target.splice(insertAt, 0, ...Array(amount).fill(color));
 
     const fills = position.fills.slice();
@@ -213,14 +213,15 @@ export class Board {
     return traits;
   }
 
-  #waterCount(tube) {
+  /** How many units of a tube are water: everything under its oil. */
+  waterCount(tube) {
     let count = tube.length;
     while (count > 0 && this.isOil(tube[count - 1])) count--;
     return count;
   }
 
   #topWater(tube) {
-    const count = this.#waterCount(tube);
+    const count = this.waterCount(tube);
     return count > 0 ? tube[count - 1] : undefined;
   }
 

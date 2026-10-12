@@ -61,8 +61,8 @@ export function generatePuzzle(seed, shape) {
 
     // Only boards with special rules draw these, so plain boards deal as they always have.
     const oilColors = oilColorCount > 0 ? pick(random, range(colorCount), oilColorCount) : [];
-    const lock = lockedTubeCount > 0 ? pickLock(random, tubes, colorCount) : null;
-    const board = createBoard(shape, oilColors, lock);
+    const locks = lockedTubeCount > 0 ? pickLocks(random, tubes, colorCount, lockedTubeCount) : [];
+    const board = createBoard(shape, oilColors, locks);
     if (oilColors.length > 0) floatOil(tubes, board);
 
     if (!tubes.some(startsTooEasy) && solve(tubes, { board })) return { tubes, board };
@@ -70,8 +70,8 @@ export function generatePuzzle(seed, shape) {
   return null;
 }
 
-/** The rules for a shape, with the oil colors and the lock that were drawn for it. */
-function createBoard(shape, oilColors, lock) {
+/** The rules for a shape, with the oil colors and the locks that were drawn for it. */
+function createBoard(shape, oilColors, locks) {
   const sizes = tubeSizes(shape);
   const { colorCount, emptyTubeCount = 2, halfTubeCount = 0, capacity = TUBE_CAPACITY } = shape;
   const { oneWayTubeCount = 0, crackedTubeCount = 0 } = shape;
@@ -87,7 +87,7 @@ function createBoard(shape, oilColors, lock) {
     cracked: Object.fromEntries(
       range(crackedTubeCount).map((i) => [firstCracked + i, CRACKED_TUBE_FILLS])
     ),
-    locks: lock ? { [lock.tube]: lock.key } : {}
+    locks: Object.fromEntries(locks.map(({ tube, key }) => [tube, key]))
   });
 }
 
@@ -116,13 +116,24 @@ function floatOil(tubes, board) {
 }
 
 /**
- * Locks one filled tube, with a key color that has no unit inside it; otherwise the key could
- * never be completed.
+ * Locks `count` filled tubes, each with a key color that has no unit inside it; otherwise the
+ * key could never be completed. Two locks never hold each other's key, which would lock both
+ * for good.
  */
-function pickLock(random, tubes, colorCount) {
-  const tube = Math.floor(random() * colorCount);
-  const keys = range(colorCount).filter((color) => !tubes[tube].includes(color));
-  return { tube, key: keys[Math.floor(random() * keys.length)] };
+function pickLocks(random, tubes, colorCount, count) {
+  const locks = [];
+  // Gives up after a while and makes do with fewer locks; with six colors or more it never has to.
+  for (let tries = 0; locks.length < count && tries < 50; tries++) {
+    const tube = Math.floor(random() * colorCount);
+    const keys = range(colorCount).filter((color) => !tubes[tube].includes(color));
+    const key = keys[Math.floor(random() * keys.length)];
+    const clashes = locks.some(
+      (lock) =>
+        lock.tube === tube || (tubes[lock.tube].includes(key) && tubes[tube].includes(lock.key))
+    );
+    if (!clashes) locks.push({ tube, key });
+  }
+  return locks;
 }
 
 function pick(random, items, count) {

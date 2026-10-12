@@ -10,12 +10,17 @@
   --accent: #7dd3fc;
   --accent-ink: #0b1430;
   --scrim: #0b0e1d8c;
-  /* Difficulty colors of the level chapters, from easy to master. */
+  /* Colors of the stages, from green to red as they get harder, and purple for master. */
   --easy: #22c55e;
-  --medium: #eab308;
-  --hard: #f97316;
-  --expert: #ef4444;
+  --one-way: #84cc16;
+  --tall: #eab308;
+  --hidden: #f59e0b;
+  --cracked: #f97316;
+  --locked: #ef4444;
+  --half: #fb7185;
+  --oil: #f472b6;
   --master: #a855f7;
+  --error: #ef4444;
   /* Text on a tile filled with a difficulty color; dark in both themes. */
   --on-difficulty: #0b1430;
   /* Read by the scene to tint the glass tubes. */
@@ -39,9 +44,11 @@
     --accent-ink: #ffffff;
     --scrim: #d6deef8c;
     --easy: #16a34a;
-    --medium: #ca8a04;
-    --hard: #ea580c;
-    /* Expert and master stay as in the dark theme: darker, the dark tile numbers lose contrast. */
+    --one-way: #65a30d;
+    --tall: #ca8a04;
+    --hidden: #d97706;
+    --cracked: #ea580c;
+    /* The redder stages and master stay as in the dark theme: darker, the dark tile numbers would lose contrast. */
     --glass: #5a6a99;
     color-scheme: light;
   }
@@ -167,7 +174,10 @@ button.primary {
   position: fixed;
   left: 50%;
   bottom: calc(env(safe-area-inset-bottom, 0px) + 24px);
-  max-width: calc(100% - 32px);
+  /* Without a width, a box at left: 50% shrinks to half the screen and long notes wrap early. */
+  width: max-content;
+  max-width: min(32rem, calc(100% - 32px));
+  box-sizing: border-box;
   padding: 10px 16px;
   border: 1px solid var(--line);
   border-radius: 12px;
@@ -342,14 +352,26 @@ button.icon {
 .chapter[data-chapter='easy'] {
   --difficulty: var(--easy);
 }
-.chapter[data-chapter='medium'] {
-  --difficulty: var(--medium);
+.chapter[data-chapter='oneWay'] {
+  --difficulty: var(--one-way);
 }
-.chapter[data-chapter='hard'] {
-  --difficulty: var(--hard);
+.chapter[data-chapter='tall'] {
+  --difficulty: var(--tall);
 }
-.chapter[data-chapter='expert'] {
-  --difficulty: var(--expert);
+.chapter[data-chapter='hidden'] {
+  --difficulty: var(--hidden);
+}
+.chapter[data-chapter='cracked'] {
+  --difficulty: var(--cracked);
+}
+.chapter[data-chapter='locked'] {
+  --difficulty: var(--locked);
+}
+.chapter[data-chapter='half'] {
+  --difficulty: var(--half);
+}
+.chapter[data-chapter='oil'] {
+  --difficulty: var(--oil);
 }
 .chapter[data-chapter='master'] {
   --difficulty: var(--master);
@@ -545,7 +567,7 @@ button.icon {
 }
 
 .card.transfer .transfer-message {
-  color: var(--expert);
+  color: var(--error);
   font-size: 0.85rem;
 }
 

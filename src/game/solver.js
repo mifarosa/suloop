@@ -4,8 +4,9 @@ import { Board, topRun } from './rules.js';
  * Finds a sequence of moves that solves the puzzle with a depth-first search.
  *
  * Moves that can never help are skipped: pouring out of a complete tube, pouring a
- * single-colored tube into an empty one just like it, and trying more than one empty tube of
- * the same kind as the target (they are interchangeable). Positions are compared regardless
+ * single-colored tube into an empty one just like it, trying more than one empty tube of
+ * the same kind as the target (they are interchangeable), and pouring a second color into a
+ * one-way tube, which could then never become complete. Positions are compared regardless
  * of the order of interchangeable tubes (see Board#positionKey), so the same position reached
  * in a different arrangement is not searched twice.
  *
@@ -48,6 +49,9 @@ export function solve(start, { board = new Board(), maxNodes = 200_000, maxDepth
           triedEmpty.add(kind);
         }
         if (!board.canPour(position, from, to)) continue;
+        if (board.oneWay.has(to) && tubes[to].length > 0 && tubes[to][0] !== topRun(source).color) {
+          continue;
+        }
 
         path.push([from, to]);
         if (search(board.pour(position, from, to).position)) return true;
