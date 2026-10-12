@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { GameController } from '../src/app/controller.js';
+import { decodeProgressCode, encodeProgressCode } from '../src/app/progressCode.js';
 import { CHAPTER_LEVEL_COUNT, createLevelPuzzle, LEVELS_PER_CHAPTER } from '../src/game/levels.js';
 import { solve } from '../src/game/solver.js';
 
@@ -29,6 +30,10 @@ function fakeMenu() {
   return { show: vi.fn(), hide: vi.fn() };
 }
 
+function fakeTransfer() {
+  return { show: vi.fn(), hide: vi.fn(), showError: vi.fn() };
+}
+
 const TODAY = new Date(2026, 9, 9, 12, 0);
 
 const range = (first, last) => Array.from({ length: last - first + 1 }, (_, i) => first + i);
@@ -37,6 +42,7 @@ describe('GameController', () => {
   let scene;
   let hud;
   let menu;
+  let transfer;
   let saved;
 
   function createController(progress = {}) {
@@ -44,6 +50,7 @@ describe('GameController', () => {
       scene,
       hud,
       menu,
+      transfer,
       progress: { mode: 'level', solved: 0, current: 1, dailyDone: null, ...progress },
       saveProgress: (value) => saved.push(value),
       now: () => TODAY
@@ -67,6 +74,7 @@ describe('GameController', () => {
     scene = fakeScene();
     hud = fakeHud();
     menu = fakeMenu();
+    transfer = fakeTransfer();
     saved = [];
   });
 
@@ -294,5 +302,62 @@ describe('GameController', () => {
     expect(scene.showPuzzle).toHaveBeenLastCalledWith(createLevelPuzzle(2));
     expect(tile(1).state).toBe('solved');
     expect(tile(2)).toMatchObject({ state: 'open', playing: true });
+  });
+
+  describe('carrying progress to another device', () => {
+    it('shows the code of the solved levels in place of the level list', () => {
+      const controller = createController({ solved: 79, current: 12 });
+      controller.showLevels();
+      controller.showTransfer();
+
+      expect(menu.hide).toHaveBeenCalled();
+      expect(decodeProgressCode(transfer.show.mock.lastCall[0].code)).toBe(79);
+    });
+
+    it('takes over progress that is further along and goes to the next level', () => {
+      const controller = createController({ solved: 3, current: 2 });
+      controller.importProgress(encodeProgressCode(79));
+
+      expect(saved.at(-1)).toMatchObject({ mode: 'level', solved: 79, current: 80 });
+      expect(scene.showPuzzle).toHaveBeenLastCalledWith(createLevelPuzzle(80));
+      expect(transfer.hide).toHaveBeenCalled();
+      expect(hud.showToast).toHaveBeenCalledWith('İlerleme yüklendi: 79 seviye çözülmüş.');
+    });
+
+    it('never goes back to progress that is behind', () => {
+      const controller = createController({ solved: 85, current: 86 });
+      scene.showPuzzle.mockClear();
+      controller.importProgress(encodeProgressCode(79));
+
+      expect(saved).toEqual([]);
+      expect(scene.showPuzzle).not.toHaveBeenCalled();
+      expect(hud.showToast).toHaveBeenCalledWith(
+        'Bu cihazda zaten 85 seviye çözülmüş, ilerleme değişmedi.'
+      );
+    });
+
+    it('says in the dialog when a typed code is wrong', () => {
+      const controller = createController({ solved: 5, current: 6 });
+      controller.importProgress('ABCDE');
+
+      expect(transfer.showError).toHaveBeenCalledWith('Bu kod geçersiz. Harfleri kontrol et.');
+      expect(transfer.hide).not.toHaveBeenCalled();
+      expect(saved).toEqual([]);
+    });
+
+    it('says in a toast when the code in a link is wrong', () => {
+      const controller = createController();
+      controller.importProgress('ABCDE', { fromLink: true });
+
+      expect(hud.showToast).toHaveBeenCalledWith('Bu kod geçersiz. Harfleri kontrol et.');
+      expect(transfer.showError).not.toHaveBeenCalled();
+    });
+
+    it('leaves the daily puzzle for the levels when progress arrives', () => {
+      const controller = createController({ mode: 'daily', solved: 0, current: 1 });
+      controller.importProgress(encodeProgressCode(20));
+
+      expect(lastRender().title).toBe('Seviye 21');
+    });
   });
 });

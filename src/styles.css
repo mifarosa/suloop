@@ -262,8 +262,16 @@ button.primary {
   border-bottom: 1px solid var(--line);
 }
 
-.level-menu-header h2 {
+.level-menu-header h2,
+.dialog-header h2 {
   font-size: 1.5rem;
+}
+
+.level-menu-footer {
+  display: flex;
+  justify-content: center;
+  padding: 10px 16px 14px;
+  border-top: 1px solid var(--line);
 }
 
 button.icon {
@@ -454,6 +462,91 @@ button.icon {
 .daily-card[aria-current='true'] {
   outline: 2px solid var(--ink);
   outline-offset: 2px;
+}
+
+/* Carrying progress to another device. */
+.transfer {
+  box-sizing: border-box;
+  width: min(380px, 100%);
+  background: var(--panel-solid);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  justify-items: stretch;
+  text-align: left;
+}
+
+.dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.card.transfer p {
+  font-family: var(--font-display);
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.transfer-code {
+  padding: 12px;
+  border: 1px dashed var(--line);
+  border-radius: 12px;
+  font-family: var(--font-mono);
+  font-size: 1.6rem;
+  letter-spacing: 0.18em;
+  text-align: center;
+  /* The code is meant to be copied by hand, too. */
+  -webkit-user-select: all;
+  user-select: all;
+}
+
+.transfer-form {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.transfer-form label {
+  font-size: 0.92rem;
+}
+
+.transfer-row {
+  display: flex;
+  gap: 8px;
+}
+
+.transfer-row input {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-family: var(--font-mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.transfer-row input::placeholder {
+  color: var(--muted);
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.transfer-row input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.card.transfer .transfer-message {
+  color: var(--expert);
+  font-size: 0.85rem;
 }
 
 @media (prefers-reduced-motion: reduce) {

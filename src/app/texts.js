@@ -34,6 +34,13 @@ export const texts = {
   masterDetail: 'Sonsuz · 9–10 renk ya da tek boş tüp',
   chapterProgress: (solved, total) => `${solved}/${total}`,
   masterProgress: (solved) => `${solved} çözüldü`,
+  // Carrying progress to another device
+  linkCopied: 'Kopyalandı ✓',
+  copyFailed: 'Kopyalanamadı. Kodu bir yere not al.',
+  transferInvalid: 'Bu kod geçersiz. Harfleri kontrol et.',
+  transferLoaded: (solved) => `İlerleme yüklendi: ${solved} seviye çözülmüş.`,
+  transferUnchanged: (solved) => `Bu cihazda zaten ${solved} seviye çözülmüş, ilerleme değişmedi.`,
+
   levelTileLabel: (level, state) =>
     ({
       solved: `Seviye ${level}, çözüldü`,

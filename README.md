@@ -29,8 +29,10 @@ Renkli suları tüplere ayırdığın bulmaca oyunu. Tarayıcıda çalışır, k
 - Günün bulmacası: herkes aynı gün aynı bulmacayı oynar
 - Her seviye üretilirken çözücüyle denenir; çözülemeyen seviye çıkmaz
 - Geri al, baştan başla ve ipucu ("2. tüpten 5. tüpe dök")
-- Kaldığın seviye tarayıcıda saklanır
-- Canvas 2D ile çizilen cam tüpler, döküm animasyonu, açık/koyu tema; ek kütüphane yok, oyun 21 KB
+- Kaldığın seviye tarayıcıda saklanır. "İlerlemeyi taşı" ile kısa bir kod ya da bağlantı alıp
+  başka bir cihazda (ya da tarayıcı verisi silindikten sonra) kaldığın yerden devam edersin.
+  Yükleme ilerlemeyi hiç geri götürmez: eski bir kod hiçbir şeyi silmez
+- Canvas 2D ile çizilen cam tüpler, döküm animasyonu, açık/koyu tema; ek kütüphane yok, oyun 25 KB
 
 ## Proje yapısı
 
@@ -57,6 +59,9 @@ src/
     hud.js        Başlık, butonlar, bildirim ve tebrik penceresi
     levelMenu.js  Seviyeler ekranı
     progress.js   İlerlemenin kaydı
+    progressCode.js İlerleme kodu ve bağlantısı
+    transferDialog.js "İlerlemeyi taşı" penceresi
+    overlay.js    Pencerelerin açılıp kapanması
     texts.js      Oyuncunun gördüğü tüm metinler
   main.js         Giriş noktası
 tests/            Birim testleri
