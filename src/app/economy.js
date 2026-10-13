@@ -16,7 +16,7 @@ export const INITIAL_HINTS = 2;
 /** How many of a level's solutions its record keeps. */
 export const ATTEMPTS_KEPT = 5;
 /** The most spare undos a player can keep; a full stock earns no more. */
-export const MAX_SPARE_UNDOS = 9;
+export const MAX_SPARE_UNDOS = 5;
 
 /**
  * @param {import('./progress.js').Progress} progress

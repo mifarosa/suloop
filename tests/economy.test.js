@@ -90,12 +90,12 @@ describe('level records', () => {
     expect(progress.records[3]).toEqual({ best: 3, attempts: [{ moves: 9, stars: 3 }] });
   });
 
-  it('keeps at most nine spare undos', () => {
+  it('keeps at most five spare undos', () => {
     const full = { ...start(), spareUndos: MAX_SPARE_UNDOS };
     const { progress, earnedUndo } = recordLevelWin(full, 8, { moves: 12, stars: 3 }, limited);
-    expect(MAX_SPARE_UNDOS).toBe(9);
+    expect(MAX_SPARE_UNDOS).toBe(5);
     expect(earnedUndo).toBe(false);
-    expect(progress.spareUndos).toBe(9);
+    expect(progress.spareUndos).toBe(5);
     expect(progress.records[8].best).toBe(3);
   });
 

@@ -48,7 +48,7 @@ describe('normalizeProgress', () => {
   });
 
   it('trims a stock of spare undos saved before it had a limit', () => {
-    expect(normalizeProgress({ spareUndos: 40 }).spareUndos).toBe(9);
+    expect(normalizeProgress({ spareUndos: 40 }).spareUndos).toBe(5);
   });
 
   it('drops records that make no sense', () => {
