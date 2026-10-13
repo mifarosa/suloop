@@ -214,7 +214,7 @@ describe('GameController', () => {
     await playSolution(controller, createLevelPuzzle(16), { shortest: true });
     expect(lastWin()).toMatchObject({
       stars: 3,
-      notes: ['İlk kez 3 yıldız: +1 ekstra geri alma!']
+      notes: ['+1 ekstra geri alma']
     });
     expect(saved.at(-1).spareUndos).toBe(1);
 
@@ -778,7 +778,7 @@ describe('GameController', () => {
         ],
         supplies: [
           'Bu seviyede 3 geri alma hakkından 3 tanesi kaldı.',
-          expect.stringMatching(/^1 ekstra geri alman var\./),
+          expect.stringMatching(/^1 ekstra geri alman var \(en fazla 5 birikir\)\./),
           expect.stringMatching(/^4 ipucun var\./)
         ],
         attempts: [

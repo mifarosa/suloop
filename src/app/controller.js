@@ -16,7 +16,13 @@ import { boardOf, rulesOf } from '../game/customPuzzle.js';
 import { GameSession } from '../game/session.js';
 import { starsFor, twoStarLimit } from '../game/stars.js';
 import { localDateKey } from './calendar.js';
-import { recordDailyWin, recordLevelWin, spendHint, spendSpareUndo } from './economy.js';
+import {
+  MAX_SPARE_UNDOS,
+  recordDailyWin,
+  recordLevelWin,
+  spendHint,
+  spendSpareUndo
+} from './economy.js';
 import { lastOpenLevel } from './progress.js';
 import { decodeProgressCode, encodeProgressCode } from './progressCode.js';
 import { texts } from './texts.js';
@@ -223,7 +229,9 @@ export class GameController {
       starsPending: texts.fewestPending,
       supplies: [
         texts.undoSupply(settings.undoLimit, this.#session.undosLeft),
-        ...(settings.undoLimit === null ? [] : [texts.spareUndoSupply(this.#progress.spareUndos)]),
+        ...(settings.undoLimit === null
+          ? []
+          : [texts.spareUndoSupply(this.#progress.spareUndos, MAX_SPARE_UNDOS)]),
         texts.hintSupply(this.#progress.hints)
       ],
       attempts: attempts && attempts.slice().reverse(),
