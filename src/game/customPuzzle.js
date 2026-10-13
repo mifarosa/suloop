@@ -1,6 +1,6 @@
 import { CRACKED_TUBE_FILLS } from './generator.js';
 import { Board, HALF_TUBE_SIZE, TALL_TUBE_CAPACITY, TUBE_CAPACITY } from './rules.js';
-import { bestOfTries, solveShortest } from './shortest.js';
+import { closeToShortest, solveShortest } from './shortest.js';
 import { solve } from './solver.js';
 
 // A custom puzzle may have no solution at all, and a search for the shortest one would then
@@ -223,10 +223,10 @@ export function fewestMovesOf(puzzle) {
   const any = solve(tubes, { board, maxNodes: ANY_SOLUTION_LIMIT });
   if (!any) return null;
   const shortest = solveShortest(tubes, { board, maxNodes: SHORTEST_SOLUTION_LIMIT });
-  // Too big to search for the shortest: the best of a few tries, never longer than the first.
+  // Too big to search for the shortest: the shortest that quicker searches find.
   if (!shortest) {
-    const tries = bestOfTries(tubes, board, ANY_SOLUTION_LIMIT);
-    return { moves: Math.min(any.length, tries?.moves ?? any.length), proven: false };
+    const close = closeToShortest(tubes, board, SHORTEST_SOLUTION_LIMIT);
+    return { moves: Math.min(any.length, close?.moves ?? any.length), proven: false };
   }
   return { moves: shortest.length, proven: true };
 }

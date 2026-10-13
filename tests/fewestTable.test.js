@@ -2,7 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { FEWEST_MOVES } from '../src/game/fewestTable.js';
 import { createDailyPuzzle, createLevelPuzzle, STAGE_LEVEL_COUNT } from '../src/game/levels.js';
 import { fewestMovesOfPuzzle } from '../src/game/puzzleFewest.js';
-import { bestOfTries, fewestMoves, SOLVE_TRIES, solveShortest } from '../src/game/shortest.js';
+import {
+  bestOfTries,
+  closeToShortest,
+  fewestMoves,
+  SOLVE_TRIES,
+  solveShortest
+} from '../src/game/shortest.js';
 import { solve } from '../src/game/solver.js';
 
 describe('the table of fewest moves', () => {
@@ -33,6 +39,17 @@ describe('the table of fewest moves', () => {
   });
 });
 
+/** Plays the moves and says whether they solve the puzzle. */
+function solves(tubes, board, moves) {
+  let position = board.start(tubes);
+  for (const [from, to] of moves) {
+    const { position: after, amount } = board.pour(position, from, to);
+    if (amount === 0) return false;
+    position = after;
+  }
+  return board.isSolved(position);
+}
+
 describe('best of a few tries', () => {
   const { tubes, board } = createLevelPuzzle(120);
 
@@ -45,8 +62,22 @@ describe('best of a few tries', () => {
     expect(bestOfTries(tubes, board)).toEqual(tries);
   });
 
-  it('is what a puzzle too big for the shortest search gets', () => {
-    expect(fewestMoves(tubes, { board, maxNodes: 5 })).toEqual(bestOfTries(tubes, board));
+  it('is what a puzzle too big for the shortest search gets, with quicker searches', () => {
+    expect(fewestMoves(tubes, { board, maxNodes: 5 })).toEqual(closeToShortest(tubes, board));
+  });
+
+  it('is much closer to the fewest moves with a search that hurries to the goal', () => {
+    const fewest = FEWEST_MOVES[119];
+    const hurried = solveShortest(tubes, { board, weight: 2.5 });
+    expect(solves(tubes, board, hurried)).toBe(true);
+    expect(hurried.length).toBeGreaterThanOrEqual(fewest);
+    expect(hurried.length).toBeLessThanOrEqual(fewest * 1.3);
+
+    const close = closeToShortest(tubes, board);
+    expect(close.proven).toBe(false);
+    expect(close.moves).toBeGreaterThanOrEqual(fewest);
+    expect(close.moves).toBeLessThanOrEqual(bestOfTries(tubes, board).moves);
+    expect(closeToShortest(tubes, board)).toEqual(close);
   });
 
   it('has nothing to say about a puzzle without a solution', () => {

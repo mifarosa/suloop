@@ -54,7 +54,8 @@ Renkli suları tüplere ayırdığın bulmaca oyunu. Tarayıcıda çalışır, k
   (`npm run bake`, `src/game/fewestTable.js`), herkeste aynıdır ve beklemeden görünür; seviyeler
   değişirse bir test tabloyu yeniletene kadar kırmızı kalır. Günlük bulmaca, Usta seviyeleri ve
   atölye bulmacaları oyun içinde aranır: önce kesin en kısa çözüm; bulmaca çok büyükse sabit
-  tohumlu 4 denemenin en kısası (herkeste aynı sonuç, "bulunan en kısa" diye işaretlenir)
+  hedefe acele eden ağırlıklı A\* aramalarının ve sabit tohumlu denemelerin en kısası (genelde en azdan
+  en fazla birkaç hamle fazla; herkeste aynı sonuç, "bulunan en kısa" diye işaretlenir)
 - **İpucu hakkı:** 2 ipucuyla başlarsın. İpucu en kısa çözümün sonraki hamlesini gösterir ve 1
   hak harcar ve hamle sayına 1 ekler (yıldızı etkiler); geri alınca ikisi de geri gelmez, aynı durumda tekrar sormak ücretsizdir. Çıkmazdaysan hak
   gitmez. Günün bulmacasını çözünce (günde bir kez) 1 ipucu kazanırsın
