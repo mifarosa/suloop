@@ -11,7 +11,8 @@
     "test": "vitest run",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "bake": "node scripts/bakeFewest.mjs && prettier --write src/game/fewestTable.js"
   },
   "engines": {
     "node": ">=22.13"

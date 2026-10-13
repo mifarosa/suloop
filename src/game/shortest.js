@@ -1,5 +1,9 @@
 import { Board, topRun } from './rules.js';
+import { createRandom } from './random.js';
 import { solve } from './solver.js';
+
+/** How many times a puzzle too big to search for its shortest solution is tried. */
+export const SOLVE_TRIES = 4;
 
 /**
  * Finds the fewest moves that solve a puzzle, with an A* search.
@@ -14,11 +18,14 @@ import { solve } from './solver.js';
  * quicker search. The hardest levels need under 50,000.
  *
  * @param {import('./rules.js').Position | number[][]} start
- * @param {{ board?: Board, maxNodes?: number }} [options]
+ * @param {{ board?: Board, maxNodes?: number, weight?: number }} [options] weight: how much
+ *   the estimate of the moves left counts. 1 finds a shortest solution; more makes the search
+ *   head for the goal sooner, so it finds some solution quicker, a little longer than the
+ *   shortest, and the result is no longer proven to be one
  * @returns {Array<[number, number]> | null} the moves, or null when the search gave up or the
  *   puzzle has no solution
  */
-export function solveShortest(start, { board = new Board(), maxNodes = 200_000 } = {}) {
+export function solveShortest(start, { board = new Board(), maxNodes = 200_000, weight = 1 } = {}) {
   const position = Array.isArray(start) ? board.start(start) : start;
   const colors = countColors(position.tubes);
   const queue = new MinQueue();
@@ -27,7 +34,11 @@ export function solveShortest(start, { board = new Board(), maxNodes = 200_000 }
 
   const startKey = board.positionKey(position);
   seen.set(startKey, { moves: 0, parent: null, move: null });
-  queue.push(lowerBound(position.tubes, colors), 0, { position, key: startKey, moves: 0 });
+  queue.push(weight * lowerBound(position.tubes, colors), 0, {
+    position,
+    key: startKey,
+    moves: 0
+  });
 
   while (queue.size > 0) {
     const { position: current, key, moves } = queue.pop();
@@ -42,7 +53,7 @@ export function solveShortest(start, { board = new Board(), maxNodes = 200_000 }
       if (known && known.moves <= moves + 1) continue;
 
       seen.set(nextKey, { moves: moves + 1, parent: key, move: [from, to] });
-      const estimate = moves + 1 + lowerBound(next.tubes, colors);
+      const estimate = moves + 1 + weight * lowerBound(next.tubes, colors);
       queue.push(estimate, moves + 1, { position: next, key: nextKey, moves: moves + 1 });
     }
   }
@@ -168,6 +179,42 @@ function before(a, b) {
 export function fewestMoves(start, { board = new Board(), maxNodes = 250_000 } = {}) {
   const shortest = solveShortest(start, { board, maxNodes });
   if (shortest) return { moves: shortest.length, proven: true };
-  const any = solve(start, { board });
-  return any ? { moves: any.length, proven: false } : null;
+  return closeToShortest(start, board);
+}
+
+/** Search weights that trade the guarantee of the shortest solution for speed, in order. */
+const HURRIED_WEIGHTS = [1.5, 2.5, 4];
+
+/**
+ * For a puzzle too big to search for its shortest solution: the shortest found by searches
+ * that hurry toward the goal, usually only a few moves over the best, and, if all of them
+ * give up, by the best of a few seeded tries. Always the same answer for the same puzzle.
+ * @returns {{ moves: number, proven: false } | null} null when nothing found a solution
+ */
+export function closeToShortest(start, board, maxNodes = 200_000) {
+  let best = null;
+  for (const weight of HURRIED_WEIGHTS) {
+    const found = solveShortest(start, { board, maxNodes, weight });
+    if (found && (best === null || found.length < best)) best = found.length;
+  }
+  const tries = bestOfTries(start, board, maxNodes);
+  if (tries && (best === null || tries.moves < best)) best = tries.moves;
+  return best === null ? null : { moves: best, proven: false };
+}
+
+/**
+ * The shortest of a few solutions, each found with the moves tried in a different order.
+ * The orders come from fixed seeds, so the same puzzle always gives the same answer, on
+ * every device.
+ * @returns {{ moves: number, proven: false } | null} null when no try found a solution
+ */
+export function bestOfTries(start, board, maxNodes = 200_000) {
+  let best = null;
+  for (let attempt = 0; attempt < SOLVE_TRIES; attempt++) {
+    // The first try uses the usual order; the others shuffle it.
+    const random = attempt === 0 ? null : createRandom(attempt);
+    const found = solve(start, { board, maxNodes, random });
+    if (found && (best === null || found.length < best)) best = found.length;
+  }
+  return best === null ? null : { moves: best, proven: false };
 }
