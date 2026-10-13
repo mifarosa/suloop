@@ -1,5 +1,9 @@
 import { Board, topRun } from './rules.js';
+import { createRandom } from './random.js';
 import { solve } from './solver.js';
+
+/** How many times a puzzle too big to search for its shortest solution is tried. */
+export const SOLVE_TRIES = 4;
 
 /**
  * Finds the fewest moves that solve a puzzle, with an A* search.
@@ -168,6 +172,22 @@ function before(a, b) {
 export function fewestMoves(start, { board = new Board(), maxNodes = 250_000 } = {}) {
   const shortest = solveShortest(start, { board, maxNodes });
   if (shortest) return { moves: shortest.length, proven: true };
-  const any = solve(start, { board });
-  return any ? { moves: any.length, proven: false } : null;
+  return bestOfTries(start, board);
+}
+
+/**
+ * The shortest of a few solutions, each found with the moves tried in a different order.
+ * The orders come from fixed seeds, so the same puzzle always gives the same answer, on
+ * every device.
+ * @returns {{ moves: number, proven: false } | null} null when no try found a solution
+ */
+export function bestOfTries(start, board, maxNodes = 200_000) {
+  let best = null;
+  for (let attempt = 0; attempt < SOLVE_TRIES; attempt++) {
+    // The first try uses the usual order; the others shuffle it.
+    const random = attempt === 0 ? null : createRandom(attempt);
+    const found = solve(start, { board, maxNodes, random });
+    if (found && (best === null || found.length < best)) best = found.length;
+  }
+  return best === null ? null : { moves: best, proven: false };
 }

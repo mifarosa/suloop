@@ -12,12 +12,27 @@ import { Board, topRun } from './rules.js';
  *
  * @param {number[][] | import('./rules.js').Position} start the tubes, or a position with
  *   the fills of cracked tubes
- * @param {{ board?: Board, maxNodes?: number, maxDepth?: number }} [options] the board's rules
- *   (plain tubes of the usual capacity when left out), and limits: stop searching after this
- *   many positions or this many moves deep; the search then reports no solution
+ * @param {{ board?: Board, maxNodes?: number, maxDepth?: number, random?: () => number }}
+ *   [options] the board's rules (plain tubes of the usual capacity when left out), and limits:
+ *   stop searching after this many positions or this many moves deep; the search then reports
+ *   no solution. With `random`, moves are tried in a shuffled order, which finds a different
+ *   solution, often a shorter one; without it the order is always the same
  * @returns {Array<[number, number]> | null} `[from, to]` moves, or null when none was found
  */
-export function solve(start, { board = new Board(), maxNodes = 200_000, maxDepth = 400 } = {}) {
+export function solve(
+  start,
+  { board = new Board(), maxNodes = 200_000, maxDepth = 400, random = null } = {}
+) {
+  const order = (count) => {
+    const indexes = Array.from({ length: count }, (_, i) => i);
+    if (random) {
+      for (let i = count - 1; i > 0; i--) {
+        const j = Math.floor(random() * (i + 1));
+        [indexes[i], indexes[j]] = [indexes[j], indexes[i]];
+      }
+    }
+    return indexes;
+  };
   const visited = new Set();
   const path = [];
   let nodes = 0;
@@ -31,7 +46,7 @@ export function solve(start, { board = new Board(), maxNodes = 200_000, maxDepth
     visited.add(key);
 
     const { tubes, fills } = position;
-    for (let from = 0; from < tubes.length; from++) {
+    for (const from of order(tubes.length)) {
       if (!board.canPourFrom(position, from)) continue;
 
       const source = tubes[from];
@@ -39,7 +54,7 @@ export function solve(start, { board = new Board(), maxNodes = 200_000, maxDepth
       const sourceTraits = board.traitsOf(from);
       const triedEmpty = new Set();
 
-      for (let to = 0; to < tubes.length; to++) {
+      for (const to of order(tubes.length)) {
         if (to === from) continue;
         if (tubes[to].length === 0) {
           const traits = board.traitsOf(to);
