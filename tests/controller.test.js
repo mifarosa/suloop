@@ -176,7 +176,8 @@ describe('GameController', () => {
       notes: [],
       attempts: [{ moves: moves.length, stars: 1 }],
       continueLabel: 'Sonraki seviye',
-      leaderboard: false
+      leaderboard: false,
+      shareText: `suloop · Seviye 1 ⭐☆☆\n${moves.length} hamle (en az 9)`
     });
 
     controller.continueAfterWin();
@@ -506,6 +507,27 @@ describe('GameController', () => {
     expect(scene.highlight).toHaveBeenCalledTimes(2);
     expect(saved.at(-1).hints).toBe(1);
     expect(lastRender().subtitle).toBe('Kolay · 1 hamle');
+  });
+
+  it('offers a result to share for levels and the daily puzzle, but not for custom puzzles', async () => {
+    let controller = createController();
+    await playSolution(controller, createLevelPuzzle(1), { shortest: true });
+    expect(lastWin().shareText).toBe('suloop · Seviye 1 ⭐⭐⭐\n9 hamle (en az 9)');
+
+    const getDailySummary = () => ({ today: null, streak: 3 });
+    controller = createController({ mode: 'daily' }, { getDailySummary });
+    await playSolution(controller, scene.showPuzzle.mock.lastCall[0]);
+    expect(lastWin().shareText).toMatch(
+      /^suloop · Günün bulmacası, 9 Ekim [⭐☆]{3}\n\d+ hamle · \d+:\d\d · 🔥 3 gün$/u
+    );
+
+    controller = createController();
+    controller.playCustom(
+      { ...withRandomFill(emptyPuzzle(6), 4, createRandom(3)), undoLimit: null },
+      { fromEditor: true }
+    );
+    await playSolution(controller, boardOf(withRandomFill(emptyPuzzle(6), 4, createRandom(3))));
+    expect(lastWin().shareText).toBeNull();
   });
 
   it('rates a solution found with a hint one move longer', async () => {

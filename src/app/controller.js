@@ -517,6 +517,7 @@ export class GameController {
     const fewestMoves = fewest?.moves ?? moves;
     const stars = starsFor(moves, fewestMoves);
     let attempts = null;
+    let shareText = null;
     if (this.#isDaily()) {
       const day = localDateKey(this.#puzzleDay);
       const { progress, earnedHint } = recordDailyWin(this.#progress, day);
@@ -527,6 +528,7 @@ export class GameController {
       this.#onDailySolved(day, { moves, seconds, stars });
       const { streak } = this.#getDailySummary(this.#puzzleDay);
       if (streak >= 2) notes.push(texts.dailyStreakNote(streak));
+      shareText = texts.shareDailyText(this.#puzzleDay, stars, moves, seconds, streak);
     } else if (this.#level !== null) {
       const { progress, earnedUndo } = recordLevelWin(
         this.#progress,
@@ -537,6 +539,7 @@ export class GameController {
       this.#setProgress(progress);
       if (earnedUndo) notes.push(texts.earnedUndo);
       attempts = progress.records[this.#level].attempts.slice().reverse();
+      shareText = texts.shareLevelText(this.#level, stars, moves, fewestMoves);
     }
     this.#refreshHud();
 
@@ -553,7 +556,8 @@ export class GameController {
         : this.#level === null
           ? texts.backToLevels
           : texts.nextLevel,
-      leaderboard: this.#isDaily() && this.#leaderboardOnline
+      leaderboard: this.#isDaily() && this.#leaderboardOnline,
+      shareText
     });
   }
 

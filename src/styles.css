@@ -1547,3 +1547,7 @@ a.button.icon {
   text-align: center;
   text-shadow: 0 0 3px rgba(0, 0, 0, 0.7);
 }
+
+#share-result {
+  justify-self: center;
+}

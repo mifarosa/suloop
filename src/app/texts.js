@@ -195,6 +195,17 @@ export const texts = {
   transferLoaded: (solved) => `İlerleme yüklendi: ${solved} seviye çözülmüş.`,
   transferUnchanged: (solved) => `Bu cihazda zaten ${solved} seviye çözülmüş, ilerleme değişmedi.`,
 
+  // Sharing a result
+  shareResult: 'Sonucu paylaş',
+  shareCopied: 'Kopyalandı ✓',
+  shareStars: (stars) => '⭐'.repeat(stars) + '☆'.repeat(3 - stars),
+  shareLevelText: (level, stars, moves, fewest) =>
+    `suloop · Seviye ${level} ${texts.shareStars(stars)}\n${moves} hamle (en az ${fewest})`,
+  shareDailyText: (date, stars, moves, seconds, streak) =>
+    `suloop · Günün bulmacası, ${dayAndMonth.format(date)} ${texts.shareStars(stars)}\n` +
+    `${moves} hamle · ${duration(seconds)}` +
+    (streak >= 2 ? ` · 🔥 ${streak} gün` : ''),
+
   // The daily leaderboard
   leaderboardLoading: 'Sıralama yükleniyor…',
   dailyToday: (moves, seconds) => `Bugün: ${moves} hamle · ${duration(seconds)}`,
