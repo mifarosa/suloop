@@ -5,8 +5,7 @@ import { arrangeTubes, fitToView } from './layout.js';
 import { confettiColors, LIQUID_COLORS } from './palette.js';
 import * as motions from './motions.js';
 import { animatePour } from './pour.js';
-import { loadSavedRatio, QualityGovernor, saveRatio } from './quality.js';
-import { drawScene } from './renderer.js';
+import { createLayers, drawScene, drawSceneLayers } from './renderer.js';
 import { TubeView } from './tubeView.js';
 
 /**
@@ -26,6 +25,15 @@ const MAX_PIXEL_RATIO = 2;
 const TAP_HALF_WIDTH = TUBE_RADIUS * 1.5;
 const TAP_MARGIN = 0.2;
 
+/** A transparent canvas right over `canvas`, which keeps receiving the taps. */
+function createOverlay(canvas) {
+  const overlay = document.createElement('canvas');
+  overlay.setAttribute('aria-hidden', 'true');
+  overlay.className = 'scene-moving';
+  canvas.after(overlay);
+  return overlay;
+}
+
 /**
  * The board, drawn on a 2D canvas. It knows how to show and animate tubes, and reports
  * taps; it knows nothing about the rules of the game.
@@ -33,6 +41,10 @@ const TAP_MARGIN = 0.2;
 export class TubeScene {
   #canvas;
   #context;
+  /** A canvas over the first one for what moves, so the board under it is not repainted. */
+  #movingCanvas;
+  #movingContext;
+  #layers = createLayers();
   #getTopInset;
   #getBottomInset;
   #confetti;
@@ -51,13 +63,6 @@ export class TubeScene {
   #bounds = null;
   #layoutPending = false;
   #frameRequested = false;
-  #lastFrameAt = null;
-  #quality = new QualityGovernor({
-    ratio: Math.min(
-      loadSavedRatio() ?? Infinity,
-      Math.min(globalThis.devicePixelRatio || 1, MAX_PIXEL_RATIO)
-    )
-  });
   #onTubeTap = () => {};
   #onCue = () => {};
 
@@ -67,10 +72,19 @@ export class TubeScene {
    * @param {() => number} [options.getTopInset] pixels at the top covered by the HUD
    * @param {() => number} [options.getBottomInset] pixels at the bottom covered by the toolbar
    * @param {{ burst: () => void }} [options.confetti] thrown when a puzzle is solved
+   * @param {boolean} [options.layered] draw what moves on a second canvas laid over the
+   *   first, which only works for a canvas that fills the page
    */
-  constructor(canvas, { getTopInset = () => 0, getBottomInset = () => 0, confetti = null } = {}) {
+  constructor(
+    canvas,
+    { getTopInset = () => 0, getBottomInset = () => 0, confetti = null, layered = false } = {}
+  ) {
     this.#canvas = canvas;
-    this.#context = canvas.getContext('2d');
+    this.#context = canvas.getContext('2d', { desynchronized: true });
+    if (layered) {
+      this.#movingCanvas = createOverlay(canvas);
+      this.#movingContext = this.#movingCanvas.getContext('2d', { desynchronized: true });
+    }
     this.#getTopInset = getTopInset;
     this.#getBottomInset = getBottomInset;
     this.#confetti = confetti;
@@ -321,10 +335,16 @@ export class TubeScene {
     const height = this.#canvas.clientHeight;
     if (!width || !height) return;
 
-    const pixelRatio = Math.min(this.#quality.ratio, window.devicePixelRatio || 1);
+    const pixelRatio = Math.min(window.devicePixelRatio || 1, MAX_PIXEL_RATIO);
     this.#canvas.width = Math.round(width * pixelRatio);
     this.#canvas.height = Math.round(height * pixelRatio);
     this.#context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+    if (this.#movingCanvas) {
+      this.#movingCanvas.width = this.#canvas.width;
+      this.#movingCanvas.height = this.#canvas.height;
+      this.#movingContext.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+      this.#layers = createLayers();
+    }
     this.#size = { width, height };
 
     // Moving tubes in the middle of a pour would break its path; rearrange them afterwards.
@@ -354,23 +374,6 @@ export class TubeScene {
   }
 
   /**
-   * Times the frames while something moves, and lowers the resolution if they come too slowly
-   * (see QualityGovernor).
-   */
-  #watchSpeed() {
-    const now = performance.now();
-    const previous = this.#lastFrameAt;
-    this.#lastFrameAt = this.#animator.isRunning ? now : null;
-    if (previous === null) return;
-
-    const ratio = this.#quality.record(now - previous);
-    if (ratio !== null) {
-      saveRatio(ratio);
-      this.#resize();
-    }
-  }
-
-  /**
    * Draws a frame on the next display refresh. Frames keep coming only while something
    * animates, so a board that is just sitting there costs no battery.
    */
@@ -382,16 +385,20 @@ export class TubeScene {
 
   #renderFrame() {
     this.#frameRequested = false;
-    this.#watchSpeed();
     this.#animator.tick();
-    drawScene(this.#context, {
+    const scene = {
       ...this.#size,
       tubes: this.#tubes,
       streams: this.#streams,
       view: this.#view,
       ...this.#look,
       isOil: this.#isOil
-    });
+    };
+    if (this.#movingContext) {
+      drawSceneLayers(this.#context, this.#movingContext, this.#layers, scene);
+    } else {
+      drawScene(this.#context, scene);
+    }
     if (this.#animator.isRunning) this.#requestRender();
   }
 }
