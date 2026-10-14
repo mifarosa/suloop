@@ -1471,6 +1471,11 @@ button.icon {
     gap: 4px;
   }
 
+  #subtitle {
+    font-size: 0.7rem;
+    letter-spacing: 0.02em;
+  }
+
   .hud-actions button.primary {
     padding: 8px 12px;
   }
@@ -1497,4 +1502,34 @@ button.icon {
   color: var(--star);
   font-family: var(--font-display);
   font-weight: 600;
+}
+
+/* The coffee cup next to the info button: a link that looks like the other icon buttons. */
+a.button.icon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.coffee-icon svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.coffee-icon {
+  border-color: transparent;
+  background: #ffdd00;
+  color: #0d0c22;
+}
+
+.card.settings a.coffee {
+  justify-self: center;
 }
