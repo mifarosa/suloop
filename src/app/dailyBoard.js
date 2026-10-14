@@ -1,5 +1,11 @@
 import { localDateKey } from './calendar.js';
-import { cleanName, markShared, recordDailyResult, streak } from './dailyResults.js';
+import {
+  cleanName,
+  markShared,
+  normalizeDailyRecord,
+  recordDailyResult,
+  streak
+} from './dailyResults.js';
 
 const TOP_COUNT = 20;
 const HISTORY_DAYS = 7;
@@ -50,6 +56,23 @@ export class DailyBoard {
     this.#update({ ...this.#record, name: cleaned });
     await this.#shareWaiting(today);
     return true;
+  }
+
+  /** The daily results kept on this device, by date key. */
+  results() {
+    return this.#record.results;
+  }
+
+  /**
+   * Takes in daily results from another device; results already here stay as they are.
+   * @param {Record<string, { moves: number, seconds: number, stars: number }>} incoming
+   */
+  mergeResults(incoming) {
+    const results = { ...this.#record.results };
+    for (const [day, result] of Object.entries(incoming)) {
+      results[day] ??= { ...result, shared: false };
+    }
+    this.#update(normalizeDailyRecord({ ...this.#record, results }, () => this.#record.playerId));
   }
 
   /**

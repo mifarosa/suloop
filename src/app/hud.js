@@ -12,6 +12,7 @@ const LONG_TOAST_DURATION_MS = 5000;
 export class Hud {
   #elements;
   #toastTimer;
+  #shareText = null;
 
   /** @param {ParentNode} root */
   constructor(root) {
@@ -39,6 +40,7 @@ export class Hud {
       winAttempts: find('#win-attempts'),
       replay: find('#replay'),
       winLeaderboard: find('#win-leaderboard'),
+      share: find('#share-result'),
       next: find('#next'),
       winLevels: find('#win-levels')
     };
@@ -70,6 +72,7 @@ export class Hud {
     replay.addEventListener('click', actions.onReplay);
     winLevels.addEventListener('click', actions.onContinueToLevels);
     winLeaderboard.addEventListener('click', actions.onLeaderboard);
+    this.#elements.share.addEventListener('click', () => this.#shareResult());
   }
 
   /**
@@ -125,6 +128,8 @@ export class Hud {
    *   newest first; null for none to show
    * @param {string} win.continueLabel
    * @param {boolean} [win.leaderboard] offer the daily leaderboard
+   * @param {string | null} [win.shareText] what the share button sends, without the link;
+   *   null for a puzzle that is not shared this way
    */
   showWin({
     title,
@@ -135,7 +140,8 @@ export class Hud {
     notes,
     attempts,
     continueLabel,
-    leaderboard = false
+    leaderboard = false,
+    shareText = null
   }) {
     const elements = this.#elements;
     elements.winStars.replaceChildren(starRow(stars, 'stars big'));
@@ -150,12 +156,35 @@ export class Hud {
     if (attempts) elements.winAttempts.replaceChildren(...attempts.map(attemptItem));
     elements.next.textContent = continueLabel;
     elements.winLeaderboard.hidden = !leaderboard;
+    this.#shareText = shareText;
+    elements.share.hidden = shareText === null;
+    elements.share.textContent = texts.shareResult;
     elements.win.hidden = false;
     elements.next.focus();
   }
 
   hideWin() {
     this.#elements.win.hidden = true;
+  }
+
+  /** Sends the result with the share sheet where there is one, and copies it otherwise. */
+  async #shareResult() {
+    if (this.#shareText === null) return;
+    const url = `${location.origin}${location.pathname}`;
+    const { share } = this.#elements;
+    try {
+      if (typeof navigator.share === 'function') {
+        await navigator.share({ text: this.#shareText, url });
+        return;
+      }
+      await navigator.clipboard.writeText(`${this.#shareText}\n${url}`);
+    } catch (error) {
+      // The player closed the share sheet; nothing to do. Anything else: nothing was copied.
+      if (error?.name !== 'AbortError') this.showToast(texts.copyFailed);
+      return;
+    }
+    share.textContent = texts.shareCopied;
+    setTimeout(() => (share.textContent = texts.shareResult), 2000);
   }
 }
 

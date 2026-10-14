@@ -1533,3 +1533,21 @@ a.button.icon {
 .card.settings a.coffee {
   justify-self: center;
 }
+
+/* A symbol on an editor color chip, for players who cannot tell the colors apart. */
+.swatch .symbol {
+  position: absolute;
+  top: 3px;
+  left: 0;
+  right: 0;
+  color: #fff;
+  font-size: 0.95rem;
+  font-style: normal;
+  line-height: 1;
+  text-align: center;
+  text-shadow: 0 0 3px rgba(0, 0, 0, 0.7);
+}
+
+#share-result {
+  justify-self: center;
+}

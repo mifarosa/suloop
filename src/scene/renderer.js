@@ -1,6 +1,7 @@
 import { HIDDEN } from '../game/rules.js';
 import { LIQUID_FLOOR, LIQUID_RADIUS, SEGMENT_HEIGHT, TUBE_RADIUS } from './dimensions.js';
 import { tiltedLayers } from './liquid.js';
+import { drawSymbol } from './symbols.js';
 import { HIDDEN_COLOR, HIDDEN_MARK_COLOR, ICE_COLOR, LIQUID_COLORS, LOCK_INK } from './palette.js';
 
 const GLASS_FILL_OPACITY = 0.07;
@@ -43,6 +44,8 @@ const CAP_DROP = 0.75;
  * @param {(color: number) => boolean} [scene.isOil]
  * @param {string[]} [scene.palette] the CSS color of each liquid color id
  * @param {string | null} [scene.glassGlow] a CSS color the glass glows in, e.g. for neon
+ * @param {boolean} [scene.symbols] draw a symbol on every color, for players who cannot tell
+ *   the colors apart
  */
 export function drawScene(
   ctx,
@@ -55,10 +58,11 @@ export function drawScene(
     glassColor,
     isOil = () => false,
     palette = LIQUID_COLORS,
-    glassGlow = null
+    glassGlow = null,
+    symbols = false
   }
 ) {
-  const look = { glassColor, palette, glassGlow };
+  const look = { glassColor, palette, glassGlow, symbols };
   ctx.clearRect(0, 0, width, height);
   for (const tube of inDrawOrder(tubes)) drawTube(ctx, tube, view, look, isOil);
   for (const stream of streams) if (stream.visible) drawStream(ctx, stream, view, palette);
@@ -81,7 +85,7 @@ function drawTube(ctx, tube, view, look, isOil) {
   ctx.translate(0, tube.height * scale);
   ctx.scale(scale, scale);
 
-  if (Math.abs(tube.body.tilt) < UPRIGHT) drawLiquid(ctx, tube, scale, isOil, look.palette);
+  if (Math.abs(tube.body.tilt) < UPRIGHT) drawLiquid(ctx, tube, scale, isOil, look);
   else drawTiltedLiquid(ctx, tube, look.palette);
   drawGlass(ctx, tube, look);
   if (tube.ice > 0) drawIce(ctx, tube);
@@ -92,7 +96,7 @@ function drawTube(ctx, tube, view, look, isOil) {
 }
 
 /** Liquid in an upright tube: level bands, one per segment. */
-function drawLiquid(ctx, tube, scale, isOil, palette) {
+function drawLiquid(ctx, tube, scale, isOil, { palette, symbols }) {
   ctx.save();
   tubeOutline(ctx, LIQUID_RADIUS, LIQUID_FLOOR, tube.height);
   ctx.closePath();
@@ -109,6 +113,12 @@ function drawLiquid(ctx, tube, scale, isOil, palette) {
     const drawFrom = slot === 0 ? 0 : bottom - SEAM;
     ctx.fillRect(-LIQUID_RADIUS, -top, LIQUID_RADIUS * 2, top - drawFrom);
     if (color === HIDDEN && fill === 1) drawHiddenMark(ctx, (bottom + top) / 2, scale);
+    else if (symbols && color !== HIDDEN && fill === 1) {
+      ctx.save();
+      ctx.translate(0, -(bottom + top) / 2);
+      drawSymbol(ctx, color, SEGMENT_HEIGHT * 0.5);
+      ctx.restore();
+    }
     if (isOil(color)) drawOilShine(ctx, bottom, top);
   }
 

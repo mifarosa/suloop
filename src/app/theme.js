@@ -13,13 +13,15 @@ const PALETTES = { classic: LIQUID_COLORS, neon: NEON_COLORS, cocktail: COCKTAIL
 export function createThemer(onLook) {
   const root = document.documentElement;
   let current = null;
+  let symbols = false;
 
   const look = () => {
     const style = getComputedStyle(root);
     return {
       glassColor: style.getPropertyValue('--glass').trim(),
       glassGlow: glowOf(style.getPropertyValue('--glass-glow').trim()),
-      palette: PALETTES[current] ?? LIQUID_COLORS
+      palette: PALETTES[current] ?? LIQUID_COLORS,
+      symbols
     };
   };
 
@@ -34,8 +36,9 @@ export function createThemer(onLook) {
 
   window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', update);
   return {
-    apply(themeId) {
+    apply(themeId, withSymbols = false) {
       current = themeId;
+      symbols = withSymbols;
       root.dataset.theme = themeId;
       update();
     },

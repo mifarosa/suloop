@@ -12,7 +12,9 @@ import { LevelMenu } from './app/levelMenu.js';
 import { loadProgress, saveProgress } from './app/progress.js';
 import { codeInLink } from './app/progressCode.js';
 import { RulesDialog } from './app/rulesDialog.js';
+import { setLanguage } from './app/i18n.js';
 import { loadSettings, saveSettings } from './app/settings.js';
+import { applyStaticTexts } from './app/staticTexts.js';
 import { SettingsDialog } from './app/settingsDialog.js';
 import { createThemer } from './app/theme.js';
 import { texts } from './app/texts.js';
@@ -20,6 +22,15 @@ import { TransferDialog } from './app/transferDialog.js';
 import { decodePuzzle } from './game/customPuzzle.js';
 import { Confetti } from './scene/confetti.js';
 import { TubeScene } from './scene/tubeScene.js';
+
+// The language comes first: every text below is drawn in it.
+let settings = loadSettings();
+setLanguage(settings.language);
+document.documentElement.lang = settings.language;
+if (settings.language === 'en') {
+  document.title = 'suloop · Water sort puzzle';
+  applyStaticTexts(document);
+}
 
 const scene = new TubeScene(document.querySelector('#scene'), {
   getTopInset: () => document.querySelector('.hud').getBoundingClientRect().bottom,
@@ -61,6 +72,10 @@ const controller = new GameController({
   feedback,
   onDailySolved: (day, result) => dailyBoard.record(day, result),
   getDailySummary: (today) => dailyBoard.summary(today),
+  dailyResults: {
+    results: () => dailyBoard.results(),
+    merge: (results) => dailyBoard.mergeResults(results)
+  },
   leaderboardOnline: dailyBoard.online,
   onEditPuzzle: (puzzle) => editor.show(puzzle),
   progress: loadProgress(),
@@ -132,11 +147,10 @@ scene.onCue((cue) => feedback.cue(cue));
 document.addEventListener('pointerdown', () => feedback.unlock(), { capture: true });
 
 // Settings: the theme, sounds and vibration, and installing the game as an app.
-let settings = loadSettings();
 let installPrompt = null;
 const device = () => ({ canVibrate: feedback.canVibrate, canInstall: installPrompt !== null });
 function applySettings() {
-  themer.apply(settings.theme);
+  themer.apply(settings.theme, settings.symbols);
   feedback.configure(settings);
 }
 window.addEventListener('beforeinstallprompt', (event) => {
@@ -146,8 +160,14 @@ window.addEventListener('beforeinstallprompt', (event) => {
 });
 settingsDialog.bindActions({
   onChange: (change) => {
+    const languageChanged = change.language !== undefined && change.language !== settings.language;
     settings = { ...settings, ...change };
     saveSettings(settings);
+    // Every text is drawn in the language it was set with, so a new one starts the page afresh.
+    if (languageChanged) {
+      location.reload();
+      return;
+    }
     applySettings();
     settingsDialog.render(settings, device());
   },

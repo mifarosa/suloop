@@ -17,6 +17,7 @@ import { closeCap, openCap } from '../src/scene/motions.js';
 import { animatePour } from '../src/scene/pour.js';
 import { createRandom } from '../src/game/random.js';
 import { drawScene } from '../src/scene/renderer.js';
+import { SYMBOL_CHARS } from '../src/scene/symbols.js';
 import { TubeView } from '../src/scene/tubeView.js';
 
 describe('palette', () => {
@@ -238,6 +239,34 @@ function recordingContext() {
   );
   return ctx;
 }
+
+describe('symbols for colors', () => {
+  const draw = (symbols) => {
+    const tube = new TubeView(0);
+    tube.showColors([0, 1, 2, 3]);
+    const ctx = recordingContext();
+    drawScene(ctx, {
+      width: 400,
+      height: 800,
+      tubes: [tube],
+      streams: [],
+      view: { scale: 50, originX: 200, originY: 600 },
+      glassColor: '#ffffff',
+      symbols
+    });
+    return ctx;
+  };
+
+  it('has a symbol for every color a level or the editor can use', () => {
+    expect(SYMBOL_CHARS.length).toBeGreaterThanOrEqual(MAX_COLOR_COUNT);
+    expect(new Set(SYMBOL_CHARS).size).toBe(SYMBOL_CHARS.length);
+  });
+
+  it('draws a white symbol on every unit when turned on, and none otherwise', () => {
+    const whites = (ctx) => ctx.fills.filter((fill) => fill.style === '#ffffff').length;
+    expect(whites(draw(true)) - whites(draw(false))).toBe(4);
+  });
+});
 
 describe('drawScene', () => {
   const sceneWith = (tubes) => ({

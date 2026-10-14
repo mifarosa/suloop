@@ -11,12 +11,13 @@ import { TubeView } from './tubeView.js';
 /**
  * How the scene is drawn: the color of the glass, the CSS color of each liquid color id, and
  * a color the glass glows in (null for none).
- * @typedef {{ glassColor: string, palette: string[], glassGlow: string | null }} Look
+ * @typedef {{ glassColor: string, palette: string[], glassGlow: string | null, symbols?: boolean }} Look
  */
 const DEFAULT_LOOK = Object.freeze({
   glassColor: '#ffffff',
   palette: LIQUID_COLORS,
-  glassGlow: null
+  glassGlow: null,
+  symbols: false
 });
 // Sharp on 2x screens; 3x would more than double the pixels to fill for no visible gain.
 const MAX_PIXEL_RATIO = 2;

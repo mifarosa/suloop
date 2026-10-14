@@ -7,6 +7,19 @@
     <meta name="theme-color" content="#0b0e1d" media="(prefers-color-scheme: dark)" />
     <meta name="theme-color" content="#d6deef" media="(prefers-color-scheme: light)" />
     <meta name="description" content="Renkli suları tüplere ayırdığın bulmaca oyunu." />
+    <!-- How a shared link looks: LinkedIn, WhatsApp, X and others read these. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="suloop" />
+    <meta property="og:title" content="suloop · Su sıralama oyunu" />
+    <meta
+      property="og:description"
+      content="Her aşamada yeni bir kural, günlük bulmaca ve kendi bulmacanı yapma. Tarayıcıda oyna."
+    />
+    <meta property="og:url" content="https://mifarosa.com/suloop/" />
+    <meta property="og:image" content="https://mifarosa.com/suloop/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
     <title>suloop · Su sıralama oyunu</title>
     <script>
       // The saved theme, before the first paint, so the page never flashes another one.
@@ -123,6 +136,7 @@
           <h3>Son denemeler</h3>
           <ol id="win-attempts" class="attempts"></ol>
         </section>
+        <button id="share-result" type="button" hidden>Sonucu paylaş</button>
         <div class="card-actions">
           <button id="replay" type="button">Tekrar et</button>
           <button id="next" type="button" class="primary">Sonraki seviye</button>
@@ -239,6 +253,17 @@
           <h2 id="settings-title">Ayarlar</h2>
           <button id="settings-close" type="button" class="icon" aria-label="Kapat">✕</button>
         </header>
+        <fieldset class="theme-picker language-picker">
+          <legend>Dil</legend>
+          <label class="theme-option">
+            <input type="radio" name="language" value="tr" />
+            <span>Türkçe</span>
+          </label>
+          <label class="theme-option">
+            <input type="radio" name="language" value="en" />
+            <span>English</span>
+          </label>
+        </fieldset>
         <fieldset class="theme-picker">
           <legend>Tema</legend>
           <label class="theme-option">
@@ -273,6 +298,13 @@
             <input id="setting-haptics" type="checkbox" role="switch" />
           </label>
           <p id="haptics-note" class="note" hidden>Bu cihaz titreşimi desteklemiyor.</p>
+          <label class="switch">
+            <span>Renklere sembol ekle</span>
+            <input id="setting-symbols" type="checkbox" role="switch" />
+          </label>
+          <p id="symbols-note" class="note">
+            Renkleri ayırt etmek zorsa her rengin üstüne bir şekil çizer.
+          </p>
         </div>
         <button id="install-app" type="button" hidden>Uygulama olarak yükle</button>
         <a
@@ -331,8 +363,9 @@
           <button id="transfer-close" type="button" class="icon" aria-label="Kapat">✕</button>
         </header>
         <p>
-          Bu bağlantıyı diğer cihazında aç ya da kodu orada gir. Kodu bir yere not edersen ilerlemen
-          silinse bile geri alırsın.
+          Bağlantıyı diğer cihazında aç: seviyelerin, yıldızların, ipuçların ve günlük serin gelir.
+          Kısa kod yalnızca çözdüğün seviyeleri taşır; not edersen ilerlemen silinse bile geri
+          alırsın.
         </p>
         <output id="transfer-code" class="transfer-code" aria-label="İlerleme kodun"></output>
         <div class="card-actions">
