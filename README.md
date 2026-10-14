@@ -69,6 +69,13 @@ Renkli suları tüplere ayırdığın bulmaca oyunu. Tarayıcıda çalışır, k
   oyundaki tüpün aynısıyla çizilmiş bir kartla anlatılır. **(i) butonu** o seviyedeki bütün
   kuralları, yıldız sınırlarını, haklarını ve son 5 denemeni gösterir
 - Geri al, ipucu ve baştan butonları başparmağın yetiştiği alt çubukta, kalan haklarıyla
+- **Dil:** Türkçe ve İngilizce. İlk açılışta tarayıcının diline bakar, ayarlardan değişir (sayfa yeni
+  dille yeniden yüklenir). Metinler `src/app/texts/` altında iki sözlükte durur; bir test anahtarların
+  eşleştiğini kontrol eder. Bağlantı önizlemesi (Open Graph) tek dillidir (Türkçe)
+- **Renk körlüğü desteği:** ayarlardan "Renklere sembol ekle": her rengin üstüne ayrı bir şekil
+  çizilir (tahtada ve atölyede)
+- **Sonucu paylaş:** bitiş ekranında; seviye ya da günün bulmacası için "⭐⭐⭐ 21 hamle · 🔥 3 gün"
+  gibi bir metin ve bağlantı, destekleyen cihazlarda paylaşma menüsüyle, diğerlerinde kopyalayarak
 - **Temalar:** ayarlardan (⚙︎) Klasik Laboratuvar (cihazın açık/koyu ayarını izler), Neon Gece
   (parlayan cam, neon renkler) ve Kokteyl Bar (amber ışık, içki renkleri). Seçilen tema sayfa
   açılırken hemen uygulanır, başka tema hiç görünmez
@@ -89,7 +96,7 @@ Renkli suları tüplere ayırdığın bulmaca oyunu. Tarayıcıda çalışır, k
   hamlede çözüldüğü arka planda bulunur. "Dene" ile oynarsın (ipucu ücretsiz). Bulmaca JSON
   tabanlı bir kodla ya da `#bulmaca=…` bağlantısıyla paylaşılır; kod, bağlantı ya da düz JSON
   geri yüklenebilir. Taslağın cihazda saklanır
-- Kaldığın seviye tarayıcıda saklanır. "İlerlemeyi taşı" ile kısa bir kod ya da bağlantı alıp
+- Kaldığın seviye tarayıcıda saklanır. "İlerlemeyi taşı" ile bir bağlantı (seviyeler, yıldızlar, ipuçları, ekstra geri almalar ve günlük seri) ya da yalnızca seviyeleri taşıyan kısa bir kod alıp
   başka bir cihazda (ya da tarayıcı verisi silindikten sonra) kaldığın yerden devam edersin.
   Yükleme ilerlemeyi hiç geri götürmez: eski bir kod hiçbir şeyi silmez
 - Gerçekçi döküm: tüp, sıvı ağzına ulaşana kadar eğilir ve boşaldıkça daha çok eğilir; sıvının
@@ -147,7 +154,8 @@ src/
     progressCode.js İlerleme kodu ve bağlantısı
     transferDialog.js "İlerlemeyi taşı" penceresi
     overlay.js    Pencerelerin açılıp kapanması
-    texts.js      Oyuncunun gördüğü tüm metinler
+    texts.js, texts/ Oyuncunun gördüğü tüm metinler (tr.js, en.js), i18n.js, staticTexts.js
+    progressSnapshot.js İlerleme bağlantısı: yıldızlar, haklar, seri
   main.js         Giriş noktası
 tests/            Birim testleri
 ```

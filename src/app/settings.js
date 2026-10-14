@@ -7,7 +7,10 @@
  * @property {boolean} sound
  * @property {boolean} haptics vibration on phones that have it
  * @property {boolean} symbols a symbol on every color, for players who cannot tell colors apart
+ * @property {'tr' | 'en'} language
  */
+
+import { browserLanguage, LANGUAGES } from './i18n.js';
 
 const STORAGE_KEY = 'suloop:settings:v1';
 export const THEME_IDS = Object.freeze(['classic', 'neon', 'cocktail']);
@@ -17,7 +20,8 @@ export const DEFAULT_SETTINGS = Object.freeze({
   theme: 'classic',
   sound: true,
   haptics: true,
-  symbols: false
+  symbols: false,
+  language: 'tr'
 });
 
 /** Turns whatever was stored into valid settings, field by field. */
@@ -27,7 +31,9 @@ export function normalizeSettings(saved) {
     theme: THEME_IDS.includes(data.theme) ? data.theme : DEFAULT_SETTINGS.theme,
     sound: typeof data.sound === 'boolean' ? data.sound : DEFAULT_SETTINGS.sound,
     haptics: typeof data.haptics === 'boolean' ? data.haptics : DEFAULT_SETTINGS.haptics,
-    symbols: typeof data.symbols === 'boolean' ? data.symbols : DEFAULT_SETTINGS.symbols
+    symbols: typeof data.symbols === 'boolean' ? data.symbols : DEFAULT_SETTINGS.symbols,
+    // Until the player picks one, the language of the browser.
+    language: LANGUAGES.includes(data.language) ? data.language : browserLanguage()
   };
 }
 

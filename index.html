@@ -253,6 +253,17 @@
           <h2 id="settings-title">Ayarlar</h2>
           <button id="settings-close" type="button" class="icon" aria-label="Kapat">✕</button>
         </header>
+        <fieldset class="theme-picker language-picker">
+          <legend>Dil</legend>
+          <label class="theme-option">
+            <input type="radio" name="language" value="tr" />
+            <span>Türkçe</span>
+          </label>
+          <label class="theme-option">
+            <input type="radio" name="language" value="en" />
+            <span>English</span>
+          </label>
+        </fieldset>
         <fieldset class="theme-picker">
           <legend>Tema</legend>
           <label class="theme-option">
@@ -291,7 +302,9 @@
             <span>Renklere sembol ekle</span>
             <input id="setting-symbols" type="checkbox" role="switch" />
           </label>
-          <p class="note">Renkleri ayırt etmek zorsa her rengin üstüne bir şekil çizer.</p>
+          <p id="symbols-note" class="note">
+            Renkleri ayırt etmek zorsa her rengin üstüne bir şekil çizer.
+          </p>
         </div>
         <button id="install-app" type="button" hidden>Uygulama olarak yükle</button>
         <a

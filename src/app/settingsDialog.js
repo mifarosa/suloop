@@ -15,6 +15,7 @@ export class SettingsDialog {
     this.#overlay = new Overlay(find('#settings'), () => this.#actions.onClose());
     this.#elements = {
       themes: [...root.querySelectorAll('#settings input[name="theme"]')],
+      languages: [...root.querySelectorAll('#settings input[name="language"]')],
       sound: find('#setting-sound'),
       haptics: find('#setting-haptics'),
       hapticsNote: find('#haptics-note'),
@@ -22,7 +23,10 @@ export class SettingsDialog {
       install: find('#install-app'),
       close: find('#settings-close')
     };
-    const { themes, sound, haptics, symbols, install, close } = this.#elements;
+    const { themes, languages, sound, haptics, symbols, install, close } = this.#elements;
+    for (const input of languages) {
+      input.addEventListener('change', () => this.#actions.onChange({ language: input.value }));
+    }
     for (const input of themes) {
       input.addEventListener('change', () => this.#actions.onChange({ theme: input.value }));
     }
@@ -54,12 +58,13 @@ export class SettingsDialog {
   }
 
   /** Shows the settings as they are, e.g. right after a change. */
-  render({ theme, sound, haptics, symbols }, { canVibrate, canInstall }) {
+  render({ theme, sound, haptics, symbols, language }, { canVibrate, canInstall }) {
     const elements = this.#elements;
     for (const input of elements.themes) input.checked = input.value === theme;
     elements.sound.checked = sound;
     elements.haptics.checked = haptics && canVibrate;
     elements.symbols.checked = symbols;
+    for (const input of elements.languages) input.checked = input.value === language;
     elements.haptics.disabled = !canVibrate;
     elements.hapticsNote.hidden = canVibrate;
     elements.install.hidden = !canInstall;
