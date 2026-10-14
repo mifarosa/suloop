@@ -36,7 +36,8 @@ const scene = new TubeScene(document.querySelector('#scene'), {
   getTopInset: () => document.querySelector('.hud').getBoundingClientRect().bottom,
   getBottomInset: () =>
     innerHeight - document.querySelector('.toolbar').getBoundingClientRect().top,
-  confetti: new Confetti(document.querySelector('#confetti'))
+  confetti: new Confetti(document.querySelector('#confetti')),
+  layered: true
 });
 const feedback = new Feedback();
 const themer = createThemer((look) => scene.setLook(look));

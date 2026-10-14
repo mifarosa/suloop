@@ -70,6 +70,165 @@ export function drawScene(
   for (const stream of streams) if (stream.visible) drawStream(ctx, stream, view, palette);
 }
 
+/**
+ * What the layered drawing remembers between frames (see drawSceneLayers).
+ * @returns {{ board: string | null, stamped: Map<object, string>, moving: object[] | null }}
+ */
+export function createLayers() {
+  return { board: null, stamped: new Map(), moving: null };
+}
+
+/**
+ * Draws the board on two canvases that lie on top of each other. Tubes standing still are
+ * stamped on `still`, and only when one of them changes; tubes that move, and the liquid
+ * falling between them, are drawn on `moving`, where only the area they cover is wiped and
+ * painted again. A phone then repaints a small part of the screen in a frame instead of all
+ * of it, which is what keeps the pouring smooth at full sharpness.
+ *
+ * @param {CanvasRenderingContext2D} still
+ * @param {CanvasRenderingContext2D} moving
+ * @param {ReturnType<typeof createLayers>} layers
+ * @param {Parameters<typeof drawScene>[1]} scene same as for drawScene
+ */
+export function drawSceneLayers(
+  still,
+  moving,
+  layers,
+  {
+    width,
+    height,
+    tubes,
+    streams,
+    view,
+    glassColor,
+    isOil = () => false,
+    palette = LIQUID_COLORS,
+    glassGlow = null,
+    symbols = false
+  }
+) {
+  const look = { glassColor, palette, glassGlow, symbols };
+  const resting = tubes.filter(isAtRest);
+  const restingSet = new Set(resting);
+  const flying = tubes.filter((tube) => !restingSet.has(tube));
+
+  // Anything that changes every tube at once starts the still layer afresh.
+  const board = [width, height, view.scale, view.originX, view.originY, still.canvas.width]
+    .concat(glassColor, glassGlow, symbols, palette.join(''))
+    .concat(tubes.map((tube) => `${tube.x},${tube.y},${tube.size}`))
+    .join('|');
+  if (layers.board !== board) {
+    still.clearRect(0, 0, width, height);
+    layers.board = board;
+    layers.stamped.clear();
+  }
+  updateStillLayer(still, layers, resting, tubes, view, look, isOil);
+
+  // The wiped area covers where the moving things were and where they are now.
+  const area = unionOf([...(layers.moving ?? []), ...flying.map((tube) => reachOf(tube, view))]);
+  layers.moving = [
+    ...flying.map((tube) => reachOf(tube, view)),
+    ...[...streams].filter((stream) => stream.visible).map((stream) => streamBox(stream, view))
+  ];
+  const wiped = unionOf([...(area ? [area] : []), ...layers.moving]);
+  if (wiped) {
+    moving.clearRect(wiped.x, wiped.y, wiped.width, wiped.height);
+    layers.moving = [wiped];
+  }
+  for (const tube of inDrawOrder(flying)) {
+    if (!drawFromSprite(moving, tube, view, look, isOil)) drawTube(moving, tube, view, look, isOil);
+  }
+  for (const stream of streams) if (stream.visible) drawStream(moving, stream, view, palette);
+}
+
+/**
+ * Brings the still layer up to date: wipes the places of tubes that began to move or changed
+ * and stamps the resting tubes there again.
+ */
+function updateStillLayer(ctx, layers, resting, tubes, view, look, isOil) {
+  const pixelsPerUnit = Math.round(ctx.getTransform().a * view.scale * 4) / 4;
+  const changed = [];
+  for (const tube of tubes) {
+    const key = resting.includes(tube) ? spriteKey(tube, look, isOil, pixelsPerUnit) : null;
+    const before = layers.stamped.get(tube) ?? null;
+    if (key === before) continue;
+    changed.push(spriteBox(tube, view, 0, tube.height));
+    if (key === null) layers.stamped.delete(tube);
+    else layers.stamped.set(tube, key);
+  }
+  if (changed.length === 0) return;
+
+  ctx.save();
+  ctx.beginPath();
+  for (const box of changed) ctx.rect(box.x, box.y, box.width, box.height);
+  ctx.clip();
+  for (const box of changed) ctx.clearRect(box.x, box.y, box.width, box.height);
+  for (const tube of resting) {
+    const box = spriteBox(tube, view, 0, tube.height);
+    if (!changed.some((other) => overlaps(box, other))) continue;
+    const sprite = spriteOf(ctx, tube, view, look, isOil);
+    ctx.drawImage(sprite, box.x, box.y, box.width, box.height);
+  }
+  ctx.restore();
+}
+
+/** A tube that stands in its place and looks the same in every frame. */
+function isAtRest(tube) {
+  return (
+    isSettled(tube) && Math.abs(tube.body.x) < 1e-6 && Math.abs(tube.body.y - tube.height) < 1e-6
+  );
+}
+
+/** The box around a moving tube as it is tilted now, with room for its cap, badge and glow. */
+function reachOf(tube, view) {
+  const { scale, originX, originY } = view;
+  const { side, top, bottom } = SPRITE_MARGIN;
+  const pivotX = originX + (tube.x + tube.body.x) * scale;
+  const pivotY = originY - (tube.y + tube.body.y) * scale;
+  const cos = Math.cos(-tube.body.tilt);
+  const sin = Math.sin(-tube.body.tilt);
+  const xs = [];
+  const ys = [];
+  for (const across of [-(TUBE_RADIUS + side), TUBE_RADIUS + side]) {
+    for (const along of [-top, tube.height + bottom]) {
+      xs.push(pivotX + (across * cos - along * sin) * scale);
+      ys.push(pivotY + (across * sin + along * cos) * scale);
+    }
+  }
+  const left = Math.min(...xs);
+  const upper = Math.min(...ys);
+  return {
+    x: left,
+    y: upper,
+    width: Math.max(...xs) - left,
+    height: Math.max(...ys) - upper
+  };
+}
+
+function streamBox(stream, view) {
+  const half = (STREAM_WIDTH + 0.1) * view.scale;
+  return {
+    x: view.originX + stream.x * view.scale - half,
+    y: view.originY - stream.top * view.scale - half,
+    width: half * 2,
+    height: (stream.top - stream.bottom) * view.scale + half * 2
+  };
+}
+
+function overlaps(a, b) {
+  return a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+}
+
+/** The smallest box that holds all the given boxes, rounded outward; null for none. */
+function unionOf(boxes) {
+  if (boxes.length === 0) return null;
+  const left = Math.floor(Math.min(...boxes.map((box) => box.x)));
+  const top = Math.floor(Math.min(...boxes.map((box) => box.y)));
+  const right = Math.ceil(Math.max(...boxes.map((box) => box.x + box.width)));
+  const bottom = Math.ceil(Math.max(...boxes.map((box) => box.y + box.height)));
+  return { x: left, y: top, width: right - left, height: bottom - top };
+}
+
 // A tube that only moves as a whole (lifted, shaken, hopping) looks the same in every frame, so
 // it is drawn once to a small canvas of its own and that picture is stamped on the board, which
 // is a lot cheaper for a phone than redrawing its liquid, glass and caps every frame. Room
@@ -82,12 +241,22 @@ const SPRITE_MARGIN = { side: 0.4, top: 0.8, bottom: 0.25 };
  *   the middle of an animation of its own) or there is nowhere to keep a picture
  */
 function drawFromSprite(ctx, tube, view, look, isOil) {
-  if (typeof document === 'undefined' || !ctx.getTransform) return false;
-  if (!isSettled(tube)) return false;
+  if (!canUseSprites(ctx) || !isSettled(tube)) return false;
 
-  const { scale, originX, originY } = view;
+  const sprite = spriteOf(ctx, tube, view, look, isOil);
+  const box = spriteBox(tube, view, tube.body.x, tube.body.y);
+  ctx.drawImage(sprite, box.x, box.y, box.width, box.height);
+  return true;
+}
+
+function canUseSprites(ctx) {
+  return typeof document !== 'undefined' && Boolean(ctx.getTransform);
+}
+
+/** The picture of a settled tube, made again when anything it shows has changed. */
+function spriteOf(ctx, tube, view, look, isOil) {
   const { side, top, bottom } = SPRITE_MARGIN;
-  const pixelsPerUnit = Math.round(ctx.getTransform().a * scale * 4) / 4;
+  const pixelsPerUnit = Math.round(ctx.getTransform().a * view.scale * 4) / 4;
   const key = spriteKey(tube, look, isOil, pixelsPerUnit);
   if (tube.sprite?.key !== key) {
     const canvas = tube.sprite?.canvas ?? document.createElement('canvas');
@@ -104,15 +273,19 @@ function drawFromSprite(ctx, tube, view, look, isOil) {
     drawTube(canvas.getContext('2d'), resting, spriteView, look, isOil);
     tube.sprite = { key, canvas };
   }
+  return tube.sprite.canvas;
+}
 
-  ctx.drawImage(
-    tube.sprite.canvas,
-    originX + (tube.x + tube.body.x - TUBE_RADIUS - side) * scale,
-    originY - (tube.y + tube.body.y + top) * scale,
-    (TUBE_RADIUS + side) * 2 * scale,
-    (top + tube.height + bottom) * scale
-  );
-  return true;
+/** Where the picture of a tube goes on the board, in CSS pixels. */
+function spriteBox(tube, view, bodyX, bodyY) {
+  const { scale, originX, originY } = view;
+  const { side, top, bottom } = SPRITE_MARGIN;
+  return {
+    x: originX + (tube.x + bodyX - TUBE_RADIUS - side) * scale,
+    y: originY - (tube.y + bodyY + top) * scale,
+    width: (TUBE_RADIUS + side) * 2 * scale,
+    height: (top + tube.height + bottom) * scale
+  };
 }
 
 /** Whether a tube looks the same in every frame while it moves as a whole. */
