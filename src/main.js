@@ -136,7 +136,7 @@ let settings = loadSettings();
 let installPrompt = null;
 const device = () => ({ canVibrate: feedback.canVibrate, canInstall: installPrompt !== null });
 function applySettings() {
-  themer.apply(settings.theme);
+  themer.apply(settings.theme, settings.symbols);
   feedback.configure(settings);
 }
 window.addEventListener('beforeinstallprompt', (event) => {

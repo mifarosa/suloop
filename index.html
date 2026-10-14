@@ -7,6 +7,19 @@
     <meta name="theme-color" content="#0b0e1d" media="(prefers-color-scheme: dark)" />
     <meta name="theme-color" content="#d6deef" media="(prefers-color-scheme: light)" />
     <meta name="description" content="Renkli suları tüplere ayırdığın bulmaca oyunu." />
+    <!-- How a shared link looks: LinkedIn, WhatsApp, X and others read these. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="suloop" />
+    <meta property="og:title" content="suloop · Su sıralama oyunu" />
+    <meta
+      property="og:description"
+      content="Her aşamada yeni bir kural, günlük bulmaca ve kendi bulmacanı yapma. Tarayıcıda oyna."
+    />
+    <meta property="og:url" content="https://mifarosa.com/suloop/" />
+    <meta property="og:image" content="https://mifarosa.com/suloop/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
     <title>suloop · Su sıralama oyunu</title>
     <script>
       // The saved theme, before the first paint, so the page never flashes another one.
@@ -273,6 +286,11 @@
             <input id="setting-haptics" type="checkbox" role="switch" />
           </label>
           <p id="haptics-note" class="note" hidden>Bu cihaz titreşimi desteklemiyor.</p>
+          <label class="switch">
+            <span>Renklere sembol ekle</span>
+            <input id="setting-symbols" type="checkbox" role="switch" />
+          </label>
+          <p class="note">Renkleri ayırt etmek zorsa her rengin üstüne bir şekil çizer.</p>
         </div>
         <button id="install-app" type="button" hidden>Uygulama olarak yükle</button>
         <a

@@ -19,6 +19,7 @@ import {
 import { createRandom } from '../game/random.js';
 import { TALL_TUBE_CAPACITY, TUBE_CAPACITY } from '../game/rules.js';
 import { CRACKED_TUBE_FILLS } from '../game/generator.js';
+import { SYMBOL_CHARS } from '../scene/symbols.js';
 import { Overlay } from './overlay.js';
 import { texts } from './texts.js';
 
@@ -229,7 +230,7 @@ export class EditorDialog {
     );
 
     const counts = colorCounts(puzzle);
-    const { palette: colors } = this.#getLook();
+    const { palette: colors, symbols } = this.#getLook();
     elements.palette.replaceChildren(
       ...Array.from({ length: CUSTOM_COLOR_COUNT }, (_, color) => {
         const count = counts.get(color) ?? 0;
@@ -244,6 +245,12 @@ export class EditorDialog {
         swatch.classList.toggle('wrong', count > 0 && count !== puzzle.capacity);
         const badge = document.createElement('span');
         badge.textContent = count > 0 ? `${count}/${puzzle.capacity}` : '';
+        if (symbols) {
+          const symbol = document.createElement('i');
+          symbol.className = 'symbol';
+          symbol.textContent = SYMBOL_CHARS[color];
+          swatch.append(symbol);
+        }
         swatch.append(badge);
         return swatch;
       })

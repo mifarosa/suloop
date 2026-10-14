@@ -18,15 +18,17 @@ export class SettingsDialog {
       sound: find('#setting-sound'),
       haptics: find('#setting-haptics'),
       hapticsNote: find('#haptics-note'),
+      symbols: find('#setting-symbols'),
       install: find('#install-app'),
       close: find('#settings-close')
     };
-    const { themes, sound, haptics, install, close } = this.#elements;
+    const { themes, sound, haptics, symbols, install, close } = this.#elements;
     for (const input of themes) {
       input.addEventListener('change', () => this.#actions.onChange({ theme: input.value }));
     }
     sound.addEventListener('change', () => this.#actions.onChange({ sound: sound.checked }));
     haptics.addEventListener('change', () => this.#actions.onChange({ haptics: haptics.checked }));
+    symbols.addEventListener('change', () => this.#actions.onChange({ symbols: symbols.checked }));
     install.addEventListener('click', () => this.#actions.onInstall());
     close.addEventListener('click', () => this.#actions.onClose());
   }
@@ -52,11 +54,12 @@ export class SettingsDialog {
   }
 
   /** Shows the settings as they are, e.g. right after a change. */
-  render({ theme, sound, haptics }, { canVibrate, canInstall }) {
+  render({ theme, sound, haptics, symbols }, { canVibrate, canInstall }) {
     const elements = this.#elements;
     for (const input of elements.themes) input.checked = input.value === theme;
     elements.sound.checked = sound;
     elements.haptics.checked = haptics && canVibrate;
+    elements.symbols.checked = symbols;
     elements.haptics.disabled = !canVibrate;
     elements.hapticsNote.hidden = canVibrate;
     elements.install.hidden = !canInstall;
