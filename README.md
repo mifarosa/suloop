@@ -105,6 +105,10 @@ Renkli suları tüplere ayırdığın bulmaca oyunu. Tarayıcıda çalışır, k
 - Kazanınca iki köşeden konfeti patlar (cihazda "hareketi azalt" açıksa çıkmaz)
 - Seviyeler ekranında "Kahve ısmarla" butonu: oyunu beğenen
   [Buy Me a Coffee](https://buymeacoffee.com/mifarosa) üzerinden destek olabilir
+- Yavaş telefonlarda akıcılık: tahta yavaş çiziliyorsa oyun çözünürlüğü kendisi adım adım düşürür
+  (kare hızı canvas'ın piksel sayısına bağlıdır) ve bir sonraki açılış için hatırlar. Eğilmeyen
+  tüpler bir kez hazır görsele çizilip her karede o görsel basılır; neon parlama gölge yerine ince
+  çizgilerle yapılır
 - Canvas 2D ile çizilen cam tüpler, açık/koyu tema; ek kütüphane yok, oyun 86 KB (gzip 31 KB)
 
 ## Proje yapısı

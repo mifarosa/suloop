@@ -64,8 +64,86 @@ export function drawScene(
 ) {
   const look = { glassColor, palette, glassGlow, symbols };
   ctx.clearRect(0, 0, width, height);
-  for (const tube of inDrawOrder(tubes)) drawTube(ctx, tube, view, look, isOil);
+  for (const tube of inDrawOrder(tubes)) {
+    if (!drawFromSprite(ctx, tube, view, look, isOil)) drawTube(ctx, tube, view, look, isOil);
+  }
   for (const stream of streams) if (stream.visible) drawStream(ctx, stream, view, palette);
+}
+
+// A tube that only moves as a whole (lifted, shaken, hopping) looks the same in every frame, so
+// it is drawn once to a small canvas of its own and that picture is stamped on the board, which
+// is a lot cheaper for a phone than redrawing its liquid, glass and caps every frame. Room
+// around the tube, in world units, for what sticks out of it: caps, badges, glows, funnels.
+const SPRITE_MARGIN = { side: 0.4, top: 0.8, bottom: 0.25 };
+
+/**
+ * Draws a tube from its picture, making the picture first or when the tube has changed.
+ * @returns {boolean} false when the tube cannot be drawn that way (it is tilted, glowing or in
+ *   the middle of an animation of its own) or there is nowhere to keep a picture
+ */
+function drawFromSprite(ctx, tube, view, look, isOil) {
+  if (typeof document === 'undefined' || !ctx.getTransform) return false;
+  if (!isSettled(tube)) return false;
+
+  const { scale, originX, originY } = view;
+  const { side, top, bottom } = SPRITE_MARGIN;
+  const pixelsPerUnit = Math.round(ctx.getTransform().a * scale * 4) / 4;
+  const key = spriteKey(tube, look, isOil, pixelsPerUnit);
+  if (tube.sprite?.key !== key) {
+    const canvas = tube.sprite?.canvas ?? document.createElement('canvas');
+    canvas.width = Math.ceil((TUBE_RADIUS + side) * 2 * pixelsPerUnit);
+    canvas.height = Math.ceil((top + tube.height + bottom) * pixelsPerUnit);
+    // The tube as it would stand at rest, with its mouth `top` units from the top edge.
+    const resting = Object.create(tube);
+    Object.assign(resting, { x: 0, y: 0, body: { x: 0, y: tube.height, tilt: 0 } });
+    const spriteView = {
+      scale: pixelsPerUnit,
+      originX: canvas.width / 2,
+      originY: (top + tube.height) * pixelsPerUnit
+    };
+    drawTube(canvas.getContext('2d'), resting, spriteView, look, isOil);
+    tube.sprite = { key, canvas };
+  }
+
+  ctx.drawImage(
+    tube.sprite.canvas,
+    originX + (tube.x + tube.body.x - TUBE_RADIUS - side) * scale,
+    originY - (tube.y + tube.body.y + top) * scale,
+    (TUBE_RADIUS + side) * 2 * scale,
+    (top + tube.height + bottom) * scale
+  );
+  return true;
+}
+
+/** Whether a tube looks the same in every frame while it moves as a whole. */
+function isSettled(tube) {
+  const { body, glow, ice, cap } = tube;
+  if (Math.abs(body.tilt) >= UPRIGHT || glow !== 0) return false;
+  if ((ice !== 0 && ice !== 1) || (cap !== 0 && cap !== 1)) return false;
+  // Liquid still draining or filling, or sinking under oil.
+  return tube.segments.every(
+    (segment, index) =>
+      segment.fill === 1 && segment.slot === index && segment.color === tube.colors[index]
+  );
+}
+
+/** Everything that decides what a tube's picture looks like. */
+function spriteKey(tube, look, isOil, pixelsPerUnit) {
+  return [
+    pixelsPerUnit,
+    look.glassColor,
+    look.glassGlow,
+    look.symbols ? 1 : 0,
+    look.palette.join(''),
+    tube.size,
+    tube.oneWay ? 1 : 0,
+    tube.lockKey,
+    tube.ice,
+    tube.cap,
+    tube.fills,
+    tube.maxFills,
+    tube.colors.map((color) => `${color}${isOil(color) ? 'o' : ''}`).join(',')
+  ].join('|');
 }
 
 /** Tubes that moved away from rest are drawn last, so a pouring tube passes in front. */
@@ -200,28 +278,9 @@ function drawGlass(ctx, tube, { glassColor, glassGlow }) {
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
 
-  if (glow > 0) {
-    ctx.save();
-    ctx.shadowColor = `rgba(${GLOW_RGB}, ${glow})`;
-    ctx.shadowBlur = 24 * glow;
-    ctx.strokeStyle = `rgba(${GLOW_RGB}, ${glow})`;
-    ctx.lineWidth = GLASS_LINE_WIDTH * 3;
-    tubeOutline(ctx, TUBE_RADIUS, 0, height);
-    ctx.stroke();
-    ctx.restore();
-  }
-
-  if (glassGlow) {
-    // Neon glass: a soft halo of light around the outline.
-    ctx.save();
-    ctx.shadowColor = glassGlow;
-    ctx.shadowBlur = 14;
-    ctx.strokeStyle = glassGlow;
-    ctx.lineWidth = GLASS_LINE_WIDTH;
-    tubeOutline(ctx, TUBE_RADIUS, 0, height);
-    ctx.stroke();
-    ctx.restore();
-  }
+  if (glow > 0) drawHalo(ctx, tube, `rgba(${GLOW_RGB}, 1)`, glow, GLASS_LINE_WIDTH * 3, 0.1);
+  // Neon glass: a soft halo of light around the outline.
+  if (glassGlow) drawHalo(ctx, tube, glassGlow, 1, GLASS_LINE_WIDTH, 0.07);
 
   ctx.save();
   ctx.fillStyle = glassColor;
@@ -252,6 +311,26 @@ function drawGlass(ctx, tube, { glassColor, glassGlow }) {
   ctx.stroke();
 
   if (tube.fills !== null) drawCracks(ctx, height, spent);
+  ctx.restore();
+}
+
+/**
+ * A glow around a tube's outline: a few strokes, each wider and fainter than the last, that
+ * fade out like a blur would. A real blur (shadowBlur) costs a phone far more for every
+ * frame of every tube than these few lines do.
+ * @param {number} strength 0 to 1
+ * @param {number} width of the core line
+ * @param {number} spread how much wider each outer stroke is, in world units
+ */
+function drawHalo(ctx, tube, color, strength, width, spread) {
+  ctx.save();
+  ctx.strokeStyle = color;
+  for (let i = 3; i >= 0; i--) {
+    ctx.globalAlpha = strength * (i === 0 ? 0.9 : 0.16 / i);
+    ctx.lineWidth = width + spread * i;
+    tubeOutline(ctx, TUBE_RADIUS, 0, tube.height);
+    ctx.stroke();
+  }
   ctx.restore();
 }
 
