@@ -5,7 +5,6 @@ import { arrangeTubes, fitToView } from './layout.js';
 import { confettiColors, LIQUID_COLORS } from './palette.js';
 import * as motions from './motions.js';
 import { animatePour } from './pour.js';
-import { loadSavedRatio, QualityGovernor, saveRatio } from './quality.js';
 import { createLayers, drawScene, drawSceneLayers } from './renderer.js';
 import { TubeView } from './tubeView.js';
 
@@ -64,13 +63,6 @@ export class TubeScene {
   #bounds = null;
   #layoutPending = false;
   #frameRequested = false;
-  #lastFrameAt = null;
-  #quality = new QualityGovernor({
-    ratio: Math.min(
-      loadSavedRatio() ?? Infinity,
-      Math.min(globalThis.devicePixelRatio || 1, MAX_PIXEL_RATIO)
-    )
-  });
   #onTubeTap = () => {};
   #onCue = () => {};
 
@@ -343,7 +335,7 @@ export class TubeScene {
     const height = this.#canvas.clientHeight;
     if (!width || !height) return;
 
-    const pixelRatio = Math.min(this.#quality.ratio, window.devicePixelRatio || 1);
+    const pixelRatio = Math.min(window.devicePixelRatio || 1, MAX_PIXEL_RATIO);
     this.#canvas.width = Math.round(width * pixelRatio);
     this.#canvas.height = Math.round(height * pixelRatio);
     this.#context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
@@ -382,23 +374,6 @@ export class TubeScene {
   }
 
   /**
-   * Times the frames while something moves, and lowers the resolution if they come too slowly
-   * (see QualityGovernor).
-   */
-  #watchSpeed() {
-    const now = performance.now();
-    const previous = this.#lastFrameAt;
-    this.#lastFrameAt = this.#animator.isRunning ? now : null;
-    if (previous === null) return;
-
-    const ratio = this.#quality.record(now - previous);
-    if (ratio !== null) {
-      saveRatio(ratio);
-      this.#resize();
-    }
-  }
-
-  /**
    * Draws a frame on the next display refresh. Frames keep coming only while something
    * animates, so a board that is just sitting there costs no battery.
    */
@@ -410,7 +385,6 @@ export class TubeScene {
 
   #renderFrame() {
     this.#frameRequested = false;
-    this.#watchSpeed();
     this.#animator.tick();
     const scene = {
       ...this.#size,
