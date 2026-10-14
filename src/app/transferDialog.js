@@ -55,10 +55,13 @@ export class TransferDialog {
     this.#actions = actions;
   }
 
-  /** @param {{ code: string }} transfer this device's progress code */
-  show({ code }) {
+  /**
+   * @param {{ code: string, fullCode: string }} transfer this device's short progress code (the
+   *   solved levels), and the long one that also carries stars, hints and the daily streak
+   */
+  show({ code, fullCode }) {
     const { code: codeElement, copy, input } = this.#elements;
-    this.#link = progressLink(location.href, code);
+    this.#link = progressLink(location.href, fullCode);
     codeElement.textContent = code;
     copy.textContent = this.#copyLabel;
     input.value = '';

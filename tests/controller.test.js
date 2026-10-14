@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { GameController } from '../src/app/controller.js';
 import { INITIAL_PROGRESS } from '../src/app/progress.js';
 import { decodeProgressCode, encodeProgressCode } from '../src/app/progressCode.js';
+import { encodeSnapshot } from '../src/app/progressSnapshot.js';
 import { tubeSizes } from '../src/game/generator.js';
 import { boardOf, withRandomFill, emptyPuzzle } from '../src/game/customPuzzle.js';
 import { createDailyPuzzle, createLevelPuzzle, levelSettings } from '../src/game/levels.js';
@@ -75,7 +76,14 @@ describe('GameController', () => {
 
   function createController(
     progress = {},
-    { clock = () => TODAY, onDailySolved, onEditPuzzle, getDailySummary, leaderboardOnline } = {}
+    {
+      clock = () => TODAY,
+      onDailySolved,
+      onEditPuzzle,
+      getDailySummary,
+      dailyResults,
+      leaderboardOnline
+    } = {}
   ) {
     const controller = new GameController({
       scene,
@@ -87,6 +95,7 @@ describe('GameController', () => {
       onDailySolved,
       onEditPuzzle,
       getDailySummary,
+      dailyResults,
       leaderboardOnline,
       progress: { ...INITIAL_PROGRESS, ...progress },
       saveProgress: (value) => saved.push(value),
@@ -904,6 +913,32 @@ describe('GameController', () => {
       expect(scene.showPuzzle).toHaveBeenLastCalledWith(...shownBoard(41));
       expect(transfer.hide).toHaveBeenCalled();
       expect(hud.showToast).toHaveBeenCalledWith('İlerleme yüklendi: 40 seviye çözülmüş.');
+    });
+
+    it('brings the stars, hints and daily results along with a full link', () => {
+      const merge = vi.fn();
+      const controller = createController({}, { dailyResults: { results: () => ({}), merge } });
+      const code = encodeSnapshot(
+        {
+          ...INITIAL_PROGRESS,
+          solved: 40,
+          hints: 6,
+          spareUndos: 2,
+          records: { 3: { best: 3, attempts: [] } }
+        },
+        { '2026-10-08': { moves: 25, seconds: 80, stars: 2 } }
+      );
+      controller.importProgress(code, { fromLink: true });
+
+      expect(saved.at(-1)).toMatchObject({
+        solved: 40,
+        current: 41,
+        hints: 6,
+        spareUndos: 2,
+        records: { 3: { best: 3 } }
+      });
+      expect(merge).toHaveBeenCalledWith({ '2026-10-08': { moves: 25, seconds: 80, stars: 2 } });
+      expect(lastRender()).toMatchObject({ hintCount: '6' });
     });
 
     it('never goes back to progress that is behind', () => {

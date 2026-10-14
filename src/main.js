@@ -61,6 +61,10 @@ const controller = new GameController({
   feedback,
   onDailySolved: (day, result) => dailyBoard.record(day, result),
   getDailySummary: (today) => dailyBoard.summary(today),
+  dailyResults: {
+    results: () => dailyBoard.results(),
+    merge: (results) => dailyBoard.mergeResults(results)
+  },
   leaderboardOnline: dailyBoard.online,
   onEditPuzzle: (puzzle) => editor.show(puzzle),
   progress: loadProgress(),
