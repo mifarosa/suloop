@@ -4,7 +4,7 @@ import { DailyBoard } from './app/dailyBoard.js';
 import { EditorDialog } from './app/editorDialog.js';
 import { loadDailyRecord, saveDailyRecord } from './app/dailyResults.js';
 import { Feedback } from './app/feedback.js';
-import { createFewestMovesFinder } from './app/fewestMoves.js';
+import { createPuzzleSolver } from './app/fewestMoves.js';
 import { Hud } from './app/hud.js';
 import { createLeaderboard } from './app/leaderboard.js';
 import { LeaderboardDialog } from './app/leaderboardDialog.js';
@@ -56,7 +56,7 @@ const dailyBoard = new DailyBoard({
     anonKey: import.meta.env.VITE_SUPABASE_ANON_KEY
   })
 });
-const findFewestMoves = createFewestMovesFinder();
+const { fewest: findFewestMoves, solution: findSolution } = createPuzzleSolver();
 // The editor draws the board being made with a scene of its own.
 const editor = new EditorDialog(document, {
   scene: new TubeScene(document.querySelector('#editor-board')),
@@ -70,6 +70,7 @@ const controller = new GameController({
   transfer,
   rules,
   findFewestMoves,
+  findSolution,
   feedback,
   onDailySolved: (day, result) => dailyBoard.record(day, result),
   getDailySummary: (today) => dailyBoard.summary(today),
@@ -93,6 +94,7 @@ hud.bindActions({
   onShowLevels: () => controller.showLevels(),
   onContinue: () => controller.continueAfterWin(),
   onReplay: () => controller.replay(),
+  onWatchSolution: () => controller.watchSolution(),
   onContinueToLevels: () => controller.continueToLevels(),
   onLeaderboard: () => showLeaderboard()
 });

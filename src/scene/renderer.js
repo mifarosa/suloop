@@ -148,6 +148,13 @@ export function drawSceneLayers(
 function updateStillLayer(ctx, layers, resting, tubes, view, look, isOil) {
   const pixelsPerUnit = Math.round(ctx.getTransform().a * view.scale * 4) / 4;
   const changed = [];
+  // Tubes that left the board (a new puzzle) leave their picture behind.
+  const present = new Set(tubes);
+  for (const tube of [...layers.stamped.keys()]) {
+    if (present.has(tube)) continue;
+    changed.push(spriteBox(tube, view, 0, tube.height));
+    layers.stamped.delete(tube);
+  }
   for (const tube of tubes) {
     const key = resting.includes(tube) ? spriteKey(tube, look, isOil, pixelsPerUnit) : null;
     const before = layers.stamped.get(tube) ?? null;

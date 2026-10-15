@@ -1548,7 +1548,8 @@ a.button.icon {
   text-shadow: 0 0 3px rgba(0, 0, 0, 0.7);
 }
 
-#share-result {
+#share-result,
+#watch-solution {
   justify-self: center;
 }
 

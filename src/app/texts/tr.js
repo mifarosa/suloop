@@ -206,6 +206,16 @@ export const tr = {
     `${moves} hamle · ${duration(seconds)}` +
     (streak >= 2 ? ` · 🔥 ${streak} gün` : ''),
 
+  // Watching the solution
+  watchSolution: 'Çözümü izle',
+  watchPreparing: 'Çözüm hazırlanıyor…',
+  watchStep: (done, total) => `Çözümü izliyorsun · ${done}/${total} · dokun`,
+  watchTapToStart: 'Çözüm adım adım gösterilecek: tüplerin üstüne dokundukça ilerler.',
+  watchNoUndo: 'Çözümü izlerken geri alamazsın.',
+  watchNoHint: 'Çözümü izlerken ipucu gerekmez.',
+  watchDone: 'Şimdi sen dene: 3 yıldız artık senin!',
+  watchFailed: 'Bu seviyenin çözümü şu an gösterilemiyor.',
+
   // The daily leaderboard
   leaderboardLoading: 'Sıralama yükleniyor…',
   dailyToday: (moves, seconds) => `Bugün: ${moves} hamle · ${duration(seconds)}`,

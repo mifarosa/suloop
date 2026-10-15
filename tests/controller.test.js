@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { GameController } from '../src/app/controller.js';
+import { GameController, WATCH_AFTER_SOLVES } from '../src/app/controller.js';
 import { INITIAL_PROGRESS } from '../src/app/progress.js';
 import { decodeProgressCode, encodeProgressCode } from '../src/app/progressCode.js';
 import { encodeSnapshot } from '../src/app/progressSnapshot.js';
@@ -92,6 +92,10 @@ describe('GameController', () => {
       transfer,
       rules,
       findFewestMoves,
+      findSolution: async ({ level }) => {
+        const { tubes, board } = createLevelPuzzle(level);
+        return solveShortest(tubes, { board });
+      },
       onDailySolved,
       onEditPuzzle,
       getDailySummary,
@@ -186,12 +190,116 @@ describe('GameController', () => {
       attempts: [{ moves: moves.length, stars: 1 }],
       continueLabel: 'Sonraki seviye',
       leaderboard: false,
+      watch: false,
       shareText: `suloop · Seviye 1 ⭐☆☆\n${moves.length} hamle (en az 9)`
     });
 
     controller.continueAfterWin();
     expect(scene.showPuzzle).toHaveBeenLastCalledWith(...shownBoard(2));
     expect(lastRender().title).toBe('Seviye 2');
+  });
+
+  describe('watching the solution', () => {
+    /** Solves level 1 the long way `times` times, replaying in between. */
+    async function solveLongly(controller, times) {
+      for (let i = 0; i < times; i++) {
+        if (i > 0) controller.replay();
+        await playLongSolution(controller, 1);
+      }
+    }
+
+    it('is offered after five solutions in a row without every star', async () => {
+      const controller = createController();
+      await solveLongly(controller, WATCH_AFTER_SOLVES - 1);
+      expect(lastWin().watch).toBe(false);
+
+      controller.replay();
+      await playLongSolution(controller, 1);
+      expect(lastWin().watch).toBe(true);
+    });
+
+    it('starts over when the level has every star or the player moves to another level', async () => {
+      const controller = createController();
+      await solveLongly(controller, WATCH_AFTER_SOLVES - 1);
+      controller.replay();
+      await playSolution(controller, createLevelPuzzle(1), { shortest: true });
+      expect(lastWin().stars).toBe(3);
+      expect(lastWin().watch).toBe(false);
+
+      // Another level in between resets the count.
+      controller.playLevel(2);
+      controller.playLevel(1);
+      await solveLongly(controller, WATCH_AFTER_SOLVES - 1);
+      expect(lastWin().watch).toBe(false);
+    });
+
+    it('is not offered on the daily puzzle', async () => {
+      const controller = createController({ mode: 'daily' });
+      for (let i = 0; i < WATCH_AFTER_SOLVES; i++) {
+        await playSolution(controller, createDailyPuzzle('2026-10-09').tubes);
+        expect(lastWin().watch).toBe(false);
+        controller.replay();
+      }
+    });
+
+    it('plays one move of the shortest solution for each tap and counts nothing', async () => {
+      vi.useFakeTimers();
+      try {
+        const controller = createController();
+        await solveLongly(controller, WATCH_AFTER_SOLVES);
+        const solution = solveShortest(createLevelPuzzle(1).tubes, {
+          board: createLevelPuzzle(1).board
+        });
+        const before = saved.at(-1);
+        scene.pour.mockClear();
+
+        await controller.watchSolution();
+        expect(hud.hideWin).toHaveBeenCalled();
+        expect(scene.highlight).toHaveBeenLastCalledWith(solution[0]);
+        expect(lastRender().subtitle).toBe(`Çözümü izliyorsun · 0/${solution.length} · dokun`);
+
+        // A tap anywhere on a tube plays the next move, whichever tube it is.
+        const first = controller.tapTube(0);
+        await vi.advanceTimersByTimeAsync(500);
+        await first;
+        expect(scene.pour).toHaveBeenCalledTimes(1);
+        expect(scene.pour.mock.calls[0].slice(0, 2)).toEqual(solution[0]);
+        expect(lastRender().subtitle).toBe(`Çözümü izliyorsun · 1/${solution.length} · dokun`);
+
+        for (let i = 1; i < solution.length; i++) {
+          const step = controller.tapTube(0);
+          await vi.advanceTimersByTimeAsync(500);
+          await step;
+        }
+        expect(scene.pour).toHaveBeenCalledTimes(solution.length);
+        // The demonstration earns nothing: no new result, and the level starts for the player.
+        expect(hud.showWin).toHaveBeenCalledTimes(WATCH_AFTER_SOLVES);
+        expect(saved.at(-1)).toMatchObject({
+          records: before.records,
+          hints: before.hints,
+          spareUndos: before.spareUndos,
+          solved: before.solved
+        });
+        expect(lastRender().subtitle).toBe('Kolay · 0 hamle');
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('does not take undos or hints while the solution is shown', async () => {
+      const controller = createController();
+      await solveLongly(controller, WATCH_AFTER_SOLVES);
+      await controller.watchSolution();
+      const { hints } = saved.at(-1);
+
+      controller.showHint();
+      controller.undo();
+      expect(hud.showToast).toHaveBeenCalledWith('Çözümü izlerken ipucu gerekmez.');
+      expect(saved.at(-1).hints).toBe(hints);
+
+      controller.restart();
+      expect(lastRender().subtitle).toBe('Kolay · 0 hamle');
+    });
   });
 
   it('gives every star for the fewest moves, and nothing more where undos are unlimited', async () => {

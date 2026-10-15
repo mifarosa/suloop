@@ -41,6 +41,7 @@ export class Hud {
       replay: find('#replay'),
       winLeaderboard: find('#win-leaderboard'),
       share: find('#share-result'),
+      watch: find('#watch-solution'),
       next: find('#next'),
       winLevels: find('#win-levels')
     };
@@ -56,6 +57,7 @@ export class Hud {
    * @param {() => void} actions.onShowLevels
    * @param {() => void} actions.onContinue
    * @param {() => void} actions.onReplay
+   * @param {() => void} actions.onWatchSolution
    * @param {() => void} actions.onContinueToLevels
    * @param {() => void} actions.onLeaderboard
    */
@@ -70,6 +72,7 @@ export class Hud {
     levels.addEventListener('click', actions.onShowLevels);
     next.addEventListener('click', actions.onContinue);
     replay.addEventListener('click', actions.onReplay);
+    this.#elements.watch.addEventListener('click', actions.onWatchSolution);
     winLevels.addEventListener('click', actions.onContinueToLevels);
     winLeaderboard.addEventListener('click', actions.onLeaderboard);
     this.#elements.share.addEventListener('click', () => this.#shareResult());
@@ -128,6 +131,7 @@ export class Hud {
    *   newest first; null for none to show
    * @param {string} win.continueLabel
    * @param {boolean} [win.leaderboard] offer the daily leaderboard
+   * @param {boolean} [win.watch] offer to show the solution step by step
    * @param {string | null} [win.shareText] what the share button sends, without the link;
    *   null for a puzzle that is not shared this way
    */
@@ -141,6 +145,7 @@ export class Hud {
     attempts,
     continueLabel,
     leaderboard = false,
+    watch = false,
     shareText = null
   }) {
     const elements = this.#elements;
@@ -156,6 +161,8 @@ export class Hud {
     if (attempts) elements.winAttempts.replaceChildren(...attempts.map(attemptItem));
     elements.next.textContent = continueLabel;
     elements.winLeaderboard.hidden = !leaderboard;
+    elements.watch.hidden = !watch;
+    elements.watch.textContent = texts.watchSolution;
     this.#shareText = shareText;
     elements.share.hidden = shareText === null;
     elements.share.textContent = texts.shareResult;

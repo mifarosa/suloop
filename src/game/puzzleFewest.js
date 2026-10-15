@@ -1,7 +1,7 @@
 import { fewestMovesOf } from './customPuzzle.js';
 import { FEWEST_MOVES } from './fewestTable.js';
 import { createDailyPuzzle, createLevelPuzzle } from './levels.js';
-import { fewestMoves } from './shortest.js';
+import { fewestMoves, solveShortest } from './shortest.js';
 
 /**
  * The fewest moves of a puzzle named by its level number, its date, or a custom puzzle's
@@ -21,4 +21,20 @@ export function fewestMovesOfPuzzle(puzzle) {
   const { tubes, board } =
     puzzle.level !== undefined ? createLevelPuzzle(puzzle.level) : createDailyPuzzle(puzzle.day);
   return fewestMoves(tubes, { board });
+}
+
+/**
+ * A shortest solution of a numbered level, as the moves to play. The ready-made levels are
+ * rated against their shortest solution, so playing this one earns every star; a level too big
+ * to search for it gets the shortest the hurried searches find.
+ * @param {{ level: number }} puzzle
+ * @returns {Array<[number, number]> | null} null when nothing found a solution
+ */
+export function solutionOfPuzzle({ level }) {
+  const { tubes, board } = createLevelPuzzle(level);
+  for (const weight of [1, 1.5, 2.5, 4]) {
+    const found = solveShortest(tubes, { board, maxNodes: 250_000, weight });
+    if (found) return found;
+  }
+  return null;
 }

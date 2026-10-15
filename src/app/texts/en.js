@@ -208,6 +208,16 @@ export const en = {
     `${en.moves(moves)} · ${duration(seconds)}` +
     (streak >= 2 ? ` · 🔥 ${streak} days` : ''),
 
+  // Watching the solution
+  watchSolution: 'Watch the solution',
+  watchPreparing: 'Getting the solution ready…',
+  watchStep: (done, total) => `Watching the solution · ${done}/${total} · tap`,
+  watchTapToStart: 'The solution is shown step by step: tap a tube to go to the next move.',
+  watchNoUndo: 'You cannot undo while watching the solution.',
+  watchNoHint: 'You do not need a hint while watching the solution.',
+  watchDone: 'Now you try: those 3 stars are yours!',
+  watchFailed: 'The solution of this level cannot be shown right now.',
+
   // The daily leaderboard
   leaderboardLoading: 'Loading the leaderboard…',
   dailyToday: (moves, seconds) => `Today: ${en.moves(moves)} · ${duration(seconds)}`,
