@@ -14,7 +14,7 @@ import {
 } from '../game/levels.js';
 import { boardOf, rulesOf } from '../game/customPuzzle.js';
 import { GameSession } from '../game/session.js';
-import { starsFor, twoStarLimit } from '../game/stars.js';
+import { MAX_STARS, starsFor, twoStarLimit } from '../game/stars.js';
 import { localDateKey } from './calendar.js';
 import {
   MAX_SPARE_UNDOS,
@@ -32,6 +32,11 @@ import { texts } from './texts.js';
  * @typedef {{ moves: number, proven: boolean } | null} Fewest the fewest moves of a puzzle
  *   (see fewestMoves in shortest.js)
  */
+
+/** After this many solutions in a row of one level without every star, the player may watch it. */
+export const WATCH_AFTER_SOLVES = 5;
+/** How long a tube stays lifted before the pour of a move being shown. */
+const WATCH_LIFT_MS = 350;
 
 /** Feedback that makes no sound and no vibration, for when none is given. */
 const SILENT = Object.freeze({
@@ -60,6 +65,7 @@ export class GameController {
   #leaderboardOnline;
   #onEditPuzzle;
   #findFewestMoves;
+  #findSolution;
   #progress;
   #saveProgress;
   #now;
@@ -83,6 +89,17 @@ export class GameController {
   #fewestKnown;
   /** The last hint and the position it was for: asking again there costs nothing. */
   #lastHint = null;
+  /**
+   * How many solutions in a row the level on the board has had without every star; it starts
+   * over on another level.
+   */
+  #tries = { level: null, count: 0 };
+  /**
+   * The solution being shown, one move for each tap: the moves, how many are played and
+   * whether one is playing. Null when the player plays themselves.
+   * @type {{ moves: Array<[number, number]>, done: number, busy: boolean } | null}
+   */
+  #watch = null;
   /** Set while the win celebration plays; input waits until it is over. Pours do not block. */
   #animating = false;
 
@@ -94,6 +111,8 @@ export class GameController {
    * @param {import('./transferDialog.js').TransferDialog} deps.transfer
    * @param {import('./rulesDialog.js').RulesDialog} deps.rules
    * @param {(puzzle: { level: number } | { day: string }) => Promise<Fewest>} deps.findFewestMoves
+   * @param {(puzzle: { level: number }) => Promise<Array<[number, number]> | null>}
+   *   [deps.findSolution] a shortest solution of a numbered level
    * @param {import('./feedback.js').Feedback} [deps.feedback] sounds and vibration
    * @param {(day: string, result: { moves: number, seconds: number, stars: number }) => void}
    *   [deps.onDailySolved] called with each solution of a daily puzzle
@@ -115,6 +134,7 @@ export class GameController {
     transfer,
     rules,
     findFewestMoves,
+    findSolution = () => Promise.resolve(null),
     feedback = SILENT,
     onDailySolved = () => {},
     getDailySummary = () => ({ today: null, streak: 0 }),
@@ -137,6 +157,7 @@ export class GameController {
     this.#leaderboardOnline = leaderboardOnline;
     this.#onEditPuzzle = onEditPuzzle;
     this.#findFewestMoves = findFewestMoves;
+    this.#findSolution = findSolution;
     this.#progress = { ...progress };
     this.#saveProgress = saveProgress;
     this.#now = now;
@@ -147,6 +168,8 @@ export class GameController {
     this.#puzzleDay = this.#now();
     this.#startedAt = this.#puzzleDay.getTime();
     this.#level = this.#custom || this.#isDaily() ? null : this.#progress.current;
+    this.#watch = null;
+    if (this.#tries.level !== this.#level) this.#tries = { level: this.#level, count: 0 };
     const { tubes, board } = this.#custom
       ? boardOf(this.#custom.puzzle)
       : this.#isDaily()
@@ -256,7 +279,14 @@ export class GameController {
   /** @param {number} index */
   async tapTube(index) {
     if (this.#animating) return;
+    if (this.#watch) {
+      await this.#showNextMove();
+      return;
+    }
+    await this.#handleTap(index);
+  }
 
+  async #handleTap(index) {
     const result = this.#session.tap(index);
     switch (result.type) {
       case 'selected':
@@ -289,6 +319,10 @@ export class GameController {
   undo() {
     const session = this.#session;
     if (this.#animating || !this.#canUndo()) return;
+    if (this.#watch) {
+      this.#hud.showToast(texts.watchNoUndo);
+      return;
+    }
 
     const spare = !session.canUndo;
     this.#putSelectionDown();
@@ -314,6 +348,11 @@ export class GameController {
 
   restart() {
     if (this.#animating || this.#session.solved) return;
+    if (this.#watch) {
+      // Leaving the demonstration: the level starts over for the player.
+      this.start();
+      return;
+    }
 
     this.#session.restart();
     this.#scene.showContents(this.#session.visibleTubes);
@@ -329,6 +368,10 @@ export class GameController {
   showHint() {
     const session = this.#session;
     if (this.#animating || session.solved) return;
+    if (this.#watch) {
+      this.#hud.showToast(texts.watchNoHint);
+      return;
+    }
 
     this.#putSelectionDown();
     let move = this.#lastHint?.position === session.position ? this.#lastHint.move : null;
@@ -460,6 +503,66 @@ export class GameController {
   }
 
   /**
+   * Shows the shortest solution of the level just played, a move at a time: the board starts
+   * over and every tap on a tube plays the next move. Nothing of it counts: no stars, no
+   * moves in the level's record and no hints spent; the player then plays the level for real.
+   */
+  async watchSolution() {
+    const level = this.#level;
+    if (this.#animating || level === null) return;
+
+    this.#hud.showToast(texts.watchPreparing);
+    const solution = await this.#findSolution({ level });
+    // The player may have gone to another level meanwhile.
+    if (this.#level !== level || this.#custom || this.#isDaily()) return;
+    if (!solution || solution.length === 0) {
+      this.#hud.showToast(texts.watchFailed);
+      return;
+    }
+
+    this.#updateProgress({ current: level });
+    this.start();
+    this.#watch = { moves: solution, done: 0, busy: false };
+    this.#refreshHud();
+    this.#pointAtNextMove();
+    this.#hud.showToast(texts.watchTapToStart, { long: true });
+  }
+
+  /** Lights up the two tubes of the move that comes next. */
+  #pointAtNextMove() {
+    const { moves, done } = this.#watch;
+    if (done < moves.length) this.#scene.highlight(moves[done]);
+  }
+
+  /** Plays the next move of the solution being shown: lifts its tube, then pours. */
+  async #showNextMove() {
+    const watch = this.#watch;
+    if (watch.busy || watch.done >= watch.moves.length) return;
+
+    const [from, to] = watch.moves[watch.done];
+    watch.busy = true;
+    try {
+      await this.#handleTap(from);
+      await new Promise((resolve) => setTimeout(resolve, WATCH_LIFT_MS));
+      // The player may have left the demonstration meanwhile.
+      if (this.#watch !== watch) return;
+      watch.done++;
+      await this.#handleTap(to);
+      if (this.#watch !== watch) return;
+      this.#pointAtNextMove();
+    } finally {
+      watch.busy = false;
+    }
+  }
+
+  /** The solution being shown reached its end: the player gets the level to play for real. */
+  async #endWatch() {
+    await this.#scene.celebrate();
+    this.start();
+    this.#hud.showToast(texts.watchDone, { long: true });
+  }
+
+  /**
    * Plays a custom puzzle: one being made in the editor, or one shared by link.
    * @param {import('../game/customPuzzle.js').CustomPuzzle} puzzle
    * @param {{ fromEditor?: boolean }} [options]
@@ -500,7 +603,7 @@ export class GameController {
       // Undo, restart or another level may have replaced the board meanwhile.
       if (this.#session !== session) return;
       if (unlocked.length > 0) this.#scene.showTubeStates(this.#tubeStates());
-      if (solved) await this.#celebrateWin();
+      if (solved) await (this.#watch ? this.#endWatch() : this.#celebrateWin());
     } finally {
       if (solved) this.#animating = false;
     }
@@ -537,6 +640,7 @@ export class GameController {
     const stars = starsFor(moves, fewestMoves);
     let attempts = null;
     let shareText = null;
+    let offerWatch = false;
     if (this.#isDaily()) {
       const day = localDateKey(this.#puzzleDay);
       const { progress, earnedHint } = recordDailyWin(this.#progress, day);
@@ -559,6 +663,11 @@ export class GameController {
       if (earnedUndo) notes.push(texts.earnedUndo);
       attempts = progress.records[this.#level].attempts.slice().reverse();
       shareText = texts.shareLevelText(this.#level, stars, moves, fewestMoves);
+      const count = stars === MAX_STARS ? 0 : this.#tries.count + 1;
+      this.#tries = { level: this.#level, count };
+      offerWatch = count >= WATCH_AFTER_SOLVES && progress.records[this.#level].best < MAX_STARS;
+      // Work the solution out while the player reads the result.
+      if (offerWatch) this.#findSolution({ level: this.#level });
     }
     this.#refreshHud();
 
@@ -576,6 +685,7 @@ export class GameController {
           ? texts.backToLevels
           : texts.nextLevel,
       leaderboard: this.#isDaily() && this.#leaderboardOnline,
+      watch: offerWatch,
       shareText
     });
   }
@@ -738,11 +848,13 @@ export class GameController {
     const spare = this.#spareUndos();
     this.#hud.render({
       title: this.#title(),
-      subtitle: this.#custom
-        ? texts.customSubtitle(rulesOf(this.#custom.puzzle), session.moveCount)
-        : this.#isDaily()
-          ? texts.moves(session.moveCount)
-          : this.#levelSubtitle(session.moveCount),
+      subtitle: this.#watch
+        ? texts.watchStep(this.#watch.done, this.#watch.moves.length)
+        : this.#custom
+          ? texts.customSubtitle(rulesOf(this.#custom.puzzle), session.moveCount)
+          : this.#isDaily()
+            ? texts.moves(session.moveCount)
+            : this.#levelSubtitle(session.moveCount),
       canUndo: this.#canUndo(),
       undoCount: texts.undoCount(session.undosLeft, spare),
       undoLabel: texts.undoLabel(session.undosLeft, spare),
