@@ -10,7 +10,6 @@ import { createLeaderboard } from './app/leaderboard.js';
 import { LeaderboardDialog } from './app/leaderboardDialog.js';
 import { LevelMenu } from './app/levelMenu.js';
 import { loadProgress, saveProgress } from './app/progress.js';
-import { codeInLink } from './app/progressCode.js';
 import { RulesDialog } from './app/rulesDialog.js';
 import { setLanguage } from './app/i18n.js';
 import { loadSettings, saveSettings } from './app/settings.js';
@@ -18,7 +17,6 @@ import { applyStaticTexts } from './app/staticTexts.js';
 import { SettingsDialog } from './app/settingsDialog.js';
 import { createThemer } from './app/theme.js';
 import { texts } from './app/texts.js';
-import { TransferDialog } from './app/transferDialog.js';
 import { decodePuzzle } from './game/customPuzzle.js';
 import { Confetti } from './scene/confetti.js';
 import { TubeScene } from './scene/tubeScene.js';
@@ -43,7 +41,6 @@ const feedback = new Feedback();
 const themer = createThemer((look) => scene.setLook(look));
 const hud = new Hud(document);
 const menu = new LevelMenu(document);
-const transfer = new TransferDialog(document);
 const rules = new RulesDialog(document, { getLook: () => themer.look() });
 const settingsDialog = new SettingsDialog(document);
 const leaderboardDialog = new LeaderboardDialog(document);
@@ -67,17 +64,12 @@ const controller = new GameController({
   scene,
   hud,
   menu,
-  transfer,
   rules,
   findFewestMoves,
   findSolution,
   feedback,
   onDailySolved: (day, result) => dailyBoard.record(day, result),
   getDailySummary: (today) => dailyBoard.summary(today),
-  dailyResults: {
-    results: () => dailyBoard.results(),
-    merge: (results) => dailyBoard.mergeResults(results)
-  },
   leaderboardOnline: dailyBoard.online,
   onEditPuzzle: (puzzle) => editor.show(puzzle),
   progress: loadProgress(),
@@ -101,7 +93,6 @@ hud.bindActions({
 menu.bindActions({
   onPickLevel: (level) => controller.playLevel(level),
   onPickDaily: () => controller.playDaily(),
-  onTransfer: () => controller.showTransfer(),
   onLeaderboard: () => {
     controller.closeLevels();
     showLeaderboard();
@@ -111,10 +102,6 @@ menu.bindActions({
     editor.show();
   },
   onClose: () => controller.closeLevels()
-});
-transfer.bindActions({
-  onImport: (code) => controller.importProgress(code),
-  onClose: () => controller.closeTransfer()
 });
 rules.bindActions({ onClose: () => controller.closeRules() });
 
@@ -184,19 +171,14 @@ settingsDialog.bindActions({
 applySettings();
 controller.start();
 
-/**
- * Takes what a link carries: progress, as in "…/suloop/#ilerleme=2FQ7M", or a puzzle someone
- * shared, as in "…/suloop/#bulmaca=…". It works for links opened here or pasted in.
- */
+/** Takes a puzzle someone shared, as in "…/suloop/#bulmaca=…"; it works for links opened here or pasted in. */
 function openLink() {
-  const code = codeInLink(location.href);
-  const sharedPuzzle = /#bulmaca=/.test(location.hash) ? decodePuzzle(location.hash) : undefined;
-  if (code === null && sharedPuzzle === undefined) return;
+  if (!/#bulmaca=/.test(location.hash)) return;
 
+  const sharedPuzzle = decodePuzzle(location.hash);
   // Drop the code from the address, so a reload or a bookmark does not bring it back.
   history.replaceState(null, '', location.pathname + location.search);
-  if (code !== null) controller.importProgress(code, { fromLink: true });
-  else if (sharedPuzzle) controller.playCustom(sharedPuzzle);
+  if (sharedPuzzle) controller.playCustom(sharedPuzzle);
   else hud.showToast(texts.sharedPuzzleInvalid);
 }
 openLink();

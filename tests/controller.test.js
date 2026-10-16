@@ -1,8 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { GameController, WATCH_AFTER_SOLVES } from '../src/app/controller.js';
 import { INITIAL_PROGRESS } from '../src/app/progress.js';
-import { decodeProgressCode, encodeProgressCode } from '../src/app/progressCode.js';
-import { encodeSnapshot } from '../src/app/progressSnapshot.js';
 import { tubeSizes } from '../src/game/generator.js';
 import { boardOf, withRandomFill, emptyPuzzle } from '../src/game/customPuzzle.js';
 import { createDailyPuzzle, createLevelPuzzle, levelSettings } from '../src/game/levels.js';
@@ -52,10 +50,6 @@ function fakeMenu() {
   return { show: vi.fn(), hide: vi.fn() };
 }
 
-function fakeTransfer() {
-  return { show: vi.fn(), hide: vi.fn(), showError: vi.fn() };
-}
-
 const TODAY = new Date(2026, 9, 9, 12, 0);
 
 /** What the scene is given for a level: the board and each tube's size. */
@@ -70,26 +64,17 @@ describe('GameController', () => {
   let scene;
   let hud;
   let menu;
-  let transfer;
   let rules;
   let saved;
 
   function createController(
     progress = {},
-    {
-      clock = () => TODAY,
-      onDailySolved,
-      onEditPuzzle,
-      getDailySummary,
-      dailyResults,
-      leaderboardOnline
-    } = {}
+    { clock = () => TODAY, onDailySolved, onEditPuzzle, getDailySummary, leaderboardOnline } = {}
   ) {
     const controller = new GameController({
       scene,
       hud,
       menu,
-      transfer,
       rules,
       findFewestMoves,
       findSolution: async ({ level }) => {
@@ -99,7 +84,6 @@ describe('GameController', () => {
       onDailySolved,
       onEditPuzzle,
       getDailySummary,
-      dailyResults,
       leaderboardOnline,
       progress: { ...INITIAL_PROGRESS, ...progress },
       saveProgress: (value) => saved.push(value),
@@ -141,7 +125,6 @@ describe('GameController', () => {
     scene = fakeScene();
     hud = fakeHud();
     menu = fakeMenu();
-    transfer = fakeTransfer();
     rules = fakeRules();
     saved = [];
   });
@@ -1000,89 +983,6 @@ describe('GameController', () => {
       await playSolution(controller, createLevelPuzzle(80));
       expect(scene.celebrate).toHaveBeenCalledOnce();
       expect(saved.at(-1)).toMatchObject({ solved: 90, current: 81 });
-    });
-  });
-
-  describe('carrying progress to another device', () => {
-    it('shows the code of the solved levels in place of the level list', () => {
-      const controller = createController({ solved: 79, current: 12 });
-      controller.showLevels();
-      controller.showTransfer();
-
-      expect(menu.hide).toHaveBeenCalled();
-      expect(decodeProgressCode(transfer.show.mock.lastCall[0].code)).toBe(79);
-    });
-
-    it('takes over progress that is further along and goes to the next level', () => {
-      const controller = createController({ solved: 3, current: 2 });
-      controller.importProgress(encodeProgressCode(40));
-
-      expect(saved.at(-1)).toMatchObject({ mode: 'level', solved: 40, current: 41 });
-      expect(scene.showPuzzle).toHaveBeenLastCalledWith(...shownBoard(41));
-      expect(transfer.hide).toHaveBeenCalled();
-      expect(hud.showToast).toHaveBeenCalledWith('İlerleme yüklendi: 40 seviye çözülmüş.');
-    });
-
-    it('brings the stars, hints and daily results along with a full link', () => {
-      const merge = vi.fn();
-      const controller = createController({}, { dailyResults: { results: () => ({}), merge } });
-      const code = encodeSnapshot(
-        {
-          ...INITIAL_PROGRESS,
-          solved: 40,
-          hints: 6,
-          spareUndos: 2,
-          records: { 3: { best: 3, attempts: [] } }
-        },
-        { '2026-10-08': { moves: 25, seconds: 80, stars: 2 } }
-      );
-      controller.importProgress(code, { fromLink: true });
-
-      expect(saved.at(-1)).toMatchObject({
-        solved: 40,
-        current: 41,
-        hints: 6,
-        spareUndos: 2,
-        records: { 3: { best: 3 } }
-      });
-      expect(merge).toHaveBeenCalledWith({ '2026-10-08': { moves: 25, seconds: 80, stars: 2 } });
-      expect(lastRender()).toMatchObject({ hintCount: '6' });
-    });
-
-    it('never goes back to progress that is behind', () => {
-      const controller = createController({ solved: 85, current: 86 });
-      scene.showPuzzle.mockClear();
-      controller.importProgress(encodeProgressCode(79));
-
-      expect(saved).toEqual([]);
-      expect(scene.showPuzzle).not.toHaveBeenCalled();
-      expect(hud.showToast).toHaveBeenCalledWith(
-        'Bu cihazda zaten 85 seviye çözülmüş, ilerleme değişmedi.'
-      );
-    });
-
-    it('says in the dialog when a typed code is wrong', () => {
-      const controller = createController({ solved: 5, current: 6 });
-      controller.importProgress('ABCDE');
-
-      expect(transfer.showError).toHaveBeenCalledWith('Bu kod geçersiz. Harfleri kontrol et.');
-      expect(transfer.hide).not.toHaveBeenCalled();
-      expect(saved).toEqual([]);
-    });
-
-    it('says in a toast when the code in a link is wrong', () => {
-      const controller = createController();
-      controller.importProgress('ABCDE', { fromLink: true });
-
-      expect(hud.showToast).toHaveBeenCalledWith('Bu kod geçersiz. Harfleri kontrol et.');
-      expect(transfer.showError).not.toHaveBeenCalled();
-    });
-
-    it('leaves the daily puzzle for the levels when progress arrives', () => {
-      const controller = createController({ mode: 'daily', solved: 0, current: 1 });
-      controller.importProgress(encodeProgressCode(20));
-
-      expect(lastRender().title).toBe('Seviye 21');
     });
   });
 

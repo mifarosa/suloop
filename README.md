@@ -155,11 +155,8 @@ src/
     fewestMoves.js En az hamleyi worker'a sorar, cevapları hatırlar
     levelMenu.js  Seviyeler ekranı
     progress.js   İlerlemenin kaydı
-    progressCode.js İlerleme kodu ve bağlantısı
-    transferDialog.js "İlerlemeyi taşı" penceresi
     overlay.js    Pencerelerin açılıp kapanması
     texts.js, texts/ Oyuncunun gördüğü tüm metinler (tr.js, en.js), i18n.js, staticTexts.js
-    progressSnapshot.js İlerleme bağlantısı: yıldızlar, haklar, seri
   main.js         Giriş noktası
 tests/            Birim testleri
 ```

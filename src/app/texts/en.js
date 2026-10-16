@@ -190,12 +190,7 @@ export const en = {
   chapterProgress: (solved, total) => `${solved}/${total}`,
   masterProgress: (solved) => `${solved} solved`,
   // Carrying progress to another device
-  linkCopied: 'Copied ✓',
   copyFailed: 'Could not copy. Write the code down.',
-  transferInvalid: 'This code is not valid. Check the letters.',
-  transferLoaded: (solved) => `Progress loaded: ${solved} levels solved.`,
-  transferUnchanged: (solved) =>
-    `This device already has ${solved} levels solved; nothing changed.`,
 
   // Sharing a result
   shareResult: 'Share result',
