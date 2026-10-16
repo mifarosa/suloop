@@ -404,6 +404,34 @@ export class GameController {
     this.#menu.hide();
   }
 
+  /** The player's progress as it is now. */
+  progress() {
+    return this.#progress;
+  }
+
+  /**
+   * Takes over progress that came from the player's account. When it moves the player to
+   * another level the board starts over there; otherwise only the numbers on screen change.
+   * @param {import('./progress.js').Progress} progress
+   */
+  applyProgress(progress) {
+    if (this.#animating) {
+      setTimeout(() => this.applyProgress(progress), 1000);
+      return;
+    }
+
+    const moveOn =
+      progress.current !== this.#progress.current || progress.mode !== this.#progress.mode;
+    this.#setProgress(progress);
+    if (moveOn) {
+      this.#custom = null;
+      this.start();
+      this.#hud.showToast(texts.cloudProgressLoaded(progress.solved));
+    } else {
+      this.#refreshHud();
+    }
+  }
+
   /** Plays a level picked from the list; levels that are still locked are ignored. */
   playLevel(level) {
     if (this.#animating || level < 1 || level > lastOpenLevel(this.#progress)) return;

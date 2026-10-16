@@ -87,6 +87,12 @@ export const ENGLISH_STATIC = [
   ['#haptics-note', { text: 'This device does not support vibration.' }],
   ['label:has(#setting-symbols) > span', { text: 'Add symbols to colors' }],
   ['#symbols-note', { text: 'Draws a shape on every color, if they are hard to tell apart.' }],
+  ['#account-title', { text: 'Account' }],
+  ['#account-signin', { text: 'Sign in with Google' }],
+  ['#account-name-input', { label: 'Username' }],
+  ['#account-name-form button', { text: 'Save' }],
+  ['#account-signout', { text: 'Sign out' }],
+  ['#account-delete', { text: 'Delete my account' }],
   ['#install-app', { text: 'Install as an app' }],
   ['#settings .coffee', { text: '☕ Buy me a coffee' }],
 

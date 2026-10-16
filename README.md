@@ -88,7 +88,7 @@ Renkli suları tüplere ayırdığın bulmaca oyunu. Tarayıcıda çalışır, k
   oynanır; yeni sürüm yayınlanınca bağlantı varken hemen gelir
 - **Günün bulmacası serisi:** günün bulmacasında ilk çözümün (hamle, süre, yıldız) ve kaç gün üst
   üste çözdüğün cihazda tutulur; seviyeler ekranındaki günün bulmacası kartında ve bitiş ekranında
-  görünür. Supabase bağlanırsa herkesle günlük sıralama da açılır (aşağıda); bağlı değilken sıralama
+  görünür. Supabase bağlanırsa herkesle günlük sıralama da açılır (ileride Firebase'e taşınacak) (aşağıda); bağlı değilken sıralama
   hiç görünmez
 - **Bulmaca atölyesi:** seviyeler ekranındaki karttan. 8 kuralın hepsiyle kendi bulmacanı yaparsın:
   renk koy/al, kilit ve yağ ata, yarım/tek yönlü/çatlak tüp ekle, uzun tüp, gizli renk ve geri
@@ -96,19 +96,21 @@ Renkli suları tüplere ayırdığın bulmaca oyunu. Tarayıcıda çalışır, k
   hamlede çözüldüğü arka planda bulunur. "Dene" ile oynarsın (ipucu ücretsiz). Bulmaca JSON
   tabanlı bir kodla ya da `#bulmaca=…` bağlantısıyla paylaşılır; kod, bağlantı ya da düz JSON
   geri yüklenebilir. Taslağın cihazda saklanır
-- Kaldığın seviye tarayıcıda saklanır. "İlerlemeyi taşı" ile bir bağlantı (seviyeler, yıldızlar, ipuçları, ekstra geri almalar ve günlük seri) ya da yalnızca seviyeleri taşıyan kısa bir kod alıp
-  başka bir cihazda (ya da tarayıcı verisi silindikten sonra) kaldığın yerden devam edersin.
-  Yükleme ilerlemeyi hiç geri götürmez: eski bir kod hiçbir şeyi silmez
+- Kaldığın seviye tarayıcıda saklanır. İstersen ayarlardan **Google ile giriş yaparsın**: ilerlemen
+  (seviyeler, yıldızlar, her seviyenin son 5 çözümü, ipuçları, ekstra geri almalar, günlük seri)
+  hesabında da durur ve başka cihazlarında gelir. Giriş yapmadan oynamaya devam edebilirsin.
+  Birleştirme ilerlemeyi hiç geri götürmez. Hesabı Firebase tutar (aşağıda)
 - Gerçekçi döküm: tüp, sıvı ağzına ulaşana kadar eğilir ve boşaldıkça daha çok eğilir; sıvının
   yüzeyi hep yatay kalır, akıntı tüpün dudağından düşer. Bir döküm sürerken sonraki hamle
   yapılabilir
 - Kazanınca iki köşeden konfeti patlar (cihazda "hareketi azalt" açıksa çıkmaz)
 - Seviyeler ekranında "Kahve ısmarla" butonu: oyunu beğenen
   [Buy Me a Coffee](https://buymeacoffee.com/mifarosa) üzerinden destek olabilir
-- Yavaş telefonlarda akıcılık: tahta yavaş çiziliyorsa oyun çözünürlüğü kendisi adım adım düşürür
-  (kare hızı canvas'ın piksel sayısına bağlıdır) ve bir sonraki açılış için hatırlar. Eğilmeyen
-  tüpler bir kez hazır görsele çizilip her karede o görsel basılır; neon parlama gölge yerine ince
-  çizgilerle yapılır
+- Telefonlarda akıcılık: tahta iki katman olarak çizilir. Duran tüpler alttaki canvas'a bir kez
+  basılır; kalkan ya da dökülen tüp ve akan sıvı üstteki canvas'ta, yalnız kapladıkları alan
+  silinip yeniden boyanarak çizilir. Eğilmeyen tüpler bir kez hazır görsele çizilip her karede o
+  görsel basılır; neon parlama gölge yerine ince çizgilerle yapılır. Çözünürlük hep tam
+  (en çok 2×)
 - Canvas 2D ile çizilen cam tüpler, açık/koyu tema; ek kütüphane yok, oyun 86 KB (gzip 31 KB)
 
 ## Proje yapısı
@@ -155,8 +157,14 @@ src/
     fewestMoves.js En az hamleyi worker'a sorar, cevapları hatırlar
     levelMenu.js  Seviyeler ekranı
     progress.js   İlerlemenin kaydı
+    cloudProgress.js Hesaptaki ilerlemenin belgesi ve cihazla birleşmesi
+    accountPanel.js Ayarlardaki Hesap bölümü
     overlay.js    Pencerelerin açılıp kapanması
     texts.js, texts/ Oyuncunun gördüğü tüm metinler (tr.js, en.js), i18n.js, staticTexts.js
+  cloud/          Firebase'e dokunan her şey (hesap, eşitleme); oyun mantığı bunu bilmez
+    config.js, firebase.js, firebaseBackend.js Proje ayarı, tembel yükleme, Firestore işleri
+    account.js    Giriş, kullanıcı adı
+    cloudSync.js  İlerlemeyi hesapla eşitler
   main.js         Giriş noktası
 tests/            Birim testleri
 ```
@@ -164,6 +172,14 @@ tests/            Birim testleri
 Katmanlar tek yönlü bağımlıdır: `app` → `game` ve `scene`. `game` hiçbir şeye bağlı değildir.
 Seviyeler seviye numarasından üretilir. Bu yüzden bir seviye her cihazda ve her sürümde aynıdır.
 Testler de bunu korur.
+
+## Hesap ve bulut (Firebase)
+
+Giriş ve ilerleme eşitlemesi bir Firebase projesinde durur: Google ile giriş, herkese görünen
+benzersiz kullanıcı adı ve oyuncunun kendi ilerleme belgesi. Kurulum, kuralların yüklenmesi ve
+veri modeli `docs/firebase.md` dosyasında; kurallar `firestore.rules` içindedir. Firebase paketi
+yalnız giriş yapılınca (ya da önceki oturum geri yüklenirken) indirilir; hiç giriş yapmayan
+oyuncuya hiçbir şey yüklenmez.
 
 ## Geliştirme
 

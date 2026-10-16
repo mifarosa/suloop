@@ -307,6 +307,38 @@
             Renkleri ayırt etmek zorsa her rengin üstüne bir şekil çizer.
           </p>
         </div>
+        <section id="account" class="account" aria-labelledby="account-title" hidden>
+          <h3 id="account-title">Hesap</h3>
+          <div id="account-out">
+            <p id="account-note" class="note">
+              İlerlemen bu cihazda duruyor. Giriş yaparsan hesabında saklanır, diğer cihazlarında da
+              gelir.
+            </p>
+            <button id="account-signin" type="button" class="primary">Google ile giriş yap</button>
+          </div>
+          <div id="account-in" hidden>
+            <p id="account-who"></p>
+            <form id="account-name-form" class="transfer-row" hidden>
+              <input
+                id="account-name-input"
+                type="text"
+                autocomplete="off"
+                autocapitalize="none"
+                spellcheck="false"
+                maxlength="20"
+                placeholder="kullanici_adi"
+                aria-label="Kullanıcı adı"
+              />
+              <button type="submit">Kaydet</button>
+            </form>
+            <p id="account-status" class="note" role="status"></p>
+            <div class="card-actions">
+              <button id="account-signout" type="button">Çıkış yap</button>
+              <button id="account-delete" type="button" class="link">Hesabımı sil</button>
+            </div>
+          </div>
+          <p id="account-error" class="note account-error" role="alert" hidden></p>
+        </section>
         <button id="install-app" type="button" hidden>Uygulama olarak yükle</button>
         <a
           class="button coffee"

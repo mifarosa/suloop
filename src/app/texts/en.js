@@ -189,8 +189,34 @@ export const en = {
     `${stageRules[stageId]} · ${undoLimit === null ? 'unlimited' : undoLimit} undo`,
   chapterProgress: (solved, total) => `${solved}/${total}`,
   masterProgress: (solved) => `${solved} solved`,
-  // Carrying progress to another device
+  // Copying a result
   copyFailed: 'Could not copy. Write the code down.',
+
+  // The account
+  accountSignedInAs: (name) => `Signed in as ${name}`,
+  accountSignedOut:
+    'Your progress stays on this device. Sign in to keep it in your account and get it on your other devices.',
+  accountSyncStatus: (status) =>
+    ({
+      idle: '',
+      syncing: 'Syncing…',
+      synced: 'Synced ✓',
+      failed: 'Could not sync; it will be tried again shortly.'
+    })[status],
+  accountNeedsName: 'Pick a username everyone can see.',
+  usernameInvalid: '3–20 characters: letters, digits and underscores.',
+  usernameTaken: 'That username is taken, try another.',
+  usernameFailed: 'Could not save the username. Check your connection.',
+  accountError: (code) =>
+    ({
+      'auth/popup-blocked': 'The sign-in window was blocked. Check your browser’s pop-up setting.',
+      'auth/network-request-failed': 'Could not connect. Check your internet.',
+      'auth/unauthorized-domain': 'Sign-in is not set up for this address.',
+      'auth/requires-recent-login': 'For safety, sign out and in again, then try once more.'
+    })[code] ?? 'Something went wrong, try again.',
+  accountDeleteConfirm:
+    'Delete your account and everything kept in it? The progress on this device stays.',
+  cloudProgressLoaded: (solved) => `Progress loaded from your account: ${solved} levels solved.`,
 
   // Sharing a result
   shareResult: 'Share result',

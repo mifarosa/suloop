@@ -1514,3 +1514,36 @@ a.button.icon {
   height: 100%;
   pointer-events: none;
 }
+
+/* The account section of the settings. */
+.account {
+  display: grid;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  text-align: left;
+}
+
+.account h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.account #account-who {
+  font-family: var(--font-display);
+  font-weight: 600;
+}
+
+.account .retry {
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.account .account-error {
+  color: var(--error);
+}
+
+.account .transfer-row input {
+  text-transform: none;
+  letter-spacing: normal;
+}

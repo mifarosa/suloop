@@ -188,8 +188,36 @@ export const tr = {
     `${stageRules[stageId]} · ${undoLimit === null ? 'sınırsız' : undoLimit} geri alma`,
   chapterProgress: (solved, total) => `${solved}/${total}`,
   masterProgress: (solved) => `${solved} çözüldü`,
-  // Carrying progress to another device
+  // Copying a result
   copyFailed: 'Kopyalanamadı. Kodu bir yere not al.',
+
+  // The account
+  accountSignedInAs: (name) => `${name} olarak giriş yaptın`,
+  accountSignedOut:
+    'İlerlemen bu cihazda duruyor. Giriş yaparsan hesabında saklanır, diğer cihazlarında da gelir.',
+  accountSyncStatus: (status) =>
+    ({
+      idle: '',
+      syncing: 'Eşitleniyor…',
+      synced: 'Eşitlendi ✓',
+      failed: 'Eşitlenemedi, biraz sonra tekrar denenecek.'
+    })[status],
+  accountNeedsName: 'Herkese görünecek bir kullanıcı adı seç.',
+  usernameInvalid: '3–20 karakter: harf, rakam ve alt çizgi.',
+  usernameTaken: 'Bu kullanıcı adı alınmış, başka bir tane dene.',
+  usernameFailed: 'Kullanıcı adı kaydedilemedi. Bağlantını kontrol et.',
+  accountError: (code) =>
+    ({
+      'auth/popup-blocked':
+        'Giriş penceresi engellendi. Tarayıcının açılır pencere iznini kontrol et.',
+      'auth/network-request-failed': 'Bağlantı kurulamadı. İnternetini kontrol et.',
+      'auth/unauthorized-domain': 'Bu adres için giriş açılmamış.',
+      'auth/requires-recent-login':
+        'Güvenlik için çıkış yapıp yeniden giriş yap, sonra tekrar dene.'
+    })[code] ?? 'Bir şeyler ters gitti, tekrar dene.',
+  accountDeleteConfirm:
+    'Hesabın ve hesapta saklanan her şey silinsin mi? Bu cihazdaki ilerlemen kalır.',
+  cloudProgressLoaded: (solved) => `Hesabından ilerleme yüklendi: ${solved} seviye çözülmüş.`,
 
   // Sharing a result
   shareResult: 'Sonucu paylaş',

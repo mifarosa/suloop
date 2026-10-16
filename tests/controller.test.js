@@ -986,6 +986,40 @@ describe('GameController', () => {
     });
   });
 
+  describe('progress from the account', () => {
+    it('sends the player to the level the account is at and starts it', () => {
+      const controller = createController({ solved: 3, current: 2 });
+      controller.applyProgress({ ...controller.progress(), solved: 40, current: 41, hints: 6 });
+
+      expect(saved.at(-1)).toMatchObject({ solved: 40, current: 41, hints: 6 });
+      expect(scene.showPuzzle).toHaveBeenLastCalledWith(...shownBoard(41));
+      expect(hud.showToast).toHaveBeenCalledWith(
+        'Hesabından ilerleme yüklendi: 40 seviye çözülmüş.'
+      );
+      expect(lastRender()).toMatchObject({ hintCount: '6' });
+    });
+
+    it('leaves the board alone when only numbers change', () => {
+      const controller = createController({ solved: 3, current: 4 });
+      scene.showPuzzle.mockClear();
+      controller.applyProgress({ ...controller.progress(), hints: 9 });
+
+      expect(scene.showPuzzle).not.toHaveBeenCalled();
+      expect(lastRender()).toMatchObject({ hintCount: '9' });
+    });
+
+    it('leaves the daily puzzle for the levels when the account is further along', () => {
+      const controller = createController({ mode: 'daily', solved: 0, current: 1 });
+      controller.applyProgress({
+        ...controller.progress(),
+        mode: 'level',
+        solved: 20,
+        current: 21
+      });
+      expect(lastRender().title).toBe('Seviye 21');
+    });
+  });
+
   describe('special tubes', () => {
     it('tells the scene which tubes are one-way, cracked and locked, and which colors are oil', () => {
       for (const level of [16, 91, 126, 211]) createController({ solved: 260, current: level });

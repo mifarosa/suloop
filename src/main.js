@@ -18,6 +18,11 @@ import { SettingsDialog } from './app/settingsDialog.js';
 import { createThemer } from './app/theme.js';
 import { texts } from './app/texts.js';
 import { decodePuzzle } from './game/customPuzzle.js';
+import { AccountPanel } from './app/accountPanel.js';
+import { Account } from './cloud/account.js';
+import { CloudSync } from './cloud/cloudSync.js';
+import { CLOUD_CONFIGURED } from './cloud/config.js';
+import { createFirebaseBackend } from './cloud/firebaseBackend.js';
 import { Confetti } from './scene/confetti.js';
 import { TubeScene } from './scene/tubeScene.js';
 
@@ -45,9 +50,14 @@ const rules = new RulesDialog(document, { getLook: () => themer.look() });
 const settingsDialog = new SettingsDialog(document);
 const leaderboardDialog = new LeaderboardDialog(document);
 // The daily leaderboard is shared when the build has a Supabase project (see leaderboard.js).
+// The account keeps progress in the cloud; it hears about every change made on this device.
+let cloudSync = null;
 const dailyBoard = new DailyBoard({
   record: loadDailyRecord(),
-  save: saveDailyRecord,
+  save: (record) => {
+    saveDailyRecord(record);
+    cloudSync?.schedule();
+  },
   service: createLeaderboard({
     url: import.meta.env.VITE_SUPABASE_URL,
     anonKey: import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -73,7 +83,10 @@ const controller = new GameController({
   leaderboardOnline: dailyBoard.online,
   onEditPuzzle: (puzzle) => editor.show(puzzle),
   progress: loadProgress(),
-  saveProgress
+  saveProgress: (progress) => {
+    saveProgress(progress);
+    cloudSync?.schedule();
+  }
 });
 
 scene.onTubeTap((index) => controller.tapTube(index));
@@ -130,6 +143,63 @@ leaderboardDialog.bindActions({
   },
   onClose: () => leaderboardDialog.hide()
 });
+
+// The account: signing in with Google, and progress kept with it (see cloud/).
+if (CLOUD_CONFIGURED) setUpAccount();
+
+function setUpAccount() {
+  const panel = new AccountPanel(document);
+  const backend = createFirebaseBackend();
+  const account = new Account(backend);
+  cloudSync = new CloudSync({
+    account,
+    backend,
+    getLocal: () => ({ progress: controller.progress(), daily: dailyBoard.results() }),
+    apply: ({ progress, daily }) => {
+      dailyBoard.mergeResults(daily);
+      controller.applyProgress(progress);
+    }
+  });
+
+  let message = null;
+  const render = () => panel.render(account.state, cloudSync.status, message);
+  account.onChange(() => {
+    // A username is the next thing a new player has to do.
+    if (account.state.status === 'needsName') panel.focusName();
+    render();
+  });
+  cloudSync.onStatus(render);
+  panel.bindActions({
+    onSignIn: () => {
+      message = null;
+      account.signIn();
+    },
+    onSignOut: () => account.signOut(),
+    onDelete: async () => {
+      if (!confirm(texts.accountDeleteConfirm)) return;
+      await account.deleteAccount();
+    },
+    onSaveName: async (name) => {
+      const result = await account.claimUsername(name);
+      message =
+        result === 'ok'
+          ? null
+          : {
+              invalid: texts.usernameInvalid,
+              taken: texts.usernameTaken,
+              failed: texts.usernameFailed
+            }[result];
+      render();
+    },
+    onRetry: () => {
+      if (cloudSync.status === 'failed') cloudSync.syncNow();
+    }
+  });
+  panel.enable();
+  render();
+  // An earlier session is picked up once the board has been drawn.
+  setTimeout(() => account.restore().catch(() => {}), 1500);
+}
 
 // Sounds, vibration and the scene's moments that go with them.
 scene.onCue((cue) => feedback.cue(cue));
