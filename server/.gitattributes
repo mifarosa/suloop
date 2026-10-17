@@ -1,0 +1,6 @@
+# Windows'ta CRLF'ye çevrilirse .env değerlerinin sonuna görünmez bir \r eklenir ve
+# GOOGLE_CLIENT_ID tutmaz; bu dosyalar her yerde LF kalsın.
+.env* text eol=lf
+Dockerfile text eol=lf
+*.yml text eol=lf
+*.sh text eol=lf

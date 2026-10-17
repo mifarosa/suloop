@@ -192,6 +192,7 @@ export const tr = {
   copyFailed: 'Kopyalanamadı. Kodu bir yere not al.',
 
   // The account
+  accountSignedIn: 'Giriş yaptın',
   accountSignedInAs: (name) => `${name} olarak giriş yaptın`,
   accountSignedOut:
     'İlerlemen bu cihazda duruyor. Giriş yaparsan hesabında saklanır, diğer cihazlarında da gelir.',
@@ -208,12 +209,9 @@ export const tr = {
   usernameFailed: 'Kullanıcı adı kaydedilemedi. Bağlantını kontrol et.',
   accountError: (code) =>
     ({
-      'auth/popup-blocked':
-        'Giriş penceresi engellendi. Tarayıcının açılır pencere iznini kontrol et.',
-      'auth/network-request-failed': 'Bağlantı kurulamadı. İnternetini kontrol et.',
-      'auth/unauthorized-domain': 'Bu adres için giriş açılmamış.',
-      'auth/requires-recent-login':
-        'Güvenlik için çıkış yapıp yeniden giriş yap, sonra tekrar dene.'
+      'invalid-credential': 'Google hesabın doğrulanamadı, tekrar dene.',
+      network: 'Sunucuya ulaşılamadı. İnternetini kontrol et.',
+      'delete-failed': 'Hesap silinemedi, tekrar dene.'
     })[code] ?? 'Bir şeyler ters gitti, tekrar dene.',
   accountDeleteConfirm:
     'Hesabın ve hesapta saklanan her şey silinsin mi? Bu cihazdaki ilerlemen kalır.',

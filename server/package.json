@@ -1,0 +1,21 @@
+{
+  "name": "suloop-server",
+  "private": true,
+  "type": "module",
+  "description": "Accounts and progress for suloop: Google sign-in, usernames and the progress each player keeps.",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "start": "node --disable-warning=ExperimentalWarning --env-file=.env src/index.js",
+    "test": "node --disable-warning=ExperimentalWarning --test \"test/*.test.mjs\"",
+    "backup": "node --disable-warning=ExperimentalWarning src/backup.js"
+  },
+  "dependencies": {
+    "@fastify/cookie": "^11.1.3",
+    "@fastify/cors": "^11.3.1",
+    "@fastify/rate-limit": "^11.2.1",
+    "fastify": "^5.12.7",
+    "jose": "^6.2.12"
+  }
+}

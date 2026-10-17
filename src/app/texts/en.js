@@ -193,6 +193,7 @@ export const en = {
   copyFailed: 'Could not copy. Write the code down.',
 
   // The account
+  accountSignedIn: 'You are signed in',
   accountSignedInAs: (name) => `Signed in as ${name}`,
   accountSignedOut:
     'Your progress stays on this device. Sign in to keep it in your account and get it on your other devices.',
@@ -209,10 +210,9 @@ export const en = {
   usernameFailed: 'Could not save the username. Check your connection.',
   accountError: (code) =>
     ({
-      'auth/popup-blocked': 'The sign-in window was blocked. Check your browser’s pop-up setting.',
-      'auth/network-request-failed': 'Could not connect. Check your internet.',
-      'auth/unauthorized-domain': 'Sign-in is not set up for this address.',
-      'auth/requires-recent-login': 'For safety, sign out and in again, then try once more.'
+      'invalid-credential': 'Your Google account could not be checked, try again.',
+      network: 'Could not reach the server. Check your internet.',
+      'delete-failed': 'The account could not be deleted, try again.'
     })[code] ?? 'Something went wrong, try again.',
   accountDeleteConfirm:
     'Delete your account and everything kept in it? The progress on this device stays.',

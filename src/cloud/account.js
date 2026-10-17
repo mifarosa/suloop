@@ -1,11 +1,13 @@
 /**
  * The player's account: who is signed in, and the public name they go by. It knows nothing of
- * Firebase; a backend does the talking (see firebaseBackend.js), so this logic is easy to test.
+ * the network; a backend does the talking (see api/apiBackend.js), so this logic is easy to test.
  *
  * @typedef {object} Backend
  * @property {(listener: (user: User | null) => void) => Promise<() => void>} watchAuth reports
  *   the signed-in user now and whenever it changes; returns a function that stops listening
- * @property {() => Promise<void>} signIn opens Google's sign-in; rejects with `{ code }`
+ * @property {(element: HTMLElement, callbacks: { onStart: () => void, onError: (code: string) => void }) => Promise<void>} renderSignIn
+ *   draws Google's sign-in button in `element`; once the player picks an account it calls
+ *   `onStart`, and then either reports the new user through `watchAuth`'s listener or `onError`
  * @property {() => Promise<void>} signOut
  * @property {(uid: string) => Promise<{ username: string } | null>} readProfile
  * @property {(uid: string, username: string) => Promise<void>} claimUsername rejects with
@@ -67,17 +69,20 @@ export class Account {
     await this.#watch();
   }
 
-  async signIn() {
-    this.#set({ status: 'signingIn', error: null });
+  /**
+   * Draws the sign-in button in `element`. The button does the rest: the account follows what
+   * the backend reports.
+   * @param {HTMLElement} element
+   */
+  async renderSignIn(element) {
     try {
       await this.#watch();
-      await this.#backend.signIn();
-    } catch (error) {
-      const closed = ['auth/popup-closed-by-user', 'auth/cancelled-popup-request'];
-      this.#set({
-        status: this.#state.user ? this.#state.status : 'signedOut',
-        error: closed.includes(error?.code) ? null : (error?.code ?? 'unknown')
+      await this.#backend.renderSignIn(element, {
+        onStart: () => this.#set({ status: 'signingIn', error: null }),
+        onError: (code) => this.#set({ status: 'signedOut', error: code })
       });
+    } catch (error) {
+      this.#set({ error: error?.code ?? 'unknown' });
     }
   }
 

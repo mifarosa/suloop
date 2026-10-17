@@ -161,10 +161,10 @@ src/
     accountPanel.js Ayarlardaki Hesap bölümü
     overlay.js    Pencerelerin açılıp kapanması
     texts.js, texts/ Oyuncunun gördüğü tüm metinler (tr.js, en.js), i18n.js, staticTexts.js
-  cloud/          Firebase'e dokunan her şey (hesap, eşitleme); oyun mantığı bunu bilmez
-    config.js, firebase.js, firebaseBackend.js Proje ayarı, tembel yükleme, Firestore işleri
+  cloud/          Hesap mantığı: giriş durumu ve eşitleme (ağdan bağımsız, test edilebilir)
     account.js    Giriş, kullanıcı adı
     cloudSync.js  İlerlemeyi hesapla eşitler
+  api/            Sunucuyla konuşan her şey: istek istemcisi, Google düğmesi, arka uç
   main.js         Giriş noktası
 tests/            Birim testleri
 ```
@@ -173,13 +173,13 @@ Katmanlar tek yönlü bağımlıdır: `app` → `game` ve `scene`. `game` hiçbi
 Seviyeler seviye numarasından üretilir. Bu yüzden bir seviye her cihazda ve her sürümde aynıdır.
 Testler de bunu korur.
 
-## Hesap ve bulut (Firebase)
+## Hesap ve sunucu
 
-Giriş ve ilerleme eşitlemesi bir Firebase projesinde durur: Google ile giriş, herkese görünen
-benzersiz kullanıcı adı ve oyuncunun kendi ilerleme belgesi. Kurulum, kuralların yüklenmesi ve
-veri modeli `docs/firebase.md` dosyasında; kurallar `firestore.rules` içindedir. Firebase paketi
-yalnız giriş yapılınca (ya da önceki oturum geri yüklenirken) indirilir; hiç giriş yapmayan
-oyuncuya hiçbir şey yüklenmez.
+Giriş ve ilerleme eşitlemesi, depodaki küçük bir sunucuda (`server/`) durur: Google ile giriş,
+herkese görünen benzersiz kullanıcı adı ve oyuncunun kendi ilerleme belgesi. Sunucu Docker'la
+çalışır (Windows'ta Docker Desktop); kurulum `docs/self-hosting.md` ve `server/README.md`
+dosyalarında. Sunucu ayarlı değilse (`VITE_API_URL` yok) hesap bölümü hiç görünmez ve oyun
+eskisi gibi yalnız cihazda saklar.
 
 ## Geliştirme
 

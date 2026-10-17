@@ -53,8 +53,6 @@ async function precache() {
     const script = await fetch(path).then((response) => (response.ok ? response.text() : ''));
     // Built scripts sit together, so a name they mention is next to them.
     for (const [, name] of script.matchAll(/assets\/([\w.-]+\.js)/g)) {
-      // Firebase loads only once a player signs in, and is large: it is cached when used.
-      if (name.startsWith('firebase-')) continue;
       files.add(new URL(name, new URL(path, location.href)).pathname);
     }
   }

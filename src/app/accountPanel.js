@@ -8,7 +8,6 @@ import { texts } from './texts.js';
 export class AccountPanel {
   #elements;
   #actions = {
-    onSignIn: () => {},
     onSignOut: () => {},
     onDelete: () => {},
     onSaveName: () => {},
@@ -32,8 +31,7 @@ export class AccountPanel {
       delete: find('#account-delete'),
       error: find('#account-error')
     };
-    const { signIn, nameForm, nameInput, signOut, delete: remove, status } = this.#elements;
-    signIn.addEventListener('click', () => this.#actions.onSignIn());
+    const { nameForm, nameInput, signOut, delete: remove, status } = this.#elements;
     signOut.addEventListener('click', () => this.#actions.onSignOut());
     remove.addEventListener('click', () => this.#actions.onDelete());
     status.addEventListener('click', () => this.#actions.onRetry());
@@ -45,7 +43,6 @@ export class AccountPanel {
 
   /**
    * @param {object} actions
-   * @param {() => void} actions.onSignIn
    * @param {() => void} actions.onSignOut
    * @param {() => void} actions.onDelete
    * @param {(name: string) => void} actions.onSaveName
@@ -53,6 +50,11 @@ export class AccountPanel {
    */
   bindActions(actions) {
     this.#actions = actions;
+  }
+
+  /** The place Google's sign-in button is drawn in. */
+  get signInElement() {
+    return this.#elements.signIn;
   }
 
   /** Shows the section; it stays hidden when the game has no account service. */
@@ -71,13 +73,13 @@ export class AccountPanel {
     elements.signedOut.hidden = signedIn;
     elements.signedIn.hidden = !signedIn;
     elements.note.textContent = texts.accountSignedOut;
-    elements.signIn.disabled = account.status === 'signingIn';
+    elements.signIn.classList.toggle('busy', account.status === 'signingIn');
 
     const needsName = account.status === 'needsName';
     elements.nameForm.hidden = !needsName;
     if (signedIn) {
       const name = account.username ? `@${account.username}` : (account.user.name ?? '');
-      elements.who.textContent = texts.accountSignedInAs(name);
+      elements.who.textContent = name ? texts.accountSignedInAs(name) : texts.accountSignedIn;
       elements.status.textContent = needsName
         ? texts.accountNeedsName
         : texts.accountSyncStatus(sync);
