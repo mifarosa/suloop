@@ -42,7 +42,6 @@ export class LevelMenu {
   #actions = {
     onPickLevel: () => {},
     onPickDaily: () => {},
-    onTransfer: () => {},
     onLeaderboard: () => {},
     onEditor: () => {},
     onClose: () => {}
@@ -56,9 +55,6 @@ export class LevelMenu {
 
     this.#closeButton.addEventListener('click', () => this.#actions.onClose());
     root
-      .querySelector('#transfer-open')
-      .addEventListener('click', () => this.#actions.onTransfer());
-    root
       .querySelector('#leaderboard-open')
       .addEventListener('click', () => this.#actions.onLeaderboard());
     this.#body.addEventListener('click', (event) => this.#handlePick(event));
@@ -68,7 +64,6 @@ export class LevelMenu {
    * @param {object} actions
    * @param {(level: number) => void} actions.onPickLevel
    * @param {() => void} actions.onPickDaily
-   * @param {() => void} actions.onTransfer opens the dialog that carries progress to another device
    * @param {() => void} actions.onLeaderboard opens the daily leaderboard
    * @param {() => void} actions.onEditor opens the puzzle editor
    * @param {() => void} actions.onClose

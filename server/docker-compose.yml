@@ -1,0 +1,23 @@
+# Depo kökünden çalıştır:
+#   docker compose -f server/docker-compose.yml up -d --build
+# Ayarlar server/.env dosyasından okunur (server/.env.example'ı kopyala).
+# Proje adı sabit: volume ve konteyner adları klasör adına bağlı kalmasın.
+name: suloop
+
+services:
+  suloop-api:
+    build:
+      context: ..
+      dockerfile: server/Dockerfile
+    restart: always
+    env_file: .env
+    environment:
+      DATA_DIR: /data
+    # Yalnız bu bilgisayardan erişilir; dışarı açmak ayrı bir karar (docs/self-hosting.md).
+    ports:
+      - '127.0.0.1:3000:3000'
+    volumes:
+      - suloop-data:/data
+
+volumes:
+  suloop-data:

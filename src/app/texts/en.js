@@ -189,13 +189,34 @@ export const en = {
     `${stageRules[stageId]} · ${undoLimit === null ? 'unlimited' : undoLimit} undo`,
   chapterProgress: (solved, total) => `${solved}/${total}`,
   masterProgress: (solved) => `${solved} solved`,
-  // Carrying progress to another device
-  linkCopied: 'Copied ✓',
+  // Copying a result
   copyFailed: 'Could not copy. Write the code down.',
-  transferInvalid: 'This code is not valid. Check the letters.',
-  transferLoaded: (solved) => `Progress loaded: ${solved} levels solved.`,
-  transferUnchanged: (solved) =>
-    `This device already has ${solved} levels solved; nothing changed.`,
+
+  // The account
+  accountSignedIn: 'You are signed in',
+  accountSignedInAs: (name) => `Signed in as ${name}`,
+  accountSignedOut:
+    'Your progress stays on this device. Sign in to keep it in your account and get it on your other devices.',
+  accountSyncStatus: (status) =>
+    ({
+      idle: '',
+      syncing: 'Syncing…',
+      synced: 'Synced ✓',
+      failed: 'Could not sync; it will be tried again shortly.'
+    })[status],
+  accountNeedsName: 'Pick a username everyone can see.',
+  usernameInvalid: '3–20 characters: letters, digits and underscores.',
+  usernameTaken: 'That username is taken, try another.',
+  usernameFailed: 'Could not save the username. Check your connection.',
+  accountError: (code) =>
+    ({
+      'invalid-credential': 'Your Google account could not be checked, try again.',
+      network: 'Could not reach the server. Check your internet.',
+      'delete-failed': 'The account could not be deleted, try again.'
+    })[code] ?? 'Something went wrong, try again.',
+  accountDeleteConfirm:
+    'Delete your account and everything kept in it? The progress on this device stays.',
+  cloudProgressLoaded: (solved) => `Progress loaded from your account: ${solved} levels solved.`,
 
   // Sharing a result
   shareResult: 'Share result',

@@ -28,31 +28,11 @@ export const ENGLISH_STATIC = [
   ['#levels-title', { text: 'Levels' }],
   ['#levels-close', { label: 'Close' }],
   ['#leaderboard-open', { label: 'Daily leaderboard' }],
-  ['#transfer-open', { text: 'Transfer progress' }],
   ['.level-menu-footer .coffee', { text: '☕ Buy me a coffee' }],
 
   // The daily leaderboard
   ['#leaderboard-title', { text: 'Daily leaderboard' }],
   ['#leaderboard-close', { label: 'Close' }],
-
-  // Carrying progress
-  ['#transfer-title', { text: 'Transfer progress' }],
-  ['#transfer-close', { label: 'Close' }],
-  [
-    '#transfer p:not(.transfer-message)',
-    {
-      text:
-        'Open the link on your other device: your levels, stars, hints and daily streak come ' +
-        'along. The short code carries only the levels you solved; write it down and you can ' +
-        'get them back even if your progress is erased.'
-    }
-  ],
-  ['#transfer-code', { label: 'Your progress code' }],
-  ['#transfer-copy', { text: 'Copy link' }],
-  ['#transfer-share', { text: 'Share' }],
-  ['#transfer-form label', { text: 'Have a code from another device?' }],
-  ['#transfer-form button', { text: 'Load' }],
-  ['#transfer-input', { placeholder: 'Enter the code' }],
 
   // The puzzle editor
   ['#editor-title', { text: 'Puzzle workshop' }],
@@ -107,6 +87,11 @@ export const ENGLISH_STATIC = [
   ['#haptics-note', { text: 'This device does not support vibration.' }],
   ['label:has(#setting-symbols) > span', { text: 'Add symbols to colors' }],
   ['#symbols-note', { text: 'Draws a shape on every color, if they are hard to tell apart.' }],
+  ['#account-title', { text: 'Account' }],
+  ['#account-name-input', { label: 'Username' }],
+  ['#account-name-form button', { text: 'Save' }],
+  ['#account-signout', { text: 'Sign out' }],
+  ['#account-delete', { text: 'Delete my account' }],
   ['#install-app', { text: 'Install as an app' }],
   ['#settings .coffee', { text: '☕ Buy me a coffee' }],
 

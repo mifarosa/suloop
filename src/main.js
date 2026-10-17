@@ -10,7 +10,6 @@ import { createLeaderboard } from './app/leaderboard.js';
 import { LeaderboardDialog } from './app/leaderboardDialog.js';
 import { LevelMenu } from './app/levelMenu.js';
 import { loadProgress, saveProgress } from './app/progress.js';
-import { codeInLink } from './app/progressCode.js';
 import { RulesDialog } from './app/rulesDialog.js';
 import { setLanguage } from './app/i18n.js';
 import { loadSettings, saveSettings } from './app/settings.js';
@@ -18,8 +17,13 @@ import { applyStaticTexts } from './app/staticTexts.js';
 import { SettingsDialog } from './app/settingsDialog.js';
 import { createThemer } from './app/theme.js';
 import { texts } from './app/texts.js';
-import { TransferDialog } from './app/transferDialog.js';
 import { decodePuzzle } from './game/customPuzzle.js';
+import { AccountPanel } from './app/accountPanel.js';
+import { createApiBackend } from './api/apiBackend.js';
+import { createApiClient } from './api/client.js';
+import { API_CONFIGURED, API_URL, GOOGLE_CLIENT_ID } from './api/config.js';
+import { Account } from './cloud/account.js';
+import { CloudSync } from './cloud/cloudSync.js';
 import { Confetti } from './scene/confetti.js';
 import { TubeScene } from './scene/tubeScene.js';
 
@@ -43,14 +47,19 @@ const feedback = new Feedback();
 const themer = createThemer((look) => scene.setLook(look));
 const hud = new Hud(document);
 const menu = new LevelMenu(document);
-const transfer = new TransferDialog(document);
 const rules = new RulesDialog(document, { getLook: () => themer.look() });
 const settingsDialog = new SettingsDialog(document);
 const leaderboardDialog = new LeaderboardDialog(document);
 // The daily leaderboard is shared when the build has a Supabase project (see leaderboard.js).
+// The account keeps progress in the cloud; it hears about every change made on this device.
+let cloudSync = null;
+let openAccount = () => {};
 const dailyBoard = new DailyBoard({
   record: loadDailyRecord(),
-  save: saveDailyRecord,
+  save: (record) => {
+    saveDailyRecord(record);
+    cloudSync?.schedule();
+  },
   service: createLeaderboard({
     url: import.meta.env.VITE_SUPABASE_URL,
     anonKey: import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -67,21 +76,19 @@ const controller = new GameController({
   scene,
   hud,
   menu,
-  transfer,
   rules,
   findFewestMoves,
   findSolution,
   feedback,
   onDailySolved: (day, result) => dailyBoard.record(day, result),
   getDailySummary: (today) => dailyBoard.summary(today),
-  dailyResults: {
-    results: () => dailyBoard.results(),
-    merge: (results) => dailyBoard.mergeResults(results)
-  },
   leaderboardOnline: dailyBoard.online,
   onEditPuzzle: (puzzle) => editor.show(puzzle),
   progress: loadProgress(),
-  saveProgress
+  saveProgress: (progress) => {
+    saveProgress(progress);
+    cloudSync?.schedule();
+  }
 });
 
 scene.onTubeTap((index) => controller.tapTube(index));
@@ -90,7 +97,10 @@ hud.bindActions({
   onHint: () => controller.showHint(),
   onRestart: () => controller.restart(),
   onInfo: () => controller.showInfo(),
-  onSettings: () => settingsDialog.show(settings, device()),
+  onSettings: () => {
+    settingsDialog.show(settings, device());
+    openAccount();
+  },
   onShowLevels: () => controller.showLevels(),
   onContinue: () => controller.continueAfterWin(),
   onReplay: () => controller.replay(),
@@ -101,7 +111,6 @@ hud.bindActions({
 menu.bindActions({
   onPickLevel: (level) => controller.playLevel(level),
   onPickDaily: () => controller.playDaily(),
-  onTransfer: () => controller.showTransfer(),
   onLeaderboard: () => {
     controller.closeLevels();
     showLeaderboard();
@@ -111,10 +120,6 @@ menu.bindActions({
     editor.show();
   },
   onClose: () => controller.closeLevels()
-});
-transfer.bindActions({
-  onImport: (code) => controller.importProgress(code),
-  onClose: () => controller.closeTransfer()
 });
 rules.bindActions({ onClose: () => controller.closeRules() });
 
@@ -143,6 +148,70 @@ leaderboardDialog.bindActions({
   },
   onClose: () => leaderboardDialog.hide()
 });
+
+// The account: signing in with Google, and progress kept with it (see cloud/).
+if (API_CONFIGURED) setUpAccount();
+
+function setUpAccount() {
+  const panel = new AccountPanel(document);
+  const backend = createApiBackend({
+    client: createApiClient({ baseUrl: API_URL }),
+    googleClientId: GOOGLE_CLIENT_ID,
+    locale: settings.language
+  });
+  const account = new Account(backend);
+  cloudSync = new CloudSync({
+    account,
+    backend,
+    getLocal: () => ({ progress: controller.progress(), daily: dailyBoard.results() }),
+    apply: ({ progress, daily }) => {
+      dailyBoard.mergeResults(daily);
+      controller.applyProgress(progress);
+    }
+  });
+
+  let message = null;
+  const render = () => panel.render(account.state, cloudSync.status, message);
+  account.onChange(() => {
+    // A username is the next thing a new player has to do.
+    if (account.state.status === 'needsName') panel.focusName();
+    render();
+  });
+  cloudSync.onStatus(render);
+  panel.bindActions({
+    onSignOut: () => account.signOut(),
+    onDelete: async () => {
+      if (!confirm(texts.accountDeleteConfirm)) return;
+      await account.deleteAccount();
+    },
+    onSaveName: async (name) => {
+      const result = await account.claimUsername(name);
+      message =
+        result === 'ok'
+          ? null
+          : {
+              invalid: texts.usernameInvalid,
+              taken: texts.usernameTaken,
+              failed: texts.usernameFailed
+            }[result];
+      render();
+    },
+    onRetry: () => {
+      if (cloudSync.status === 'failed') cloudSync.syncNow();
+    }
+  });
+  panel.enable();
+  render();
+  // Google's button is drawn once, the first time the settings open.
+  let buttonDrawn = false;
+  openAccount = () => {
+    if (buttonDrawn) return;
+    buttonDrawn = true;
+    account.renderSignIn(panel.signInElement);
+  };
+  // An earlier session is picked up once the board has been drawn.
+  setTimeout(() => account.restore().catch(() => {}), 1500);
+}
 
 // Sounds, vibration and the scene's moments that go with them.
 scene.onCue((cue) => feedback.cue(cue));
@@ -184,19 +253,14 @@ settingsDialog.bindActions({
 applySettings();
 controller.start();
 
-/**
- * Takes what a link carries: progress, as in "…/suloop/#ilerleme=2FQ7M", or a puzzle someone
- * shared, as in "…/suloop/#bulmaca=…". It works for links opened here or pasted in.
- */
+/** Takes a puzzle someone shared, as in "…/suloop/#bulmaca=…"; it works for links opened here or pasted in. */
 function openLink() {
-  const code = codeInLink(location.href);
-  const sharedPuzzle = /#bulmaca=/.test(location.hash) ? decodePuzzle(location.hash) : undefined;
-  if (code === null && sharedPuzzle === undefined) return;
+  if (!/#bulmaca=/.test(location.hash)) return;
 
+  const sharedPuzzle = decodePuzzle(location.hash);
   // Drop the code from the address, so a reload or a bookmark does not bring it back.
   history.replaceState(null, '', location.pathname + location.search);
-  if (code !== null) controller.importProgress(code, { fromLink: true });
-  else if (sharedPuzzle) controller.playCustom(sharedPuzzle);
+  if (sharedPuzzle) controller.playCustom(sharedPuzzle);
   else hud.showToast(texts.sharedPuzzleInvalid);
 }
 openLink();

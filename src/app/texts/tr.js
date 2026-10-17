@@ -188,12 +188,34 @@ export const tr = {
     `${stageRules[stageId]} · ${undoLimit === null ? 'sınırsız' : undoLimit} geri alma`,
   chapterProgress: (solved, total) => `${solved}/${total}`,
   masterProgress: (solved) => `${solved} çözüldü`,
-  // Carrying progress to another device
-  linkCopied: 'Kopyalandı ✓',
+  // Copying a result
   copyFailed: 'Kopyalanamadı. Kodu bir yere not al.',
-  transferInvalid: 'Bu kod geçersiz. Harfleri kontrol et.',
-  transferLoaded: (solved) => `İlerleme yüklendi: ${solved} seviye çözülmüş.`,
-  transferUnchanged: (solved) => `Bu cihazda zaten ${solved} seviye çözülmüş, ilerleme değişmedi.`,
+
+  // The account
+  accountSignedIn: 'Giriş yaptın',
+  accountSignedInAs: (name) => `${name} olarak giriş yaptın`,
+  accountSignedOut:
+    'İlerlemen bu cihazda duruyor. Giriş yaparsan hesabında saklanır, diğer cihazlarında da gelir.',
+  accountSyncStatus: (status) =>
+    ({
+      idle: '',
+      syncing: 'Eşitleniyor…',
+      synced: 'Eşitlendi ✓',
+      failed: 'Eşitlenemedi, biraz sonra tekrar denenecek.'
+    })[status],
+  accountNeedsName: 'Herkese görünecek bir kullanıcı adı seç.',
+  usernameInvalid: '3–20 karakter: harf, rakam ve alt çizgi.',
+  usernameTaken: 'Bu kullanıcı adı alınmış, başka bir tane dene.',
+  usernameFailed: 'Kullanıcı adı kaydedilemedi. Bağlantını kontrol et.',
+  accountError: (code) =>
+    ({
+      'invalid-credential': 'Google hesabın doğrulanamadı, tekrar dene.',
+      network: 'Sunucuya ulaşılamadı. İnternetini kontrol et.',
+      'delete-failed': 'Hesap silinemedi, tekrar dene.'
+    })[code] ?? 'Bir şeyler ters gitti, tekrar dene.',
+  accountDeleteConfirm:
+    'Hesabın ve hesapta saklanan her şey silinsin mi? Bu cihazdaki ilerlemen kalır.',
+  cloudProgressLoaded: (solved) => `Hesabından ilerleme yüklendi: ${solved} seviye çözülmüş.`,
 
   // Sharing a result
   shareResult: 'Sonucu paylaş',

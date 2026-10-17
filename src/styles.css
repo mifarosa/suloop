@@ -629,52 +629,10 @@ button.icon {
   outline-offset: 2px;
 }
 
-/* Carrying progress to another device. */
-.transfer {
-  box-sizing: border-box;
-  width: min(380px, 100%);
-  background: var(--panel-solid);
-  -webkit-backdrop-filter: none;
-  backdrop-filter: none;
-  justify-items: stretch;
-  text-align: left;
-}
-
 .dialog-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-}
-
-.card.transfer p {
-  font-family: var(--font-display);
-  font-size: 0.92rem;
-  line-height: 1.45;
-}
-
-.transfer-code {
-  padding: 12px;
-  border: 1px dashed var(--line);
-  border-radius: 12px;
-  font-family: var(--font-mono);
-  font-size: 1.6rem;
-  letter-spacing: 0.18em;
-  text-align: center;
-  /* The code is meant to be copied by hand, too. */
-  -webkit-user-select: all;
-  user-select: all;
-}
-
-.transfer-form {
-  display: grid;
-  gap: 8px;
-  margin-top: 8px;
-  padding-top: 16px;
-  border-top: 1px solid var(--line);
-}
-
-.transfer-form label {
-  font-size: 0.92rem;
 }
 
 .transfer-row {
@@ -707,11 +665,6 @@ button.icon {
 .transfer-row input:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
-}
-
-.card.transfer .transfer-message {
-  color: var(--error);
-  font-size: 0.85rem;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1559,5 +1512,47 @@ a.button.icon {
   inset: 0;
   width: 100%;
   height: 100%;
+  pointer-events: none;
+}
+
+/* The account section of the settings. */
+.account {
+  display: grid;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  text-align: left;
+}
+
+.account h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.account #account-who {
+  font-family: var(--font-display);
+  font-weight: 600;
+}
+
+.account .retry {
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.account .account-error {
+  color: var(--error);
+}
+
+.account .transfer-row input {
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.account .google-button {
+  min-height: 44px;
+}
+
+.account .google-button.busy {
+  opacity: 0.5;
   pointer-events: none;
 }

@@ -24,8 +24,6 @@ import {
   spendSpareUndo
 } from './economy.js';
 import { lastOpenLevel } from './progress.js';
-import { decodeProgressCode, encodeProgressCode } from './progressCode.js';
-import { decodeSnapshot, encodeSnapshot, mergeSnapshot } from './progressSnapshot.js';
 import { texts } from './texts.js';
 
 /**
@@ -56,12 +54,10 @@ export class GameController {
   #scene;
   #hud;
   #menu;
-  #transfer;
   #rules;
   #feedback;
   #onDailySolved;
   #getDailySummary;
-  #dailyResults;
   #leaderboardOnline;
   #onEditPuzzle;
   #findFewestMoves;
@@ -108,7 +104,6 @@ export class GameController {
    * @param {import('../scene/tubeScene.js').TubeScene} deps.scene
    * @param {import('./hud.js').Hud} deps.hud
    * @param {import('./levelMenu.js').LevelMenu} deps.menu
-   * @param {import('./transferDialog.js').TransferDialog} deps.transfer
    * @param {import('./rulesDialog.js').RulesDialog} deps.rules
    * @param {(puzzle: { level: number } | { day: string }) => Promise<Fewest>} deps.findFewestMoves
    * @param {(puzzle: { level: number }) => Promise<Array<[number, number]> | null>}
@@ -118,8 +113,6 @@ export class GameController {
    *   [deps.onDailySolved] called with each solution of a daily puzzle
    * @param {(today: Date) => { today: { moves: number, seconds: number, stars: number } | null,
    *   streak: number }} [deps.getDailySummary] the player's daily result and streak
-   * @param {{ results: () => object, merge: (results: object) => void }} [deps.dailyResults]
-   *   the daily puzzle results kept on this device, to carry them along with the progress
    * @param {boolean} [deps.leaderboardOnline] whether daily scores are shared with others
    * @param {(puzzle: import('../game/customPuzzle.js').CustomPuzzle) => void} [deps.onEditPuzzle]
    *   takes a custom puzzle back to the editor after a test play
@@ -131,14 +124,12 @@ export class GameController {
     scene,
     hud,
     menu,
-    transfer,
     rules,
     findFewestMoves,
     findSolution = () => Promise.resolve(null),
     feedback = SILENT,
     onDailySolved = () => {},
     getDailySummary = () => ({ today: null, streak: 0 }),
-    dailyResults = { results: () => ({}), merge: () => {} },
     leaderboardOnline = false,
     onEditPuzzle = () => {},
     progress,
@@ -148,12 +139,10 @@ export class GameController {
     this.#scene = scene;
     this.#hud = hud;
     this.#menu = menu;
-    this.#transfer = transfer;
     this.#rules = rules;
     this.#feedback = feedback;
     this.#onDailySolved = onDailySolved;
     this.#getDailySummary = getDailySummary;
-    this.#dailyResults = dailyResults;
     this.#leaderboardOnline = leaderboardOnline;
     this.#onEditPuzzle = onEditPuzzle;
     this.#findFewestMoves = findFewestMoves;
@@ -415,56 +404,32 @@ export class GameController {
     this.#menu.hide();
   }
 
-  /** Opens the dialog that carries progress to another device, in place of the level list. */
-  showTransfer() {
-    if (this.#animating) return;
-
-    this.#menu.hide();
-    this.#transfer.show({
-      code: encodeProgressCode(this.#progress.solved),
-      fullCode: encodeSnapshot(this.#progress, this.#dailyResults.results())
-    });
-  }
-
-  closeTransfer() {
-    this.#transfer.hide();
+  /** The player's progress as it is now. */
+  progress() {
+    return this.#progress;
   }
 
   /**
-   * Takes over the progress in a code, typed into the dialog or opened as a link. Progress only
-   * ever moves forward, so an old code or one from a device that is behind changes nothing.
-   * @param {string} code
-   * @param {{ fromLink?: boolean }} [options] a link has no dialog to show an error in
+   * Takes over progress that came from the player's account. When it moves the player to
+   * another level the board starts over there; otherwise only the numbers on screen change.
+   * @param {import('./progress.js').Progress} progress
    */
-  importProgress(code, { fromLink = false } = {}) {
-    if (this.#animating) return;
-
-    // A link or long code carries everything; a short code only the solved levels.
-    const snapshot =
-      decodeSnapshot(code) ??
-      (() => {
-        const solved = decodeProgressCode(code);
-        return solved === null
-          ? null
-          : { solved, hints: null, spareUndos: null, bests: [], dailyDone: null, daily: {} };
-      })();
-    if (snapshot === null) {
-      if (fromLink) this.#hud.showToast(texts.transferInvalid);
-      else this.#transfer.showError(texts.transferInvalid);
+  applyProgress(progress) {
+    if (this.#animating) {
+      setTimeout(() => this.applyProgress(progress), 1000);
       return;
     }
 
-    this.#transfer.hide();
-    const merged = mergeSnapshot(this.#progress, this.#dailyResults.results(), snapshot);
-    if (!merged.changed) {
-      this.#hud.showToast(texts.transferUnchanged(this.#progress.solved));
-      return;
+    const moveOn =
+      progress.current !== this.#progress.current || progress.mode !== this.#progress.mode;
+    this.#setProgress(progress);
+    if (moveOn) {
+      this.#custom = null;
+      this.start();
+      this.#hud.showToast(texts.cloudProgressLoaded(progress.solved));
+    } else {
+      this.#refreshHud();
     }
-    this.#dailyResults.merge(merged.daily);
-    this.#setProgress(merged.progress);
-    this.#custom = null;
-    this.start();
-    this.#hud.showToast(texts.transferLoaded(merged.progress.solved));
   }
 
   /** Plays a level picked from the list; levels that are still locked are ignored. */

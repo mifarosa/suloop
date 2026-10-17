@@ -307,6 +307,38 @@
             Renkleri ayırt etmek zorsa her rengin üstüne bir şekil çizer.
           </p>
         </div>
+        <section id="account" class="account" aria-labelledby="account-title" hidden>
+          <h3 id="account-title">Hesap</h3>
+          <div id="account-out">
+            <p id="account-note" class="note">
+              İlerlemen bu cihazda duruyor. Giriş yaparsan hesabında saklanır, diğer cihazlarında da
+              gelir.
+            </p>
+            <div id="account-signin" class="google-button"></div>
+          </div>
+          <div id="account-in" hidden>
+            <p id="account-who"></p>
+            <form id="account-name-form" class="transfer-row" hidden>
+              <input
+                id="account-name-input"
+                type="text"
+                autocomplete="off"
+                autocapitalize="none"
+                spellcheck="false"
+                maxlength="20"
+                placeholder="kullanici_adi"
+                aria-label="Kullanıcı adı"
+              />
+              <button type="submit">Kaydet</button>
+            </form>
+            <p id="account-status" class="note" role="status"></p>
+            <div class="card-actions">
+              <button id="account-signout" type="button">Çıkış yap</button>
+              <button id="account-delete" type="button" class="link">Hesabımı sil</button>
+            </div>
+          </div>
+          <p id="account-error" class="note account-error" role="alert" hidden></p>
+        </section>
         <button id="install-app" type="button" hidden>Uygulama olarak yükle</button>
         <a
           class="button coffee"
@@ -345,7 +377,6 @@
         </header>
         <div id="levels-body" class="level-menu-body"></div>
         <footer class="level-menu-footer">
-          <button id="transfer-open" type="button">İlerlemeyi taşı</button>
           <a
             class="button coffee"
             href="https://buymeacoffee.com/mifarosa"
@@ -354,40 +385,6 @@
             >☕ Kahve ısmarla</a
           >
         </footer>
-      </div>
-    </div>
-
-    <div id="transfer" class="overlay" hidden>
-      <div class="card transfer" role="dialog" aria-modal="true" aria-labelledby="transfer-title">
-        <header class="dialog-header">
-          <h2 id="transfer-title">İlerlemeyi taşı</h2>
-          <button id="transfer-close" type="button" class="icon" aria-label="Kapat">✕</button>
-        </header>
-        <p>
-          Bağlantıyı diğer cihazında aç: seviyelerin, yıldızların, ipuçların ve günlük serin gelir.
-          Kısa kod yalnızca çözdüğün seviyeleri taşır; not edersen ilerlemen silinse bile geri
-          alırsın.
-        </p>
-        <output id="transfer-code" class="transfer-code" aria-label="İlerleme kodun"></output>
-        <div class="card-actions">
-          <button id="transfer-copy" type="button" class="primary">Bağlantıyı kopyala</button>
-          <button id="transfer-share" type="button" hidden>Paylaş</button>
-        </div>
-        <form id="transfer-form" class="transfer-form">
-          <label for="transfer-input">Başka cihazdan kodun mu var?</label>
-          <div class="transfer-row">
-            <input
-              id="transfer-input"
-              type="text"
-              autocomplete="off"
-              autocapitalize="characters"
-              spellcheck="false"
-              placeholder="Kodu yaz"
-            />
-            <button type="submit">Yükle</button>
-          </div>
-          <p id="transfer-message" class="transfer-message" role="alert" hidden></p>
-        </form>
       </div>
     </div>
 
