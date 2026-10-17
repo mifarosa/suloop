@@ -1,6 +1,9 @@
 # Depo kökünden çalıştır:
 #   docker compose -f server/docker-compose.yml up -d --build
 # Ayarlar server/.env dosyasından okunur (server/.env.example'ı kopyala).
+# Proje adı sabit: volume ve konteyner adları klasör adına bağlı kalmasın.
+name: suloop
+
 services:
   suloop-api:
     build:
