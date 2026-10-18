@@ -1547,12 +1547,3 @@ a.button.icon {
   text-transform: none;
   letter-spacing: normal;
 }
-
-.account .google-button {
-  min-height: 44px;
-}
-
-.account .google-button.busy {
-  opacity: 0.5;
-  pointer-events: none;
-}

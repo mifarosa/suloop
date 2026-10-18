@@ -17,10 +17,19 @@ function fakeClient(routes) {
 const ok = (data) => ({ ok: true, status: 200, data });
 const refused = (status, error) => ({ ok: false, status, data: { error } });
 
+/** A Firebase sign-in stand-in: signs in with the given token, or fails. */
+const fakeGoogle = (overrides = {}) => ({
+  signIn: vi.fn(async () => 'firebase-token'),
+  pending: vi.fn(() => false),
+  finish: vi.fn(async () => null),
+  ...overrides
+});
+
 const make = (routes, options = {}) => {
   const client = fakeClient(routes);
-  const backend = createApiBackend({ client, googleClientId: 'client', ...options });
-  return { client, backend };
+  const google = options.google ?? fakeGoogle();
+  const backend = createApiBackend({ client, google });
+  return { client, backend, google };
 };
 
 describe('watching who is signed in', () => {
@@ -45,71 +54,78 @@ describe('watching who is signed in', () => {
 });
 
 describe('signing in with Google', () => {
-  async function draw(routes) {
-    let credentialCallback;
-    const drawButton = vi.fn(async (element, { onCredential }) => {
-      credentialCallback = onCredential;
+  it('gives the server the ID token and reports the user it made', async () => {
+    const { backend, client, google } = make({
+      'GET /me': ok({ user: null }),
+      'POST /auth/firebase': ok({ user: { id: 3, username: 'farosa' } })
     });
-    const { backend, client } = make(routes, { drawButton, locale: 'en' });
     const listener = vi.fn();
     await backend.watchAuth(listener);
-    const callbacks = { onStart: vi.fn(), onError: vi.fn() };
-    await backend.renderSignIn({}, callbacks);
-    return { backend, client, listener, callbacks, pick: (token) => credentialCallback(token) };
-  }
+    await backend.signIn();
 
-  it('draws the button for this game and language', async () => {
-    const { backend } = make({ 'GET /me': ok({ user: null }) });
-    expect(backend).toBeDefined();
-    const drawButton = vi.fn();
-    await createApiBackend({
-      client: fakeClient({}),
-      googleClientId: 'abc',
-      locale: 'en',
-      drawButton
-    }).renderSignIn({}, { onStart() {}, onError() {} });
-    expect(drawButton).toHaveBeenCalledWith(
-      {},
-      expect.objectContaining({ clientId: 'abc', locale: 'en' })
-    );
-  });
-
-  it('sends the token to the server and reports the user it made', async () => {
-    const { client, listener, callbacks, pick } = await draw({
-      'GET /me': ok({ user: null }),
-      'POST /auth/google': ok({ user: { id: 3, username: 'farosa' } })
-    });
-    await pick('google-token');
-    expect(client.calls).toContainEqual(['POST', '/auth/google', { credential: 'google-token' }]);
-    expect(callbacks.onStart).toHaveBeenCalled();
+    expect(google.signIn).toHaveBeenCalledOnce();
+    expect(client.calls).toContainEqual(['POST', '/auth/firebase', { idToken: 'firebase-token' }]);
     expect(listener).toHaveBeenLastCalledWith({ uid: '3', name: null });
-    expect(callbacks.onError).not.toHaveBeenCalled();
   });
 
-  it('reports why the server refused', async () => {
-    const { callbacks, pick, listener } = await draw({
+  it('fails with the reason the server gave', async () => {
+    const { backend } = make({
       'GET /me': ok({ user: null }),
-      'POST /auth/google': refused(401, 'invalid-credential')
+      'POST /auth/firebase': refused(401, 'invalid-credential')
     });
-    await pick('forged');
-    expect(callbacks.onError).toHaveBeenCalledWith('invalid-credential');
-    expect(listener).toHaveBeenCalledTimes(1);
+    await backend.watchAuth(vi.fn());
+    await expect(backend.signIn()).rejects.toMatchObject({ code: 'invalid-credential' });
   });
 
-  it('reports a server that cannot be reached', async () => {
-    let credentialCallback;
-    const client = fakeClient({ 'GET /me': ok({ user: null }) });
-    const backend = createApiBackend({
-      client,
-      googleClientId: 'c',
-      drawButton: async (el, { onCredential }) => (credentialCallback = onCredential)
+  it('fails when Google’s sign-in fails, without bothering the server', async () => {
+    const google = fakeGoogle({
+      signIn: vi.fn(async () => {
+        throw Object.assign(new Error('closed'), { code: 'auth/popup-closed-by-user' });
+      })
     });
-    await backend.watchAuth(() => {});
-    const callbacks = { onStart: vi.fn(), onError: vi.fn() };
-    await backend.renderSignIn({}, callbacks);
+    const { backend, client } = make({ 'GET /me': ok({ user: null }) }, { google });
+    await backend.watchAuth(vi.fn());
+    await expect(backend.signIn()).rejects.toMatchObject({ code: 'auth/popup-closed-by-user' });
+    expect(client.calls.some(([, path]) => path === '/auth/firebase')).toBe(false);
+  });
+
+  it('fails when the server cannot be reached', async () => {
+    const { backend, client } = make({ 'GET /me': ok({ user: null }) });
+    await backend.watchAuth(vi.fn());
     client.request.mockRejectedValueOnce(Object.assign(new Error('x'), { code: 'network' }));
-    await credentialCallback('token');
-    expect(callbacks.onError).toHaveBeenCalledWith('network');
+    await expect(backend.signIn()).rejects.toMatchObject({ code: 'network' });
+  });
+
+  it('finishes a sign-in that went through a redirect before asking who is signed in', async () => {
+    const google = fakeGoogle({
+      pending: vi.fn(() => true),
+      finish: vi.fn(async () => 'back-token')
+    });
+    const { backend, client } = make(
+      {
+        'POST /auth/firebase': ok({ user: { id: 5, username: null } }),
+        'GET /me': ok({ user: { id: 5, username: null } })
+      },
+      { google }
+    );
+    const listener = vi.fn();
+    await backend.watchAuth(listener);
+    expect(client.calls[0]).toEqual(['POST', '/auth/firebase', { idToken: 'back-token' }]);
+    expect(listener).toHaveBeenLastCalledWith({ uid: '5', name: null });
+  });
+
+  it('is not signed in when the redirect brought nothing back', async () => {
+    const google = fakeGoogle({ pending: vi.fn(() => true), finish: vi.fn(async () => null) });
+    const { backend } = make({ 'GET /me': ok({ user: null }) }, { google });
+    const listener = vi.fn();
+    await backend.watchAuth(listener);
+    expect(listener).toHaveBeenCalledWith(null);
+  });
+
+  it('says whether a redirect is waiting', () => {
+    expect(make({}).backend.hasPendingSignIn()).toBe(false);
+    const google = fakeGoogle({ pending: vi.fn(() => true) });
+    expect(make({}, { google }).backend.hasPendingSignIn()).toBe(true);
   });
 });
 

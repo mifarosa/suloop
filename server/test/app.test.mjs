@@ -43,12 +43,12 @@ describe('health and CORS', () => {
 });
 
 describe('signing in', () => {
-  it('makes a user and a session cookie from a good Google token', async () => {
+  it('makes a user and a session cookie from a good sign-in token', async () => {
     const { app } = await makeServer();
     const response = await app.inject({
       method: 'POST',
-      url: '/auth/google',
-      payload: { credential: 'valid:abc' }
+      url: '/auth/firebase',
+      payload: { idToken: 'valid:abc' }
     });
     assert.equal(response.statusCode, 200);
     assert.deepEqual(response.json().user.username, null);
@@ -58,7 +58,7 @@ describe('signing in', () => {
     assert.equal(cookie.sameSite, 'Lax');
   });
 
-  it('knows the same Google account again, and keeps one user', async () => {
+  it('knows the same account again, and keeps one user', async () => {
     const { app, db } = await makeServer();
     await signIn(app, 'abc');
     await signIn(app, 'abc');
@@ -70,14 +70,14 @@ describe('signing in', () => {
     const { app } = await makeServer();
     const bad = await app.inject({
       method: 'POST',
-      url: '/auth/google',
-      payload: { credential: 'forged' }
+      url: '/auth/firebase',
+      payload: { idToken: 'forged' }
     });
     assert.equal(bad.statusCode, 401);
     assert.equal(bad.json().error, 'invalid-credential');
     assert.equal(cookieOf(bad), null);
 
-    const empty = await app.inject({ method: 'POST', url: '/auth/google', payload: {} });
+    const empty = await app.inject({ method: 'POST', url: '/auth/firebase', payload: {} });
     assert.equal(empty.statusCode, 400);
   });
 

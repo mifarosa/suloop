@@ -28,7 +28,10 @@ const MIGRATIONS = [
     data TEXT NOT NULL,
     updated_at INTEGER NOT NULL
   );
-  `
+  `,
+  // Players are told apart by the id their sign-in gives (a Firebase user id), no longer a
+  // Google one; the column is renamed for what it holds.
+  `ALTER TABLE users RENAME COLUMN google_sub TO auth_sub;`
 ];
 
 /**

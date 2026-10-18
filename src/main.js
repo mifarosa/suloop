@@ -21,7 +21,7 @@ import { decodePuzzle } from './game/customPuzzle.js';
 import { AccountPanel } from './app/accountPanel.js';
 import { createApiBackend } from './api/apiBackend.js';
 import { createApiClient } from './api/client.js';
-import { API_CONFIGURED, API_URL, GOOGLE_CLIENT_ID } from './api/config.js';
+import { API_CONFIGURED, API_URL } from './api/config.js';
 import { Account } from './cloud/account.js';
 import { CloudSync } from './cloud/cloudSync.js';
 import { Confetti } from './scene/confetti.js';
@@ -53,7 +53,6 @@ const leaderboardDialog = new LeaderboardDialog(document);
 // The daily leaderboard is shared when the build has a Supabase project (see leaderboard.js).
 // The account keeps progress in the cloud; it hears about every change made on this device.
 let cloudSync = null;
-let openAccount = () => {};
 const dailyBoard = new DailyBoard({
   record: loadDailyRecord(),
   save: (record) => {
@@ -97,10 +96,7 @@ hud.bindActions({
   onHint: () => controller.showHint(),
   onRestart: () => controller.restart(),
   onInfo: () => controller.showInfo(),
-  onSettings: () => {
-    settingsDialog.show(settings, device());
-    openAccount();
-  },
+  onSettings: () => settingsDialog.show(settings, device()),
   onShowLevels: () => controller.showLevels(),
   onContinue: () => controller.continueAfterWin(),
   onReplay: () => controller.replay(),
@@ -154,11 +150,7 @@ if (API_CONFIGURED) setUpAccount();
 
 function setUpAccount() {
   const panel = new AccountPanel(document);
-  const backend = createApiBackend({
-    client: createApiClient({ baseUrl: API_URL }),
-    googleClientId: GOOGLE_CLIENT_ID,
-    locale: settings.language
-  });
+  const backend = createApiBackend({ client: createApiClient({ baseUrl: API_URL }) });
   const account = new Account(backend);
   cloudSync = new CloudSync({
     account,
@@ -179,6 +171,10 @@ function setUpAccount() {
   });
   cloudSync.onStatus(render);
   panel.bindActions({
+    onSignIn: () => {
+      message = null;
+      account.signIn();
+    },
     onSignOut: () => account.signOut(),
     onDelete: async () => {
       if (!confirm(texts.accountDeleteConfirm)) return;
@@ -202,13 +198,6 @@ function setUpAccount() {
   });
   panel.enable();
   render();
-  // Google's button is drawn once, the first time the settings open.
-  let buttonDrawn = false;
-  openAccount = () => {
-    if (buttonDrawn) return;
-    buttonDrawn = true;
-    account.renderSignIn(panel.signInElement);
-  };
   // An earlier session is picked up once the board has been drawn.
   setTimeout(() => account.restore().catch(() => {}), 1500);
 }

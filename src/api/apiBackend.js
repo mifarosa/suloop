@@ -1,31 +1,48 @@
-import { renderGoogleButton } from './googleSignIn.js';
+import { finishRedirect, redirectPending, signInWithGoogle } from './firebaseSignIn.js';
 
 /**
  * What the account and the sync need from the game's server (see cloud/account.js for the
- * shape). Every call goes through `client`, which carries the session cookie.
+ * shape). Every call goes through `client`, which carries the session cookie. Players sign in
+ * with Google through Firebase, which gives an ID token that the server checks and turns into
+ * a session of its own.
  *
  * @param {object} options
  * @param {ReturnType<import('./client.js').createApiClient>} options.client
- * @param {string} options.googleClientId
- * @param {string} [options.locale]
- * @param {typeof renderGoogleButton} [options.drawButton]
+ * @param {{ signIn: () => Promise<string>, pending: () => boolean, finish: () => Promise<string | null> }} [options.google]
+ *   how an ID token is got; Firebase's sign-in unless a test brings its own
  * @returns {import('../cloud/account.js').Backend & {
  *   updateProgress: (uid: string, update: (doc: object | null) => object) => Promise<void> }}
  */
 export function createApiBackend({
   client,
-  googleClientId,
-  locale = 'tr',
-  drawButton = renderGoogleButton
+  google = { signIn: signInWithGoogle, pending: redirectPending, finish: finishRedirect }
 }) {
   let listener = () => {};
 
   const asUser = (user) => (user ? { uid: String(user.id), name: null } : null);
   const fail = (code) => Object.assign(new Error(code), { code });
 
+  /** Gives the server the ID token; it answers with the player and a session cookie. */
+  async function exchange(idToken) {
+    const { ok, data } = await client.request('POST', '/auth/firebase', { idToken });
+    if (!ok) throw fail(data?.error ?? 'sign-in-failed');
+    listener(asUser(data.user));
+  }
+
   return {
+    /** Whether a sign-in that left the page for Google's is waiting to be picked up. */
+    hasPendingSignIn: () => google.pending(),
+
     async watchAuth(next) {
       listener = next;
+      if (google.pending()) {
+        try {
+          const idToken = await google.finish();
+          if (idToken) await exchange(idToken);
+        } catch {
+          // Without it the player is simply not signed in; they can try again.
+        }
+      }
       const { ok, data } = await client.request('GET', '/me');
       next(ok ? asUser(data?.user) : null);
       return () => {
@@ -33,21 +50,8 @@ export function createApiBackend({
       };
     },
 
-    async renderSignIn(element, { onStart, onError }) {
-      await drawButton(element, {
-        clientId: googleClientId,
-        locale,
-        onCredential: async (credential) => {
-          onStart();
-          try {
-            const { ok, data } = await client.request('POST', '/auth/google', { credential });
-            if (!ok) throw fail(data?.error ?? 'sign-in-failed');
-            listener(asUser(data.user));
-          } catch (error) {
-            onError(error?.code ?? 'sign-in-failed');
-          }
-        }
-      });
+    async signIn() {
+      await exchange(await google.signIn());
     },
 
     async signOut() {

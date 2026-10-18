@@ -34,10 +34,9 @@ jobs:
           VITE_BASE: ${{ steps.pages.outputs.base_path }}/
           # Optional: the daily leaderboard's Supabase project (docs/leaderboard.sql). These
           # are repository variables, not secrets: the anon key is public by design.
-          # Optional: the account server (docs/self-hosting.md). Without these the live game
-          # has no account section.
+          # Optional: the account server (docs/self-hosting.md). Without it the live game has
+          # no account section.
           VITE_API_URL: ${{ vars.API_URL }}
-          VITE_GOOGLE_CLIENT_ID: ${{ vars.GOOGLE_CLIENT_ID }}
           VITE_SUPABASE_URL: ${{ vars.SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
       - uses: actions/upload-pages-artifact@v3

@@ -88,6 +88,7 @@ export const ENGLISH_STATIC = [
   ['label:has(#setting-symbols) > span', { text: 'Add symbols to colors' }],
   ['#symbols-note', { text: 'Draws a shape on every color, if they are hard to tell apart.' }],
   ['#account-title', { text: 'Account' }],
+  ['#account-signin', { text: 'Sign in with Google' }],
   ['#account-name-input', { label: 'Username' }],
   ['#account-name-form button', { text: 'Save' }],
   ['#account-signout', { text: 'Sign out' }],

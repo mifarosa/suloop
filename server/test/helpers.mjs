@@ -4,18 +4,18 @@ import { openDatabase } from '../src/db.js';
 
 export const ORIGIN = 'http://localhost:5173';
 
-/** A server on an in-memory database; "valid:<id>" is a Google token for the player <id>. */
+/** A server on an in-memory database; "valid:<id>" is a sign-in token for the player <id>. */
 export async function makeServer({ now = Date.now } = {}) {
   const db = openDatabase(':memory:');
-  const config = loadConfig({ GOOGLE_CLIENT_ID: 'client', ALLOWED_ORIGIN: ORIGIN });
+  const config = loadConfig({ FIREBASE_PROJECT_ID: 'project', ALLOWED_ORIGIN: ORIGIN });
   const app = await createApp({
     config,
     db,
     now,
     limitRates: false,
-    verifyGoogle: async (credential) => {
-      if (!credential.startsWith('valid:')) throw new Error('Bad token');
-      return { sub: credential.slice('valid:'.length) };
+    verifyIdentity: async (token) => {
+      if (!token.startsWith('valid:')) throw new Error('Bad token');
+      return { sub: token.slice('valid:'.length) };
     }
   });
   return { app, db, config };
@@ -31,8 +31,8 @@ export function cookieOf(response) {
 export async function signIn(app, id = 'google-1') {
   const response = await app.inject({
     method: 'POST',
-    url: '/auth/google',
-    payload: { credential: `valid:${id}` }
+    url: '/auth/firebase',
+    payload: { idToken: `valid:${id}` }
   });
   return cookieOf(response);
 }

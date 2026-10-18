@@ -15,7 +15,8 @@ const BODY_LIMIT = 512 * 1024;
  * @param {object} options
  * @param {ReturnType<import('./config.js').loadConfig>} options.config
  * @param {import('node:sqlite').DatabaseSync} options.db
- * @param {(credential: string) => Promise<{ sub: string }>} options.verifyGoogle
+ * @param {(idToken: string) => Promise<{ sub: string }>} options.verifyIdentity checks a sign-in
+ *   token and says who it is for
  * @param {() => number} [options.now] ms
  * @param {boolean} [options.limitRates] turn the request limits off in tests
  * @param {boolean | object} [options.logger]
@@ -23,7 +24,7 @@ const BODY_LIMIT = 512 * 1024;
 export async function createApp({
   config,
   db,
-  verifyGoogle,
+  verifyIdentity,
   now = Date.now,
   limitRates = true,
   logger = false
@@ -67,23 +68,23 @@ export async function createApp({
 
   app.get('/healthz', async () => ({ ok: true }));
 
-  app.post('/auth/google', stricter(20), async (request, reply) => {
-    const credential = request.body?.credential;
-    if (typeof credential !== 'string' || credential === '') {
+  app.post('/auth/firebase', stricter(20), async (request, reply) => {
+    const idToken = request.body?.idToken;
+    if (typeof idToken !== 'string' || idToken === '') {
       return reply.code(400).send({ error: 'invalid-credential' });
     }
-    let google;
+    let identity;
     try {
-      google = await verifyGoogle(credential);
+      identity = await verifyIdentity(idToken);
     } catch {
       return reply.code(401).send({ error: 'invalid-credential' });
     }
 
-    db.prepare('INSERT OR IGNORE INTO users (google_sub, created_at) VALUES (?, ?)').run(
-      google.sub,
+    db.prepare('INSERT OR IGNORE INTO users (auth_sub, created_at) VALUES (?, ?)').run(
+      identity.sub,
       now()
     );
-    const user = db.prepare('SELECT id, username FROM users WHERE google_sub = ?').get(google.sub);
+    const user = db.prepare('SELECT id, username FROM users WHERE auth_sub = ?').get(identity.sub);
     reply.setCookie(SESSION_COOKIE, sessions.create(user.id), cookieOptions);
     return { user: publicUser(user) };
   });

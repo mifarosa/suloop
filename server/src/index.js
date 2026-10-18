@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { createApp } from './app.js';
 import { loadConfig, problemsWith } from './config.js';
 import { openDatabase } from './db.js';
-import { createGoogleVerifier } from './googleAuth.js';
+import { createFirebaseVerifier } from './firebaseAuth.js';
 import { Sessions } from './sessions.js';
 
 const config = loadConfig();
@@ -18,7 +18,7 @@ const db = openDatabase(join(config.dataDir, 'suloop.db'));
 const app = await createApp({
   config,
   db,
-  verifyGoogle: createGoogleVerifier({ clientId: config.googleClientId }),
+  verifyIdentity: createFirebaseVerifier({ projectId: config.firebaseProjectId }),
   logger: { level: process.env.LOG_LEVEL ?? 'info' }
 });
 

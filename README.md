@@ -175,8 +175,9 @@ Testler de bunu korur.
 
 ## Hesap ve sunucu
 
-Giriş ve ilerleme eşitlemesi, depodaki küçük bir sunucuda (`server/`) durur: Google ile giriş,
-herkese görünen benzersiz kullanıcı adı ve oyuncunun kendi ilerleme belgesi. Sunucu Docker'la
+Giriş ve ilerleme eşitlemesi, depodaki küçük bir sunucuda (`server/`) durur: Google ile giriş
+(Firebase Authentication yalnız "bu kim?" sorusunu cevaplar), herkese görünen benzersiz kullanıcı
+adı ve oyuncunun kendi ilerleme belgesi. Firebase yalnız giriş yapılınca (45 KB) yüklenir. Sunucu Docker'la
 çalışır (Windows'ta Docker Desktop); kurulum `docs/self-hosting.md` ve `server/README.md`
 dosyalarında. Sunucu ayarlı değilse (`VITE_API_URL` yok) hesap bölümü hiç görünmez ve oyun
 eskisi gibi yalnız cihazda saklar.
