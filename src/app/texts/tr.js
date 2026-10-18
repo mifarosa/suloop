@@ -209,7 +209,11 @@ export const tr = {
   usernameFailed: 'Kullanıcı adı kaydedilemedi. Bağlantını kontrol et.',
   accountError: (code) =>
     ({
-      'invalid-credential': 'Google hesabın doğrulanamadı, tekrar dene.',
+      'auth/popup-blocked':
+        'Giriş penceresi engellendi. Tarayıcının açılır pencere iznini kontrol et.',
+      'auth/network-request-failed': 'Bağlantı kurulamadı. İnternetini kontrol et.',
+      'auth/unauthorized-domain': 'Bu adres için giriş açılmamış.',
+      'invalid-credential': 'Giriş doğrulanamadı, tekrar dene.',
       network: 'Sunucuya ulaşılamadı. İnternetini kontrol et.',
       'delete-failed': 'Hesap silinemedi, tekrar dene.'
     })[code] ?? 'Bir şeyler ters gitti, tekrar dene.',

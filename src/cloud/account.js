@@ -5,9 +5,10 @@
  * @typedef {object} Backend
  * @property {(listener: (user: User | null) => void) => Promise<() => void>} watchAuth reports
  *   the signed-in user now and whenever it changes; returns a function that stops listening
- * @property {(element: HTMLElement, callbacks: { onStart: () => void, onError: (code: string) => void }) => Promise<void>} renderSignIn
- *   draws Google's sign-in button in `element`; once the player picks an account it calls
- *   `onStart`, and then either reports the new user through `watchAuth`'s listener or `onError`
+ * @property {() => Promise<void>} signIn opens Google's sign-in and, once the player picks an
+ *   account, reports the new user through `watchAuth`'s listener; rejects with `{ code }`
+ * @property {() => boolean} [hasPendingSignIn] true when the page left for Google's sign-in and
+ *   has to pick the answer up
  * @property {() => Promise<void>} signOut
  * @property {(uid: string) => Promise<{ username: string } | null>} readProfile
  * @property {(uid: string, username: string) => Promise<void>} claimUsername rejects with
@@ -65,24 +66,23 @@ export class Account {
 
   /** Picks up the session of an earlier visit; nothing is loaded for a player who never signed in. */
   async restore() {
-    if (this.#storage?.getItem(STORAGE_KEY) !== '1') return;
+    const pending = this.#backend.hasPendingSignIn?.() === true;
+    if (this.#storage?.getItem(STORAGE_KEY) !== '1' && !pending) return;
     await this.#watch();
   }
 
-  /**
-   * Draws the sign-in button in `element`. The button does the rest: the account follows what
-   * the backend reports.
-   * @param {HTMLElement} element
-   */
-  async renderSignIn(element) {
+  /** Signs in with Google. The result arrives as the state of the account. */
+  async signIn() {
+    this.#set({ status: 'signingIn', error: null });
     try {
       await this.#watch();
-      await this.#backend.renderSignIn(element, {
-        onStart: () => this.#set({ status: 'signingIn', error: null }),
-        onError: (code) => this.#set({ status: 'signedOut', error: code })
-      });
+      await this.#backend.signIn();
     } catch (error) {
-      this.#set({ error: error?.code ?? 'unknown' });
+      const closed = ['auth/popup-closed-by-user', 'auth/cancelled-popup-request'];
+      this.#set({
+        status: this.#state.user ? this.#state.status : 'signedOut',
+        error: closed.includes(error?.code) ? null : (error?.code ?? 'unknown')
+      });
     }
   }
 

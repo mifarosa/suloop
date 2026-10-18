@@ -10,25 +10,18 @@ function memoryStorage() {
   };
 }
 
-/** A backend that lets the test decide when the player picks a Google account. */
+/** A backend that lets the test decide what the sign-in does. */
 function fakeBackend({ profile = null } = {}) {
   let listener = null;
-  let buttonCallbacks = null;
   const backend = {
     profile,
+    pending: false,
+    hasPendingSignIn: () => backend.pending,
     watchAuth: vi.fn(async (next) => {
       listener = next;
       return () => {};
     }),
-    renderSignIn: vi.fn(async (element, callbacks) => {
-      buttonCallbacks = callbacks;
-    }),
-    /** The player picks an account in Google's button; `error` makes the server refuse. */
-    pick({ error = null } = {}) {
-      buttonCallbacks.onStart();
-      if (error) buttonCallbacks.onError(error);
-      else listener({ uid: 'u1', name: 'Mi Farosa' });
-    },
+    signIn: vi.fn(async () => listener({ uid: 'u1', name: 'Mi Farosa' })),
     signOut: vi.fn(async () => listener(null)),
     readProfile: vi.fn(async () => backend.profile),
     claimUsername: vi.fn(async () => {}),
@@ -39,10 +32,9 @@ function fakeBackend({ profile = null } = {}) {
 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
-/** Draws the button and has the player sign in through it. */
-async function signIn(account, backend, options) {
-  await account.renderSignIn({});
-  backend.pick(options);
+/** The player signs in and the account settles. */
+async function signIn(account) {
+  await account.signIn();
   await flush();
 }
 
@@ -59,7 +51,7 @@ describe('Account', () => {
   it('asks a new player for a username after signing in', async () => {
     const backend = fakeBackend();
     const account = new Account(backend, memoryStorage());
-    await signIn(account, backend);
+    await signIn(account);
     expect(account.state).toMatchObject({ status: 'needsName', user: { uid: 'u1' } });
   });
 
@@ -68,21 +60,21 @@ describe('Account', () => {
     const account = new Account(backend, memoryStorage());
     const seen = [];
     account.onChange((state) => seen.push(state.status));
-    await signIn(account, backend);
+    await signIn(account);
     expect(seen).toEqual(['signingIn', 'loading', 'needsName']);
   });
 
   it('knows a returning player by their profile', async () => {
     const backend = fakeBackend({ profile: { username: 'Farosa' } });
     const account = new Account(backend, memoryStorage());
-    await signIn(account, backend);
+    await signIn(account);
     expect(account.state).toMatchObject({ status: 'ready', username: 'Farosa' });
   });
 
   it('takes a username once, and says when it is taken or not allowed', async () => {
     const backend = fakeBackend();
     const account = new Account(backend, memoryStorage());
-    await signIn(account, backend);
+    await signIn(account);
 
     expect(await account.claimUsername('no')).toBe('invalid');
     backend.claimUsername.mockRejectedValueOnce({ code: 'username-taken' });
@@ -100,7 +92,7 @@ describe('Account', () => {
   it('restores the session of an earlier visit, and loads nothing for a player who never signed in', async () => {
     const storage = memoryStorage();
     const first = fakeBackend({ profile: { username: 'Farosa' } });
-    await signIn(new Account(first, storage), first);
+    await signIn(new Account(first, storage));
 
     const next = fakeBackend({ profile: { username: 'Farosa' } });
     await new Account(next, storage).restore();
@@ -115,7 +107,7 @@ describe('Account', () => {
     const storage = memoryStorage();
     const backend = fakeBackend({ profile: { username: 'Farosa' } });
     const account = new Account(backend, storage);
-    await signIn(account, backend);
+    await signIn(account);
     await account.signOut();
     expect(account.state).toMatchObject({ status: 'signedOut', user: null, username: null });
 
@@ -126,24 +118,40 @@ describe('Account', () => {
 
   it('reports why a sign-in was refused, and goes back to being signed out', async () => {
     const backend = fakeBackend();
+    backend.signIn.mockRejectedValueOnce({ code: 'invalid-credential' });
     const account = new Account(backend, memoryStorage());
-    await signIn(account, backend, { error: 'invalid-credential' });
+    await signIn(account);
     expect(account.state).toMatchObject({ status: 'signedOut', error: 'invalid-credential' });
   });
 
-  it('reports trouble drawing the button, e.g. no network', async () => {
+  it('says nothing when the player closes the sign-in window', async () => {
     const backend = fakeBackend();
-    backend.renderSignIn.mockRejectedValueOnce({ code: 'network' });
+    backend.signIn.mockRejectedValueOnce({ code: 'auth/popup-closed-by-user' });
     const account = new Account(backend, memoryStorage());
-    await account.renderSignIn({});
+    await signIn(account);
+    expect(account.state).toMatchObject({ status: 'signedOut', error: null });
+  });
+
+  it('reports trouble reaching the server', async () => {
+    const backend = fakeBackend();
+    backend.signIn.mockRejectedValueOnce({ code: 'network' });
+    const account = new Account(backend, memoryStorage());
+    await signIn(account);
     expect(account.state.error).toBe('network');
+  });
+
+  it('picks up a sign-in that left the page for Google, though nobody was signed in before', async () => {
+    const backend = fakeBackend({ profile: { username: 'Farosa' } });
+    backend.pending = true;
+    await new Account(backend, memoryStorage()).restore();
+    expect(backend.watchAuth).toHaveBeenCalledOnce();
   });
 
   it('does not ask for a name when the profile could not be read', async () => {
     const backend = fakeBackend();
     backend.readProfile.mockRejectedValueOnce({ code: 'unavailable' });
     const account = new Account(backend, memoryStorage());
-    await signIn(account, backend);
+    await signIn(account);
     expect(account.state.status).toBe('ready');
     expect(account.state.error).toBe('unavailable');
   });
@@ -152,7 +160,7 @@ describe('Account', () => {
     const backend = fakeBackend({ profile: { username: 'Farosa' } });
     const account = new Account(backend, memoryStorage());
     expect(await account.deleteAccount()).toBe(false);
-    await signIn(account, backend);
+    await signIn(account);
     expect(await account.deleteAccount()).toBe(true);
     expect(backend.deleteAccount).toHaveBeenCalledWith('u1');
 

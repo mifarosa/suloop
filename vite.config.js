@@ -29,5 +29,14 @@ function stampServiceWorker() {
 export default defineConfig({
   // Set VITE_BASE (e.g. "/suloop/") when the game is served from a sub path such as GitHub Pages.
   base: process.env.VITE_BASE || '/',
+  build: {
+    rolldownOptions: {
+      output: {
+        // Firebase only loads once a player signs in; its own chunk name lets the service
+        // worker leave it out of what it fetches up front.
+        codeSplitting: { groups: [{ name: 'firebase', test: /node_modules[\\/](@?firebase)/ }] }
+      }
+    }
+  },
   plugins: [stampServiceWorker()]
 });

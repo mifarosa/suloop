@@ -17,7 +17,7 @@ export default [
     }
   },
   {
-    files: ['*.config.js', 'tests/**', 'server/**'],
+    files: ['*.config.js', 'tests/**'],
     languageOptions: { globals: globals.node }
   }
 ];
