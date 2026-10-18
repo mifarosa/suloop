@@ -1515,23 +1515,46 @@ a.button.icon {
   pointer-events: none;
 }
 
-/* The account section of the settings. */
+/* The account section of the settings: a card of its own, with Google's own look for the button. */
 .account {
   display: grid;
-  gap: 8px;
-  padding-top: 12px;
-  border-top: 1px solid var(--line);
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--ink) 4%, transparent);
   text-align: left;
 }
 
 .account h3 {
   margin: 0;
-  font-size: 1rem;
+  color: var(--muted);
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.account > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+}
+
+.account .note {
+  line-height: 1.45;
 }
 
 .account #account-who {
+  margin: 0;
   font-family: var(--font-display);
+  font-size: 1.05rem;
   font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.account #account-status {
+  margin-top: -6px;
 }
 
 .account .retry {
@@ -1540,10 +1563,35 @@ a.button.icon {
 }
 
 .account .account-error {
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--error) 12%, transparent);
   color: var(--error);
 }
 
 .account .transfer-row input {
   text-transform: none;
   letter-spacing: normal;
+}
+
+/* Google's sign-in button: light, with its colored G, whatever the theme. */
+button.google {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #dadce0;
+  background: #fff;
+  color: #1f1f1f;
+}
+
+button.google:hover:not(:disabled) {
+  background: #f6f8fb;
+}
+
+.account .card-actions {
+  justify-content: space-between;
+  margin-top: 0;
 }
