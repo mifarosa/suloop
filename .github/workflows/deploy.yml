@@ -32,10 +32,6 @@ jobs:
       - run: npm run build
         env:
           VITE_BASE: ${{ steps.pages.outputs.base_path }}/
-          # Optional: the daily leaderboard's Supabase project (docs/leaderboard.sql). These
-          # are repository variables, not secrets: the anon key is public by design.
-          VITE_SUPABASE_URL: ${{ vars.SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

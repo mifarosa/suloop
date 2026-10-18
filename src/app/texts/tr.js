@@ -244,7 +244,8 @@ export const tr = {
 
   // The daily leaderboard
   leaderboardLoading: 'Sıralama yükleniyor…',
-  dailyToday: (moves, seconds) => `Bugün: ${moves} hamle · ${duration(seconds)}`,
+  dailyToday: (moves, seconds, score) =>
+    `Bugün: ${moves} hamle · ${duration(seconds)}${score === undefined ? '' : ` · ${score} puan`}`,
   dailyNotSolved: 'Bugünkü bulmacayı henüz çözmedin.',
   playDaily: 'Günün bulmacasını oyna',
   dailyStreak: (days) => `🔥 ${days} gün üst üste`,
@@ -252,9 +253,16 @@ export const tr = {
   dailyResult: (moves, seconds) => `${moves} hamle · ${duration(seconds)}`,
   leaderboardTop: 'Bugünün en iyileri',
   leaderboardFailed: 'Sıralama yüklenemedi. Bağlantını kontrol et.',
+  leaderboardSignIn: 'Sıralamaya girmek için Google ile giriş yap.',
+  leaderboardNeedsName: 'Sıralamaya girmek için bir kullanıcı adı seç.',
+  signInToRank: 'Giriş yap',
+  pickUsername: 'Kullanıcı adı seç',
+  leaderboardSending: 'Sonucun sıralamaya gönderiliyor…',
+  leaderboardMyRank: (rank) => `Sıran: ${rank}.`,
+  leaderboardHow:
+    'Puan: en az hamleyle çözersen 1000. Fazla hamle ve uzun süre puanı düşürür; ipucu hamle sayılır.',
+  points: (score) => `${score} puan`,
   leaderboardEmpty: 'Bugün henüz kimse sıralamaya girmedi.',
-  leaderboardName: 'Sıralamada görünecek adın',
-  leaderboardNamePlaceholder: 'Takma ad',
   save: 'Kaydet',
   dailyHistory: 'Son günlerin',
   dailyNoHistory: 'Henüz günün bulmacasını çözmedin.',

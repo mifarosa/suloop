@@ -1189,13 +1189,22 @@ button.icon {
   font-weight: 600;
 }
 
-.name-form {
+.sign-in-prompt {
   display: grid;
   gap: 8px;
+  justify-items: center;
+  text-align: center;
 }
 
-.name-form label {
-  font-size: 0.92rem;
+.daily-rank {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 600;
+  text-align: center;
+}
+
+.ranking .points {
+  font-weight: 600;
 }
 
 .ranking {

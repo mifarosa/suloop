@@ -10,6 +10,10 @@ import { localDateKey } from './calendar.js';
  * @property {number} moves
  * @property {number} seconds from the start of the puzzle to its solution
  * @property {number} stars
+ * @property {number} [score] the points (see game/dailyScore.js); results from before there
+ *   were points have none and are never shared
+ * @property {number} [hints] hints taken, counted in the moves
+ * @property {Array<[number, number]>} [log] the moves played, kept until the result is shared
  * @property {boolean} shared whether the leaderboard has it
  *
  * @typedef {object} DailyRecord
@@ -22,6 +26,8 @@ const STORAGE_KEY = 'suloop:daily:v1';
 /** How many days of results are kept. */
 export const DAYS_KEPT = 60;
 export const NAME_MAX_LENGTH = 20;
+/** The most moves a stored log may have; far more than any puzzle needs. */
+const MAX_LOG = 400;
 
 /** @returns {DailyRecord} */
 export function normalizeDailyRecord(saved, makeId = randomId) {
@@ -30,11 +36,14 @@ export function normalizeDailyRecord(saved, makeId = randomId) {
   if (data.results && typeof data.results === 'object') {
     for (const [day, result] of Object.entries(data.results)) {
       if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || !result || typeof result !== 'object') continue;
-      const { moves, seconds, stars, shared } = result;
+      const { moves, seconds, stars, shared, score, hints, log } = result;
       if (!isCount(moves) || moves === 0 || !isCount(seconds) || ![1, 2, 3].includes(stars)) {
         continue;
       }
       results[day] = { moves, seconds, stars, shared: shared === true };
+      if (isCount(score) && score <= 1000) results[day].score = score;
+      if (isCount(hints)) results[day].hints = hints;
+      if (shared !== true && isLog(log)) results[day].log = log;
     }
   }
   return {
@@ -49,23 +58,27 @@ export function normalizeDailyRecord(saved, makeId = randomId) {
  * Notes a solution of the daily puzzle; only the first of the day counts.
  * @param {DailyRecord} record
  * @param {string} day
- * @param {{ moves: number, seconds: number, stars: number }} result
+ * @param {{ moves: number, seconds: number, stars: number, score?: number, hints?: number,
+ *   log?: Array<[number, number]> }} result
  * @returns {{ record: DailyRecord, first: boolean }}
  */
-export function recordDailyResult(record, day, { moves, seconds, stars }) {
+export function recordDailyResult(record, day, { moves, seconds, stars, score, hints, log }) {
   if (record.results[day]) return { record, first: false };
-  const results = keepRecent({
-    ...record.results,
-    [day]: { moves, seconds, stars, shared: false }
-  });
+  const result = { moves, seconds, stars, shared: false };
+  if (isCount(score)) result.score = score;
+  if (isCount(hints)) result.hints = hints;
+  if (isLog(log)) result.log = log;
+  const results = keepRecent({ ...record.results, [day]: result });
   return { record: { ...record, results }, first: true };
 }
 
-/** Marks the result of `day` as on the leaderboard. */
+/** Marks the result of `day` as on the leaderboard; the moves are not needed here any more. */
 export function markShared(record, day) {
   const result = record.results[day];
   if (!result) return record;
-  return { ...record, results: { ...record.results, [day]: { ...result, shared: true } } };
+  const shared = { ...result, shared: true };
+  delete shared.log;
+  return { ...record, results: { ...record.results, [day]: shared } };
 }
 
 /** How many days in a row, up to today (or yesterday, if today is not solved yet), are solved. */
@@ -117,6 +130,16 @@ function keepRecent(results) {
 
 function isCount(value) {
   return Number.isInteger(value) && value >= 0;
+}
+
+/** A list of [from, to] tube numbers, short enough to be a real game. */
+function isLog(value) {
+  return (
+    Array.isArray(value) &&
+    value.length > 0 &&
+    value.length <= MAX_LOG &&
+    value.every((move) => Array.isArray(move) && move.length === 2 && move.every(isCount))
+  );
 }
 
 function randomId() {

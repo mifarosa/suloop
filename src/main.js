@@ -6,7 +6,6 @@ import { loadDailyRecord, saveDailyRecord } from './app/dailyResults.js';
 import { Feedback } from './app/feedback.js';
 import { createPuzzleSolver } from './app/fewestMoves.js';
 import { Hud } from './app/hud.js';
-import { createLeaderboard } from './app/leaderboard.js';
 import { LeaderboardDialog } from './app/leaderboardDialog.js';
 import { LevelMenu } from './app/levelMenu.js';
 import { loadProgress, saveProgress } from './app/progress.js';
@@ -21,6 +20,7 @@ import { decodePuzzle } from './game/customPuzzle.js';
 import { AccountPanel } from './app/accountPanel.js';
 import { Account } from './cloud/account.js';
 import { CloudSync } from './cloud/cloudSync.js';
+import { createDailyStore } from './cloud/dailyStore.js';
 import { CLOUD_CONFIGURED } from './cloud/config.js';
 import { createFirebaseBackend } from './cloud/firebaseBackend.js';
 import { Confetti } from './scene/confetti.js';
@@ -49,19 +49,17 @@ const menu = new LevelMenu(document);
 const rules = new RulesDialog(document, { getLook: () => themer.look() });
 const settingsDialog = new SettingsDialog(document);
 const leaderboardDialog = new LeaderboardDialog(document);
-// The daily leaderboard is shared when the build has a Supabase project (see leaderboard.js).
+// The daily leaderboard is shared when the build has a Firebase project (see cloud/dailyStore.js).
 // The account keeps progress in the cloud; it hears about every change made on this device.
 let cloudSync = null;
+let account = null;
 const dailyBoard = new DailyBoard({
   record: loadDailyRecord(),
   save: (record) => {
     saveDailyRecord(record);
     cloudSync?.schedule();
   },
-  service: createLeaderboard({
-    url: import.meta.env.VITE_SUPABASE_URL,
-    anonKey: import.meta.env.VITE_SUPABASE_ANON_KEY
-  })
+  service: CLOUD_CONFIGURED ? createDailyStore() : null
 });
 const { fewest: findFewestMoves, solution: findSolution } = createPuzzleSolver();
 // The editor draws the board being made with a scene of its own.
@@ -131,11 +129,16 @@ document.querySelector('#leaderboard-open').hidden = !dailyBoard.online;
 
 async function showLeaderboard() {
   leaderboardDialog.showLoading();
-  leaderboardDialog.show(await dailyBoard.view(new Date()));
+  const state = account?.state;
+  leaderboardDialog.show(await dailyBoard.view(new Date()), {
+    signedIn: state?.status === 'ready' && Boolean(state.username),
+    username: state?.username ?? null
+  });
 }
 leaderboardDialog.bindActions({
-  onSetName: async (name) => {
-    if (await dailyBoard.setName(name, new Date())) showLeaderboard();
+  onSignIn: () => {
+    leaderboardDialog.hide();
+    settingsDialog.show(settings, device());
   },
   onPlayDaily: () => {
     leaderboardDialog.hide();
@@ -150,7 +153,7 @@ if (CLOUD_CONFIGURED) setUpAccount();
 function setUpAccount() {
   const panel = new AccountPanel(document);
   const backend = createFirebaseBackend();
-  const account = new Account(backend);
+  account = new Account(backend);
   cloudSync = new CloudSync({
     account,
     backend,
@@ -166,6 +169,10 @@ function setUpAccount() {
   account.onChange(() => {
     // A username is the next thing a new player has to do.
     if (account.state.status === 'needsName') panel.focusName();
+    // The username is the name on the daily leaderboard; what waited for one is shared now.
+    if (account.state.status === 'ready' && account.state.username) {
+      dailyBoard.setName(account.state.username, new Date());
+    }
     render();
   });
   cloudSync.onStatus(render);

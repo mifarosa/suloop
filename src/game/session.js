@@ -98,6 +98,16 @@ export class GameSession {
     return this.history.length + this.hintsTaken;
   }
 
+  /** The moves played so far, as [from, to] pairs, the ones taken back left out. */
+  moveLog() {
+    return this.history.map(({ from, to }) => [from, to]);
+  }
+
+  /** How many hints the player was given. */
+  get hints() {
+    return this.hintsTaken;
+  }
+
   /** Counts a hint the player was given as a move. */
   countHint() {
     this.hintsTaken++;

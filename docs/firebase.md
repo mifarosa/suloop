@@ -48,3 +48,10 @@ Günlük sıralama ve topluluk bulmacaları geldiğinde, hileyi önlemek için e
 sunucusu (`server/`, Dozi'nin hatırlatma sunucusu gibi) Firebase'e **kendisi bağlanıp** gönderilen
 skorları ve bulmacaları doğrulayacak. Dışarıdan ona bağlanılmaz; kapalıyken oyun, giriş ve
 ilerleme çalışmaya devam eder. Bunun için o aşamada bir servis hesabı anahtarı gerekecek.
+
+## Günlük sıralama
+
+Günün bulmacasının sonuçları `daily/{gün}/scores/{uid}` altında tutulur (herkes okur, yalnızca
+sahibi bir kez yazar); hamle kaydı `dailyMoves/{gün}_{uid}` altında ileride denetlenmek üzere
+saklanır. Sıralama için indeks gerekmez: `rank` alanı tek başına puan ve süreyi taşır. `firestore.rules`
+değişince Firebase konsolunda Firestore → Rules'tan yeniden yayınla.

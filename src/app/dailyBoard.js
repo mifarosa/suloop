@@ -1,4 +1,5 @@
 import { localDateKey } from './calendar.js';
+import { MAX_SECONDS } from '../game/dailyScore.js';
 import {
   cleanName,
   markShared,
@@ -9,6 +10,24 @@ import {
 
 const TOP_COUNT = 20;
 const HISTORY_DAYS = 7;
+
+/**
+ * Where daily puzzle scores are shared with other players; the game talks to it through this
+ * small interface (see cloud/dailyStore.js for the one that uses Firebase).
+ *
+ * @typedef {object} LeaderboardService
+ * @property {(entry: Entry) => Promise<void>} submit adds a player's score for a day; a second
+ *   score of the same player on the same day is ignored
+ * @property {(day: string, limit: number) => Promise<PublicScore[]>} top the best scores of a
+ *   day: most points first, then the fastest
+ * @property {(day: string, score: number, seconds: number) => Promise<number>} [rank] the
+ *   place a score has on the day's list (1 for the best)
+ *
+ * @typedef {{ day: string, name: string, moves: number, seconds: number, stars: number,
+ *   score: number, hints: number, log: Array<[number, number]> | undefined }} Entry
+ * @typedef {{ name: string, moves: number, seconds: number, stars: number, score: number }}
+ *   PublicScore
+ */
 
 /**
  * The daily puzzle's results: the player's own, kept on the device, and the shared
@@ -24,7 +43,7 @@ export class DailyBoard {
    * @param {object} options
    * @param {import('./dailyResults.js').DailyRecord} options.record
    * @param {(record: import('./dailyResults.js').DailyRecord) => void} options.save
-   * @param {import('./leaderboard.js').LeaderboardService | null} options.service
+   * @param {LeaderboardService | null} options.service
    */
   constructor({ record, save, service }) {
     this.#record = record;
@@ -40,7 +59,8 @@ export class DailyBoard {
   /**
    * Notes a solution of the daily puzzle of `day`, and shares it when it is the first.
    * @param {string} day
-   * @param {{ moves: number, seconds: number, stars: number }} result
+   * @param {{ moves: number, seconds: number, stars: number, score?: number, hints?: number,
+   *   log?: Array<[number, number]> }} result
    */
   async record(day, result) {
     const { record, first } = recordDailyResult(this.#record, day, result);
@@ -95,12 +115,17 @@ export class DailyBoard {
     const day = localDateKey(today);
     let top = null;
     let failed = false;
+    let rank = null;
     if (this.online) {
       await this.#shareWaiting(today);
       try {
         top = await this.#service.top(day, TOP_COUNT);
       } catch {
         failed = true;
+      }
+      const mine = this.#record.results[day];
+      if (!failed && mine?.shared && mine.score !== undefined && this.#service.rank) {
+        rank = await this.#service.rank(day, mine.score, mine.seconds).catch(() => null);
       }
     }
     const { name, results } = this.#record;
@@ -116,6 +141,7 @@ export class DailyBoard {
       streak: streak(this.#record, today),
       history,
       top,
+      rank,
       failed
     };
   }
@@ -131,17 +157,20 @@ export class DailyBoard {
   }
 
   async #share(day) {
-    const { name, playerId, results } = this.#record;
+    const { name, results } = this.#record;
     const result = results[day];
-    if (!this.#service || !name || !result) return;
+    // A result from before there were points cannot be ranked.
+    if (!this.#service || !name || !result || result.score === undefined) return;
     try {
       await this.#service.submit({
         day,
-        playerId,
         name,
         moves: result.moves,
-        seconds: Math.min(result.seconds, 86400),
-        stars: result.stars
+        seconds: Math.min(result.seconds, MAX_SECONDS),
+        stars: result.stars,
+        score: result.score,
+        hints: result.hints ?? 0,
+        log: result.log
       });
       this.#update(markShared(this.#record, day));
     } catch {
