@@ -1,18 +1,18 @@
-import { NAME_MAX_LENGTH } from './dailyResults.js';
 import { Overlay } from './overlay.js';
 import { starRow } from './starIcons.js';
 import { texts } from './texts.js';
 
 /**
  * The daily leaderboard: how the player did today and their streak, then the best players
- * of the day when scores are shared, or the player's own last days when they are not. It
- * asks for a name before the player's score can be shared.
+ * of the day with their points when scores are shared, or the player's own last days when they
+ * are not. A player who has not signed in (or has no username yet) is asked to, since scores
+ * go under a username.
  */
 export class LeaderboardDialog {
   #overlay;
   #body;
   #close;
-  #actions = { onSetName: () => {}, onPlayDaily: () => {}, onClose: () => {} };
+  #actions = { onSignIn: () => {}, onPlayDaily: () => {}, onClose: () => {} };
 
   /** @param {ParentNode} root */
   constructor(root) {
@@ -24,7 +24,7 @@ export class LeaderboardDialog {
 
   /**
    * @param {object} actions
-   * @param {(name: string) => void} actions.onSetName
+   * @param {() => void} actions.onSignIn opens the account, to sign in or pick a username
    * @param {() => void} actions.onPlayDaily
    * @param {() => void} actions.onClose
    */
@@ -38,9 +38,12 @@ export class LeaderboardDialog {
     this.#overlay.open(this.#close);
   }
 
-  /** @param {Awaited<ReturnType<import('./dailyBoard.js').DailyBoard['view']>>} view */
-  show(view) {
-    this.#body.replaceChildren(...this.#sections(view));
+  /**
+   * @param {Awaited<ReturnType<import('./dailyBoard.js').DailyBoard['view']>>} view
+   * @param {{ signedIn: boolean, username: string | null }} account
+   */
+  show(view, account) {
+    this.#body.replaceChildren(...this.#sections(view, account));
     this.#overlay.open(this.#body.querySelector('input, button.primary') ?? this.#close);
   }
 
@@ -48,12 +51,16 @@ export class LeaderboardDialog {
     this.#overlay.close();
   }
 
-  #sections({ online, name, today, streak, history, top, failed }) {
+  #sections({ online, today, streak, history, top, rank, failed }, { signedIn, username }) {
     const sections = [];
 
     const summary = element('section', 'daily-summary');
     if (today) {
-      const line = element('p', 'daily-today', texts.dailyToday(today.moves, today.seconds));
+      const line = element(
+        'p',
+        'daily-today',
+        texts.dailyToday(today.moves, today.seconds, today.score)
+      );
       line.append(starRow(today.stars));
       summary.append(line);
     } else {
@@ -65,9 +72,12 @@ export class LeaderboardDialog {
     if (streak > 0) summary.append(element('p', 'daily-streak', texts.dailyStreak(streak)));
     sections.push(summary);
 
-    if (online && !name) sections.push(this.#nameForm());
-
     if (online) {
+      if (!username) sections.push(this.#signInPrompt(signedIn));
+      else if (today && !today.shared && today.score !== undefined) {
+        sections.push(section(element('p', 'note', texts.leaderboardSending)));
+      }
+
       const heading = element('h3', '', texts.leaderboardTop);
       if (failed) {
         sections.push(section(heading, element('p', 'muted', texts.leaderboardFailed)));
@@ -78,12 +88,15 @@ export class LeaderboardDialog {
         top.forEach((score, i) => {
           const mine =
             today &&
-            score.name === name &&
+            username !== null &&
+            score.name === username &&
             score.moves === today.moves &&
             score.seconds === Math.min(today.seconds, 86400);
           list.append(scoreRow(i + 1, score.name, score, mine));
         });
-        sections.push(section(heading, list));
+        const parts = [heading];
+        if (rank !== null) parts.push(element('p', 'daily-rank', texts.leaderboardMyRank(rank)));
+        sections.push(section(...parts, list, element('p', 'note', texts.leaderboardHow)));
       }
     } else {
       const heading = element('h3', '', texts.dailyHistory);
@@ -102,38 +115,30 @@ export class LeaderboardDialog {
     return sections;
   }
 
-  #nameForm() {
-    const form = element('form', 'name-form');
-    const label = element('label', '', texts.leaderboardName);
-    const input = element('input');
-    input.type = 'text';
-    input.id = 'leaderboard-name';
-    input.maxLength = NAME_MAX_LENGTH;
-    input.autocomplete = 'nickname';
-    input.placeholder = texts.leaderboardNamePlaceholder;
-    label.htmlFor = input.id;
-    const save = element('button', 'primary', texts.save);
-    save.type = 'submit';
-    const row = element('div', 'transfer-row');
-    row.append(input, save);
-    form.append(label, row);
-    form.addEventListener('submit', (event) => {
-      event.preventDefault();
-      this.#actions.onSetName(input.value);
-    });
-    return form;
+  /** Scores go under a username, so a player without one is asked to sign in or pick one. */
+  #signInPrompt(signedIn) {
+    const prompt = element('section', 'sign-in-prompt');
+    const action = element('button', 'primary', signedIn ? texts.pickUsername : texts.signInToRank);
+    action.type = 'button';
+    action.addEventListener('click', () => this.#actions.onSignIn());
+    prompt.append(
+      element('p', 'muted', signedIn ? texts.leaderboardNeedsName : texts.leaderboardSignIn),
+      action
+    );
+    return prompt;
   }
 }
 
-function scoreRow(rank, label, { moves, seconds, stars }, mine) {
+/** A line of the list: on the day's ranking the points close it, on the player's own days the stars. */
+function scoreRow(rank, label, { moves, seconds, stars, score }, mine) {
   const row = element('li', mine ? 'mine' : '');
   if (rank !== null) row.append(element('span', 'rank', String(rank)));
   row.append(
     element('span', 'who', label),
     element('span', 'moves', texts.attemptMoves(moves)),
-    element('span', 'time', texts.duration(seconds)),
-    starRow(stars)
+    element('span', 'time', texts.duration(seconds))
   );
+  row.append(rank !== null ? element('span', 'points', texts.points(score)) : starRow(stars));
   return row;
 }
 

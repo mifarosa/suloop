@@ -244,7 +244,8 @@ export const en = {
 
   // The daily leaderboard
   leaderboardLoading: 'Loading the leaderboard…',
-  dailyToday: (moves, seconds) => `Today: ${en.moves(moves)} · ${duration(seconds)}`,
+  dailyToday: (moves, seconds, score) =>
+    `Today: ${en.moves(moves)} · ${duration(seconds)}${score === undefined ? '' : ` · ${score} pts`}`,
   dailyNotSolved: 'You have not solved today’s puzzle yet.',
   playDaily: 'Play the daily puzzle',
   dailyStreak: (days) => `🔥 ${days} days in a row`,
@@ -252,9 +253,16 @@ export const en = {
   dailyResult: (moves, seconds) => `${en.moves(moves)} · ${duration(seconds)}`,
   leaderboardTop: 'Today’s best',
   leaderboardFailed: 'Could not load the leaderboard. Check your connection.',
+  leaderboardSignIn: 'Sign in with Google to join the leaderboard.',
+  leaderboardNeedsName: 'Pick a username to join the leaderboard.',
+  signInToRank: 'Sign in',
+  pickUsername: 'Pick a username',
+  leaderboardSending: 'Sending your result to the leaderboard…',
+  leaderboardMyRank: (rank) => `Your place: ${rank}.`,
+  leaderboardHow:
+    'Points: 1000 for solving it in the fewest moves. More moves and a long time take points off; a hint counts as a move.',
+  points: (score) => `${score} pts`,
   leaderboardEmpty: 'Nobody is on the leaderboard yet today.',
-  leaderboardName: 'Your name on the leaderboard',
-  leaderboardNamePlaceholder: 'Nickname',
   save: 'Save',
   dailyHistory: 'Your recent days',
   dailyNoHistory: 'You have not solved a daily puzzle yet.',

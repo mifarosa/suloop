@@ -33,8 +33,11 @@ export function stateToDoc({ progress, daily }) {
     dailyDone: progress.dailyDone,
     daily: Object.fromEntries(
       days.map((day) => {
-        const { moves, seconds, stars } = daily[day];
-        return [day, { moves, seconds, stars }];
+        const { moves, seconds, stars, score } = daily[day];
+        return [
+          day,
+          score === undefined ? { moves, seconds, stars } : { moves, seconds, stars, score }
+        ];
       })
     )
   };
@@ -56,11 +59,12 @@ function cleanDaily(saved) {
   if (!saved || typeof saved !== 'object') return daily;
   for (const [day, result] of Object.entries(saved)) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || !result || typeof result !== 'object') continue;
-    const { moves, seconds, stars } = result;
+    const { moves, seconds, stars, score } = result;
     const count = (value) => Number.isInteger(value) && value >= 0;
     if (!count(moves) || moves === 0 || !count(seconds)) continue;
     if (!Number.isInteger(stars) || stars < 1 || stars > MAX_STARS) continue;
     daily[day] = { moves, seconds, stars };
+    if (count(score) && score <= 1000) daily[day].score = score;
   }
   return daily;
 }

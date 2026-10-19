@@ -411,8 +411,14 @@ describe('GameController', () => {
     expect(onDailySolved).toHaveBeenCalledWith('2026-10-09', {
       moves: moves.length,
       seconds: 95,
-      stars: lastWin().stars
+      stars: lastWin().stars,
+      score: expect.any(Number),
+      hints: 0,
+      log: expect.any(Array)
     });
+    const { score, log } = onDailySolved.mock.calls[0][1];
+    expect(score).toBeLessThanOrEqual(1000);
+    expect(log).toHaveLength(moves.length);
   });
 
   it('announces the next stage after the last level of a stage', async () => {

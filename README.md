@@ -88,8 +88,8 @@ Renkli suları tüplere ayırdığın bulmaca oyunu. Tarayıcıda çalışır, k
   oynanır; yeni sürüm yayınlanınca bağlantı varken hemen gelir
 - **Günün bulmacası serisi:** günün bulmacasında ilk çözümün (hamle, süre, yıldız) ve kaç gün üst
   üste çözdüğün cihazda tutulur; seviyeler ekranındaki günün bulmacası kartında ve bitiş ekranında
-  görünür. Supabase bağlanırsa herkesle günlük sıralama da açılır (ileride Firebase'e taşınacak) (aşağıda); bağlı değilken sıralama
-  hiç görünmez
+  görünür. Google ile giriş yapan oyuncular herkesle günlük sıralamaya girer (aşağıda); Firebase bağlı
+  değilken sıralama hiç görünmez
 - **Bulmaca atölyesi:** seviyeler ekranındaki karttan. 8 kuralın hepsiyle kendi bulmacanı yaparsın:
   renk koy/al, kilit ve yağ ata, yarım/tek yönlü/çatlak tüp ekle, uzun tüp, gizli renk ve geri
   alma hakkı seç ya da rastgele doldur. Her değişiklikte bulmacanın çözülebildiği ve en az kaç
@@ -151,7 +151,6 @@ src/
     sound.js      Web Audio ile üretilen sesler
     feedback.js   Ses ve titreşim, oyun anlarına bağlı
     dailyResults.js, dailyBoard.js Günlük sonuçlar, seri ve sıralama
-    leaderboard.js Sıralama servisi (Supabase REST adaptörü)
     leaderboardDialog.js Günlük sıralama penceresi
     economy.js    İpucu, ekstra geri alma ve seviye kayıtları
     fewestMoves.js En az hamleyi worker'a sorar, cevapları hatırlar
@@ -198,14 +197,12 @@ npm run preview   # derlemeyi yerelde sunar
 
 `main` dalına her push'ta GitHub Actions testleri çalıştırır ve oyunu GitHub Pages'e yayınlar.
 
-### Herkesle günlük sıralama (isteğe bağlı)
+### Herkesle günlük sıralama
 
-Sıralama, oyun içinde küçük bir arayüzün (`src/app/leaderboard.js`) arkasındadır; Supabase hazır
-gelir, başka bir servis (ör. Firebase) aynı iki metodu (`submit`, `top`) sağlaması yeterlidir.
-
-1. Bir Supabase projesi aç, SQL düzenleyicide `docs/leaderboard.sql` dosyasını çalıştır.
-2. GitHub deposunda Settings → Secrets and variables → Actions → **Variables** altına
-   `SUPABASE_URL` ve `SUPABASE_ANON_KEY` ekle (anon anahtar zaten herkese açık bir anahtardır).
-3. Bir sonraki yayında sıralama açılır. Ad girmeyen oyuncunun sonucu cihazda bekler; ad girince
-   gönderilir. Her oyuncunun günde yalnızca ilk sonucu sayılır ve kimse başkasının sonucunu
-   değiştiremez. Hile koruması yoktur: skorlar oyuncunun cihazından gelir.
+Sıralama Firebase hesabına bağlıdır (`docs/firebase.md`): giriş yapıp kullanıcı adı seçen oyuncunun
+günün bulmacasındaki ilk sonucu `daily/{gün}/scores/{uid}` altına yazılır. Puan = en az
+hamle / kullanılan hamle oranından en çok 1000 puan, her dolu dakika için 5 puan kesinti (en çok
+150). Sıralama puana, eşitlikte süreye göredir. Her oyuncunun günde yalnızca ilk sonucu sayılır ve
+kimse başkasınınkini değiştiremez. Güvenlik kuralları (`firestore.rules`) değer aralıklarını
+denetler; hamle kaydı (`dailyMoves`) ileride bir doğrulama işçisinin hileli skorları ayıklaması
+için ayrıca saklanır. Kuralları değiştirince Firebase konsolunda Firestore → Rules'tan yayınla.

@@ -14,6 +14,7 @@ import {
 } from '../game/levels.js';
 import { boardOf, rulesOf } from '../game/customPuzzle.js';
 import { GameSession } from '../game/session.js';
+import { dailyScore } from '../game/dailyScore.js';
 import { MAX_STARS, starsFor, twoStarLimit } from '../game/stars.js';
 import { localDateKey } from './calendar.js';
 import {
@@ -110,7 +111,8 @@ export class GameController {
    *   [deps.findSolution] a shortest solution of a numbered level
    * @param {import('./feedback.js').Feedback} [deps.feedback] sounds and vibration
    * @param {(day: string, result: { moves: number, seconds: number, stars: number }) => void}
-   *   [deps.onDailySolved] called with each solution of a daily puzzle
+   *   [deps.onDailySolved] called with each solution of a daily puzzle, with its points, the hints
+   *   taken and the moves played
    * @param {(today: Date) => { today: { moves: number, seconds: number, stars: number } | null,
    *   streak: number }} [deps.getDailySummary] the player's daily result and streak
    * @param {boolean} [deps.leaderboardOnline] whether daily scores are shared with others
@@ -593,6 +595,9 @@ export class GameController {
    */
   async #celebrateWin() {
     const moves = this.#session.moveCount;
+    // What the daily leaderboard keeps to be able to check a result later.
+    const log = this.#session.moveLog();
+    const hints = this.#session.hints;
     const notes = [];
     if (this.#level !== null) {
       const opened = this.#recordSolvedLevel(this.#level);
@@ -613,7 +618,8 @@ export class GameController {
       if (earnedHint) notes.push(texts.earnedHint);
       // The clock runs from when the puzzle was opened; a restart does not reset it.
       const seconds = Math.max(1, Math.round((this.#now().getTime() - this.#startedAt) / 1000));
-      this.#onDailySolved(day, { moves, seconds, stars });
+      const score = dailyScore({ moves, fewest: fewestMoves, seconds });
+      this.#onDailySolved(day, { moves, seconds, stars, score, hints, log });
       const { streak } = this.#getDailySummary(this.#puzzleDay);
       if (streak >= 2) notes.push(texts.dailyStreakNote(streak));
       shareText = texts.shareDailyText(this.#puzzleDay, stars, moves, seconds, streak);
