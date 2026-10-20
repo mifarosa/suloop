@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createLevelPuzzle } from '../src/game/levels.js';
 import { Board } from '../src/game/rules.js';
 import { fewestMoves, solveShortest } from '../src/game/shortest.js';
-import { MAX_STARS, starsFor, twoStarLimit } from '../src/game/stars.js';
+import { MAX_STARS, starsFor, threeStarLimit, twoStarLimit } from '../src/game/stars.js';
 
 /** Fewest moves by brute force: a breadth-first search over every legal pour. */
 function bruteForceFewest(tubes, board) {
@@ -101,6 +101,14 @@ describe('stars', () => {
   it('gives every star for the fewest moves, or fewer still', () => {
     expect(starsFor(21, 21)).toBe(MAX_STARS);
     expect(starsFor(20, 21)).toBe(MAX_STARS);
+  });
+
+  it('allows one move over for three stars in a long puzzle only', () => {
+    expect(starsFor(15, 14)).toBe(MAX_STARS);
+    expect(starsFor(16, 14)).toBe(2);
+    expect(starsFor(9, 8)).toBe(2);
+    expect(threeStarLimit(9)).toBe(9);
+    expect(threeStarLimit(10)).toBe(11);
   });
 
   it('gives two stars a few moves over, and one star beyond', () => {

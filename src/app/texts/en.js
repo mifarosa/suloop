@@ -165,8 +165,12 @@ export const en = {
   close: 'Close',
   rulesHeading: 'Rules',
   starsHeading: 'Stars',
-  starRule: (stars, fewest, limit) =>
-    ['More moves', `Up to ${limit} moves`, `${fewest} moves (the fewest)`][stars - 1],
+  starRule: (stars, fewest, threeLimit, limit) =>
+    [
+      'More moves',
+      `Up to ${limit} moves`,
+      threeLimit > fewest ? `Up to ${threeLimit} moves` : `${fewest} moves (the fewest)`
+    ][stars - 1],
   fewestPending: 'Working out the fewest moves…',
   suppliesHeading: 'Your supplies',
   undoSupply: (undoLimit, undosLeft) =>

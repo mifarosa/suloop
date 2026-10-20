@@ -594,6 +594,28 @@ describe('GameController', () => {
     throw new Error('No tube was completed');
   });
 
+  it('gives the daily puzzle two hints of its own and keeps the saved ones', async () => {
+    const controller = createController({ mode: 'daily', hints: 5 });
+    expect(lastRender()).toMatchObject({ hintCount: '2' });
+
+    controller.showHint();
+    expect(lastRender()).toMatchObject({ hintCount: '1' });
+    // Play the hinted move so the next hint is for a new position.
+    const [from, to] = scene.highlight.mock.lastCall[0];
+    await controller.tapTube(from);
+    await controller.tapTube(to);
+    controller.showHint();
+    expect(lastRender()).toMatchObject({ hintCount: '0' });
+
+    const [from2, to2] = scene.highlight.mock.lastCall[0];
+    await controller.tapTube(from2);
+    await controller.tapTube(to2);
+    controller.showHint();
+    expect(hud.showToast).toHaveBeenLastCalledWith(expect.any(String), { long: true });
+    // The saved hints were never touched.
+    expect(saved.every((progress) => progress.hints === 5)).toBe(true);
+  });
+
   it('points out the next move of the shortest solution as a hint, for one hint', () => {
     const controller = createController();
     const { tubes, board } = createLevelPuzzle(1);
@@ -900,7 +922,7 @@ describe('GameController', () => {
           id
         })),
         stars: [
-          { stars: 3, text: `${fewest} hamle (en az)` },
+          { stars: 3, text: `${fewest + 1} hamleye kadar` },
           { stars: 2, text: expect.stringMatching(/^\d+ hamleye kadar$/) },
           { stars: 1, text: 'Daha fazla hamle' }
         ],

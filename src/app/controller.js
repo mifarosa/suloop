@@ -15,7 +15,7 @@ import {
 import { boardOf, rulesOf } from '../game/customPuzzle.js';
 import { GameSession } from '../game/session.js';
 import { dailyScore } from '../game/dailyScore.js';
-import { MAX_STARS, starsFor, twoStarLimit } from '../game/stars.js';
+import { MAX_STARS, starsFor, threeStarLimit, twoStarLimit } from '../game/stars.js';
 import { localDateKey } from './calendar.js';
 import {
   MAX_SPARE_UNDOS,
@@ -33,7 +33,10 @@ import { texts } from './texts.js';
  */
 
 /** After this many solutions in a row of one level without every star, the player may watch it. */
-export const WATCH_AFTER_SOLVES = 5;
+export const WATCH_AFTER_SOLVES = 3;
+
+/** Hints every start of the daily puzzle comes with; they are apart from the saved hints. */
+export const DAILY_HINTS = 2;
 /** How long a tube stays lifted before the pour of a move being shown. */
 const WATCH_LIFT_MS = 350;
 
@@ -86,6 +89,9 @@ export class GameController {
   #fewestKnown;
   /** The last hint and the position it was for: asking again there costs nothing. */
   #lastHint = null;
+
+  /** Hints left in the daily puzzle at hand; the saved hints are not used there. */
+  #dailyHints = DAILY_HINTS;
   /**
    * How many solutions in a row the level on the board has had without every star; it starts
    * over on another level.
@@ -160,6 +166,7 @@ export class GameController {
     this.#startedAt = this.#puzzleDay.getTime();
     this.#level = this.#custom || this.#isDaily() ? null : this.#progress.current;
     this.#watch = null;
+    this.#dailyHints = DAILY_HINTS;
     if (this.#tries.level !== this.#level) this.#tries = { level: this.#level, count: 0 };
     const { tubes, board } = this.#custom
       ? boardOf(this.#custom.puzzle)
@@ -243,7 +250,12 @@ export class GameController {
       stars: fewest
         ? [3, 2, 1].map((stars) => ({
             stars,
-            text: texts.starRule(stars, fewest.moves, twoStarLimit(fewest.moves))
+            text: texts.starRule(
+              stars,
+              fewest.moves,
+              threeStarLimit(fewest.moves),
+              twoStarLimit(fewest.moves)
+            )
           }))
         : null,
       starsPending: texts.fewestPending,
@@ -369,7 +381,9 @@ export class GameController {
     // Hints on a puzzle the player made themselves cost nothing.
     const free = this.#custom?.fromEditor === true;
     if (!move) {
-      if (!free && this.#progress.hints === 0) {
+      const daily = this.#isDaily() && !free;
+      const left = daily ? this.#dailyHints : this.#progress.hints;
+      if (!free && left === 0) {
         this.#hud.showToast(texts.noHints, { long: true });
         return;
       }
@@ -379,7 +393,8 @@ export class GameController {
         this.#hud.showToast(outOfUndos ? texts.hintDeadEndNoUndo : texts.hintDeadEnd);
         return;
       }
-      if (!free) this.#setProgress(spendHint(this.#progress));
+      if (daily) this.#dailyHints--;
+      else if (!free) this.#setProgress(spendHint(this.#progress));
       session.countHint();
       this.#lastHint = { position: session.position, move };
       this.#refreshHud();
@@ -815,7 +830,7 @@ export class GameController {
 
   #refreshHud() {
     const session = this.#session;
-    const { hints } = this.#progress;
+    const hints = this.#isDaily() ? this.#dailyHints : this.#progress.hints;
     const spare = this.#spareUndos();
     this.#hud.render({
       title: this.#title(),

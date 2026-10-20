@@ -213,6 +213,19 @@ scene.onCue((cue) => feedback.cue(cue));
 // Browsers start audio only from a tap; catch every tap before the game handles it.
 document.addEventListener('pointerdown', () => feedback.unlock(), { capture: true });
 
+// iOS Safari zooms on a double tap and a pinch whatever the page asks; the game is an app.
+let lastTouchEnd = 0;
+document.addEventListener(
+  'touchend',
+  (event) => {
+    const now = Date.now();
+    if (now - lastTouchEnd < 350) event.preventDefault();
+    lastTouchEnd = now;
+  },
+  { passive: false }
+);
+document.addEventListener('gesturestart', (event) => event.preventDefault());
+
 // Settings: the theme, sounds and vibration, and installing the game as an app.
 let installPrompt = null;
 const device = () => ({ canVibrate: feedback.canVibrate, canInstall: installPrompt !== null });
