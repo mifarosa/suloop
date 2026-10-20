@@ -46,7 +46,7 @@ Renkli suları tüplere ayırdığın bulmaca oyunu. Tarayıcıda çalışır, k
 - Günün bulmacası: herkes aynı gün aynı bulmacayı oynar
 - Her seviye üretilirken çözücüyle denenir; çözülemeyen seviye çıkmaz
 - **Yıldızlar:** her bulmacanın en az hamlesi arka planda (Web Worker) A\* aramasıyla bulunur.
-  En az hamleyle çözen 3, birkaç hamle fazlasıyla (en az + beşte biri, en az 2) çözen 2, daha
+  En az hamleyle (10 ve üzeri hamlelik bulmacalarda bir fazlasıyla) çözen 3, birkaç hamle fazlasıyla (en az + beşte biri, en az 2) çözen 2, daha
   fazlasıyla çözen 1 yıldız alır. Geri alınan hamleler sayılmaz. Bitiş ekranında yıldızlar, hamle
   sayın, en az hamle, kazandıkların ve seviyedeki son 5 denemen görünür; "Tekrar et" ve "Sonraki
   seviye" butonları vardır. Seviyeler ekranında her seviyenin en iyi yıldızları görünür
@@ -56,7 +56,7 @@ Renkli suları tüplere ayırdığın bulmaca oyunu. Tarayıcıda çalışır, k
   atölye bulmacaları oyun içinde aranır: önce kesin en kısa çözüm; bulmaca çok büyükse sabit
   hedefe acele eden ağırlıklı A\* aramalarının ve sabit tohumlu denemelerin en kısası (genelde en azdan
   en fazla birkaç hamle fazla; herkeste aynı sonuç, "bulunan en kısa" diye işaretlenir)
-- **İpucu hakkı:** 2 ipucuyla başlarsın. İpucu en kısa çözümün sonraki hamlesini gösterir ve 1
+- **İpucu hakkı:** 2 ipucuyla başlarsın. Günün bulmacası her açılışta ayrıca 2 ipucuyla gelir; bunlar biriken haklarından düşmez. İpucu en kısa çözümün sonraki hamlesini gösterir ve 1
   hak harcar ve hamle sayına 1 ekler (yıldızı etkiler); geri alınca ikisi de geri gelmez, aynı durumda tekrar sormak ücretsizdir. Çıkmazdaysan hak
   gitmez. Günün bulmacasını çözünce (günde bir kez) 1 ipucu kazanırsın
 - **Ekstra geri alma:** geri almanın sınırlı olduğu bir seviyeyi (16. seviyeden itibaren) ilk kez

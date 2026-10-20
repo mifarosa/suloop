@@ -164,8 +164,12 @@ export const tr = {
   close: 'Kapat',
   rulesHeading: 'Kurallar',
   starsHeading: 'Yıldızlar',
-  starRule: (stars, fewest, limit) =>
-    [`Daha fazla hamle`, `${limit} hamleye kadar`, `${fewest} hamle (en az)`][stars - 1],
+  starRule: (stars, fewest, threeLimit, limit) =>
+    [
+      `Daha fazla hamle`,
+      `${limit} hamleye kadar`,
+      threeLimit > fewest ? `${threeLimit} hamleye kadar` : `${fewest} hamle (en az)`
+    ][stars - 1],
   fewestPending: 'En az hamle hesaplanıyor…',
   suppliesHeading: 'Hakların',
   undoSupply: (undoLimit, undosLeft) =>

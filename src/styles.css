@@ -107,6 +107,8 @@
 html,
 body {
   height: 100%;
+  /* Taps and double taps act, they never zoom the page like in a browser. */
+  touch-action: manipulation;
 }
 
 body {
