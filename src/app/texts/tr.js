@@ -115,7 +115,7 @@ export const tr = {
       ? `Çözülebilir · en az ${moves} hamle`
       : `Çözülebilir · bulunan en kısa çözüm ${moves} hamle`,
   editorUnsolvable: 'Çözüm bulunamadı. Boş tüp eklemeyi ya da renkleri değiştirmeyi dene.',
-  editorShareTitle: 'suloop bulmacam',
+  editorShareTitle: 'Wasorty bulmacam',
   editorLinkCopied: 'Bağlantı kopyalandı ✓',
   editorImportFailed: 'Bu bir bulmaca kodu değil. Kodu ya da bağlantıyı kontrol et.',
   editorImported: 'Bulmaca yüklendi.',
@@ -232,9 +232,9 @@ export const tr = {
   shareCopied: 'Kopyalandı ✓',
   shareStars: (stars) => '⭐'.repeat(stars) + '☆'.repeat(3 - stars),
   shareLevelText: (level, stars, moves, fewest) =>
-    `suloop · Seviye ${level} ${tr.shareStars(stars)}\n${moves} hamle (en az ${fewest})`,
+    `Wasorty · Seviye ${level} ${tr.shareStars(stars)}\n${moves} hamle (en az ${fewest})`,
   shareDailyText: (date, stars, moves, seconds, streak) =>
-    `suloop · Günün bulmacası, ${dayAndMonth.format(date)} ${tr.shareStars(stars)}\n` +
+    `Wasorty · Günün bulmacası, ${dayAndMonth.format(date)} ${tr.shareStars(stars)}\n` +
     `${moves} hamle · ${duration(seconds)}` +
     (streak >= 2 ? ` · 🔥 ${streak} gün` : ''),
 

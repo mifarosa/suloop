@@ -174,7 +174,7 @@ describe('GameController', () => {
       continueLabel: 'Sonraki seviye',
       leaderboard: false,
       watch: false,
-      shareText: `suloop · Seviye 1 ⭐☆☆\n${moves.length} hamle (en az 9)`
+      shareText: `Wasorty · Seviye 1 ⭐☆☆\n${moves.length} hamle (en az 9)`
     });
 
     controller.continueAfterWin();
@@ -640,13 +640,13 @@ describe('GameController', () => {
   it('offers a result to share for levels and the daily puzzle, but not for custom puzzles', async () => {
     let controller = createController();
     await playSolution(controller, createLevelPuzzle(1), { shortest: true });
-    expect(lastWin().shareText).toBe('suloop · Seviye 1 ⭐⭐⭐\n9 hamle (en az 9)');
+    expect(lastWin().shareText).toBe('Wasorty · Seviye 1 ⭐⭐⭐\n9 hamle (en az 9)');
 
     const getDailySummary = () => ({ today: null, streak: 3 });
     controller = createController({ mode: 'daily' }, { getDailySummary });
     await playSolution(controller, createDailyPuzzle('2026-10-09'));
     expect(lastWin().shareText).toMatch(
-      /^suloop · Günün bulmacası, 9 Ekim [⭐☆]{3}\n\d+ hamle · \d+:\d\d · 🔥 3 gün$/u
+      /^Wasorty · Günün bulmacası, 9 Ekim [⭐☆]{3}\n\d+ hamle · \d+:\d\d · 🔥 3 gün$/u
     );
 
     controller = createController();

@@ -31,7 +31,7 @@ let settings = loadSettings();
 setLanguage(settings.language);
 document.documentElement.lang = settings.language;
 if (settings.language === 'en') {
-  document.title = 'suloop · Water sort puzzle';
+  document.title = 'Wasorty · Water sort puzzle';
   applyStaticTexts(document);
 }
 
@@ -260,7 +260,23 @@ settingsDialog.bindActions({
 });
 applySettings();
 controller.start();
+showSplash();
 announceNews();
+
+/** The name in bright colors while the first board settles; a tap or a moment closes it. */
+function showSplash() {
+  const splash = document.querySelector('#splash');
+  if (!splash) return;
+  if (settings.language === 'en') {
+    splash.querySelector('.splash-tagline').textContent = 'Water sort puzzle';
+  }
+  const close = () => {
+    splash.classList.add('leaving');
+    setTimeout(() => splash.remove(), 500);
+  };
+  splash.addEventListener('pointerdown', close, { once: true });
+  setTimeout(close, 1900);
+}
 
 /** Tells the player once about what is new since they last played. */
 function announceNews() {
@@ -273,7 +289,7 @@ function announceNews() {
     // Without storage the note would come every time; leave it out.
     return;
   }
-  setTimeout(() => hud.showToast(texts.newsDailyRules, { long: true }), 800);
+  setTimeout(() => hud.showToast(texts.newsDailyRules, { long: true }), 2600);
 }
 
 /** Takes a puzzle someone shared, as in "…/suloop/#bulmaca=…"; it works for links opened here or pasted in. */

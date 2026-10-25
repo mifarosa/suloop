@@ -1,4 +1,4 @@
-# suloop
+# Wasorty
 
 Renkli suları tüplere ayırdığın bulmaca oyunu. Tarayıcıda çalışır, kurulum ya da hesap gerektirmez.
 

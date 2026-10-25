@@ -12,8 +12,8 @@
     <meta name="description" content="Renkli suları tüplere ayırdığın bulmaca oyunu." />
     <!-- How a shared link looks: LinkedIn, WhatsApp, X and others read these. -->
     <meta property="og:type" content="website" />
-    <meta property="og:site_name" content="suloop" />
-    <meta property="og:title" content="suloop · Su sıralama oyunu" />
+    <meta property="og:site_name" content="Wasorty" />
+    <meta property="og:title" content="Wasorty · Su sıralama oyunu" />
     <meta
       property="og:description"
       content="Her aşamada yeni bir kural, günlük bulmaca ve kendi bulmacanı yapma. Tarayıcıda oyna."
@@ -23,7 +23,7 @@
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta name="twitter:card" content="summary_large_image" />
-    <title>suloop · Su sıralama oyunu</title>
+    <title>Wasorty · Su sıralama oyunu</title>
     <script>
       // The saved theme, before the first paint, so the page never flashes another one.
       try {
@@ -40,7 +40,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="suloop" />
+    <meta name="apple-mobile-web-app-title" content="Wasorty" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -50,6 +50,16 @@
   </head>
   <body>
     <canvas id="scene" aria-label="Oyun alanı"></canvas>
+
+    <div id="splash" class="splash" aria-hidden="true">
+      <div class="wordmark" aria-label="Wasorty">
+        <span style="--c: #ef4444">W</span><span style="--c: #fb923c">a</span
+        ><span style="--c: #fde047">s</span><span style="--c: #22c55e">o</span
+        ><span style="--c: #38bdf8">r</span><span style="--c: #6366f1">t</span
+        ><span style="--c: #d946ef">y</span>
+      </div>
+      <p class="splash-tagline">Su sıralama bulmaca oyunu</p>
+    </div>
 
     <header class="hud">
       <div class="hud-info">

@@ -116,7 +116,7 @@ export const en = {
       ? `Solvable · ${moves} moves at the fewest`
       : `Solvable · shortest solution found: ${moves} moves`,
   editorUnsolvable: 'No solution found. Try adding an empty tube or changing the colors.',
-  editorShareTitle: 'My suloop puzzle',
+  editorShareTitle: 'My Wasorty puzzle',
   editorLinkCopied: 'Link copied ✓',
   editorImportFailed: 'That is not a puzzle code. Check the code or the link.',
   editorImported: 'Puzzle loaded.',
@@ -232,9 +232,9 @@ export const en = {
   shareCopied: 'Copied ✓',
   shareStars: (stars) => '⭐'.repeat(stars) + '☆'.repeat(3 - stars),
   shareLevelText: (level, stars, moves, fewest) =>
-    `suloop · Level ${level} ${en.shareStars(stars)}\n${en.moves(moves)} (fewest ${fewest})`,
+    `Wasorty · Level ${level} ${en.shareStars(stars)}\n${en.moves(moves)} (fewest ${fewest})`,
   shareDailyText: (date, stars, moves, seconds, streak) =>
-    `suloop · Daily puzzle, ${dayAndMonth.format(date)} ${en.shareStars(stars)}\n` +
+    `Wasorty · Daily puzzle, ${dayAndMonth.format(date)} ${en.shareStars(stars)}\n` +
     `${en.moves(moves)} · ${duration(seconds)}` +
     (streak >= 2 ? ` · 🔥 ${streak} days` : ''),
 
