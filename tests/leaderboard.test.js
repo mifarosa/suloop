@@ -16,7 +16,7 @@ describe('daily results', () => {
     expect(first).toBe(true);
     ({ record, first } = recordDailyResult(record, '2026-10-12', result(20)));
     expect(first).toBe(false);
-    expect(record.results['2026-10-12']).toEqual({ ...result(30), shared: false });
+    expect(record.results['2026-10-12']).toEqual({ ...result(30), shared: false, v: 2 });
   });
 
   it('counts the days in a row up to today, or up to yesterday before today is solved', () => {
@@ -28,6 +28,15 @@ describe('daily results', () => {
     ({ record } = recordDailyResult(record, '2026-10-12', result(25)));
     expect(streak(record, new Date(2026, 9, 12, 9))).toBe(3);
     expect(streak(record, new Date(2026, 9, 14, 9))).toBe(0);
+  });
+
+  it('drops results of the days with rules that were made for the older puzzle', () => {
+    const old = { moves: 22, seconds: 80, stars: 3, shared: true };
+    const record = normalizeDailyRecord(
+      { results: { '2026-10-24': old, '2026-10-25': old, '2026-10-26': { ...old, v: 2 } } },
+      () => 'new-player-id'
+    );
+    expect(Object.keys(record.results)).toEqual(['2026-10-24', '2026-10-26']);
   });
 
   it('cleans names and drops what makes no sense from a saved record', () => {
@@ -82,7 +91,7 @@ describe('DailyBoard', () => {
     await board.record('2026-10-11', result(30));
     await board.record('2026-10-12', result(24, 70, 3));
     expect(board.summary(today)).toEqual({
-      today: { moves: 24, seconds: 70, stars: 3, score: 800, shared: false },
+      today: { moves: 24, seconds: 70, stars: 3, score: 800, shared: false, v: 2 },
       streak: 2
     });
     expect(service.top).not.toHaveBeenCalled();

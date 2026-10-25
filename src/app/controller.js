@@ -17,6 +17,7 @@ import { GameSession } from '../game/session.js';
 import { dailyScore } from '../game/dailyScore.js';
 import { MAX_STARS, starsFor, threeStarLimit, twoStarLimit } from '../game/stars.js';
 import { localDateKey } from './calendar.js';
+import { RULES_FROM_DAY } from './dailyResults.js';
 import {
   MAX_SPARE_UNDOS,
   recordDailyWin,
@@ -628,7 +629,12 @@ export class GameController {
     let offerWatch = false;
     if (this.#isDaily()) {
       const day = localDateKey(this.#puzzleDay);
-      const { progress, earnedHint } = recordDailyWin(this.#progress, day);
+      const { progress, earnedHint } = recordDailyWin(
+        this.#dailySolvedOn(this.#puzzleDay)
+          ? this.#progress
+          : { ...this.#progress, dailyDone: null },
+        day
+      );
       this.#setProgress(progress);
       if (earnedHint) notes.push(texts.earnedHint);
       // The clock runs from when the puzzle was opened; a restart does not reset it.
@@ -701,10 +707,19 @@ export class GameController {
     return this.#level !== null && this.#session.undosLeft !== null ? this.#progress.spareUndos : 0;
   }
 
+  /**
+   * Whether the daily puzzle of the date is solved. A day marked solved but with no result of the
+   * current kind (an older puzzle of the day, before it had rules) has to be solved again.
+   */
+  #dailySolvedOn(date) {
+    const day = localDateKey(date);
+    if (this.#progress.dailyDone !== day) return false;
+    return day < RULES_FROM_DAY || this.#getDailySummary(date).today !== null;
+  }
+
   #levelMenuModel() {
-    const { dailyDone } = this.#progress;
     const today = this.#now();
-    const dailySolved = dailyDone === localDateKey(today);
+    const dailySolved = this.#dailySolvedOn(today);
 
     const chapters = STAGES.map((stage, index) => {
       const count = levelCountOf(stage);
@@ -823,10 +838,7 @@ export class GameController {
   #title() {
     if (this.#custom) return texts.customTitle(this.#custom.fromEditor);
     return this.#isDaily()
-      ? texts.dailyTitle(
-          this.#puzzleDay,
-          this.#progress.dailyDone === localDateKey(this.#puzzleDay)
-        )
+      ? texts.dailyTitle(this.#puzzleDay, this.#dailySolvedOn(this.#puzzleDay))
       : texts.levelTitle(this.#level);
   }
 

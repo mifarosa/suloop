@@ -1,4 +1,5 @@
 import { rankKey } from '../game/dailyScore.js';
+import { RULES_FROM_DAY } from '../app/dailyResults.js';
 import { loadFirebase } from './firebase.js';
 
 /**
@@ -21,8 +22,10 @@ export function createDailyStore({ load = loadFirebase } = {}) {
       if (!uid) throw Object.assign(new Error('Not signed in'), { code: 'not-signed-in' });
 
       const scoreRef = store.doc(db, 'daily', day, 'scores', uid);
-      // Already there (from this device earlier, or another): nothing more to send.
-      if ((await store.getDoc(scoreRef)).exists()) return;
+      // Already there (from this device earlier, or another): nothing more to send, unless it
+      // is from before the puzzle had rules (version 1), which this one replaces.
+      const there = await store.getDoc(scoreRef);
+      if (there.exists() && there.data?.()?.v === 2) return;
 
       const batch = store.writeBatch(db);
       batch.set(scoreRef, {
@@ -32,14 +35,16 @@ export function createDailyStore({ load = loadFirebase } = {}) {
         stars,
         score,
         rank: rankKey(score, seconds),
-        createdAt: store.serverTimestamp()
+        createdAt: store.serverTimestamp(),
+        v: 2
       });
       if (log) {
         batch.set(store.doc(db, 'dailyMoves', `${day}_${uid}`), {
           day,
           moves: log,
           hints,
-          createdAt: store.serverTimestamp()
+          createdAt: store.serverTimestamp(),
+          v: 2
         });
       }
       await batch.commit();
@@ -53,16 +58,20 @@ export function createDailyStore({ load = loadFirebase } = {}) {
         store.limit(limit)
       );
       const snapshot = await store.getDocs(query);
-      return snapshot.docs
-        .map((doc) => doc.data())
-        .map(({ username, moves, seconds, stars, score }) => ({
-          name: username,
-          moves,
-          seconds,
-          stars,
-          score
-        }))
-        .filter(isPublicScore);
+      return (
+        snapshot.docs
+          .map((doc) => doc.data())
+          // Scores of the puzzle before it had rules do not belong on today's list.
+          .filter((row) => day < RULES_FROM_DAY || row.v === 2)
+          .map(({ username, moves, seconds, stars, score }) => ({
+            name: username,
+            moves,
+            seconds,
+            stars,
+            score
+          }))
+          .filter(isPublicScore)
+      );
     },
 
     async rank(day, score, seconds) {
