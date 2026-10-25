@@ -1,5 +1,5 @@
 import { ATTEMPTS_KEPT } from './economy.js';
-import { DAYS_KEPT } from './dailyResults.js';
+import { DAYS_KEPT, RESULT_VERSION, isCurrentResult } from './dailyResults.js';
 import { normalizeProgress } from './progress.js';
 import { MAX_STARS } from '../game/stars.js';
 
@@ -33,11 +33,11 @@ export function stateToDoc({ progress, daily }) {
     dailyDone: progress.dailyDone,
     daily: Object.fromEntries(
       days.map((day) => {
-        const { moves, seconds, stars, score } = daily[day];
-        return [
-          day,
-          score === undefined ? { moves, seconds, stars } : { moves, seconds, stars, score }
-        ];
+        const { moves, seconds, stars, score, v } = daily[day];
+        const entry = { moves, seconds, stars };
+        if (score !== undefined) entry.score = score;
+        if (v === RESULT_VERSION) entry.v = v;
+        return [day, entry];
       })
     )
   };
@@ -59,12 +59,14 @@ function cleanDaily(saved) {
   if (!saved || typeof saved !== 'object') return daily;
   for (const [day, result] of Object.entries(saved)) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || !result || typeof result !== 'object') continue;
+    if (!isCurrentResult(day, result)) continue;
     const { moves, seconds, stars, score } = result;
     const count = (value) => Number.isInteger(value) && value >= 0;
     if (!count(moves) || moves === 0 || !count(seconds)) continue;
     if (!Number.isInteger(stars) || stars < 1 || stars > MAX_STARS) continue;
     daily[day] = { moves, seconds, stars };
     if (count(score) && score <= 1000) daily[day].score = score;
+    if (result.v === RESULT_VERSION) daily[day].v = RESULT_VERSION;
   }
   return daily;
 }

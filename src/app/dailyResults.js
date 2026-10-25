@@ -26,6 +26,16 @@ const STORAGE_KEY = 'suloop:daily:v1';
 /** How many days of results are kept. */
 export const DAYS_KEPT = 60;
 export const NAME_MAX_LENGTH = 20;
+/** From this day on the daily puzzle comes with rules; older results of these days are void. */
+export const RULES_FROM_DAY = '2026-10-25';
+/** The version of a daily result made for the puzzle with rules. */
+export const RESULT_VERSION = 2;
+
+/** Whether a result of `day` is for the puzzle as it is dealt now. */
+export function isCurrentResult(day, result) {
+  return day < RULES_FROM_DAY || result?.v === RESULT_VERSION;
+}
+
 /** The most moves a stored log may have; far more than any puzzle needs. */
 const MAX_LOG = 400;
 
@@ -36,11 +46,13 @@ export function normalizeDailyRecord(saved, makeId = randomId) {
   if (data.results && typeof data.results === 'object') {
     for (const [day, result] of Object.entries(data.results)) {
       if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || !result || typeof result !== 'object') continue;
+      if (!isCurrentResult(day, result)) continue;
       const { moves, seconds, stars, shared, score, hints, log } = result;
       if (!isCount(moves) || moves === 0 || !isCount(seconds) || ![1, 2, 3].includes(stars)) {
         continue;
       }
       results[day] = { moves, seconds, stars, shared: shared === true };
+      if (result.v === RESULT_VERSION) results[day].v = RESULT_VERSION;
       if (isCount(score) && score <= 1000) results[day].score = score;
       if (isCount(hints)) results[day].hints = hints;
       if (shared !== true && isLog(log)) results[day].log = log;
@@ -64,7 +76,7 @@ export function normalizeDailyRecord(saved, makeId = randomId) {
  */
 export function recordDailyResult(record, day, { moves, seconds, stars, score, hints, log }) {
   if (record.results[day]) return { record, first: false };
-  const result = { moves, seconds, stars, shared: false };
+  const result = { moves, seconds, stars, shared: false, v: RESULT_VERSION };
   if (isCount(score)) result.score = score;
   if (isCount(hints)) result.hints = hints;
   if (isLog(log)) result.log = log;

@@ -7,7 +7,10 @@ function fakeLoad({ uid = 'u1', existing = false, rows = [], count = 0 } = {}) {
   const store = {
     collection: (db, ...parts) => ({ path: parts.join('/') }),
     doc: (db, ...parts) => ({ path: parts.join('/') }),
-    getDoc: vi.fn(async () => ({ exists: () => existing })),
+    getDoc: vi.fn(async () => ({
+      exists: () => existing !== false,
+      data: () => ({ v: existing === 'old' ? 1 : 2 })
+    })),
     serverTimestamp: () => 'NOW',
     writeBatch: () => ({
       set: (ref, value) => writes.push([ref.path, value]),
@@ -48,7 +51,8 @@ describe('daily store', () => {
         stars: 3,
         score: 990,
         rank: rankKey(990, 95),
-        createdAt: 'NOW'
+        createdAt: 'NOW',
+        v: 2
       }
     ]);
     expect(writes[1][0]).toBe('dailyMoves/2026-10-12_u1');
@@ -64,6 +68,19 @@ describe('daily store', () => {
     await expect(createDailyStore({ load: out.load }).submit(entry)).rejects.toMatchObject({
       code: 'not-signed-in'
     });
+  });
+
+  it('replaces a score of the puzzle before it had rules', async () => {
+    const { load, writes } = fakeLoad({ existing: 'old' });
+    await createDailyStore({ load }).submit(entry);
+    expect(writes[0][1]).toMatchObject({ v: 2 });
+  });
+
+  it('leaves out old scores of the days that have rules', async () => {
+    const row = { username: 'a', moves: 21, seconds: 95, stars: 3, score: 990 };
+    const { load } = fakeLoad({ rows: [row, { ...row, username: 'b', v: 2 }] });
+    const top = await createDailyStore({ load }).top('2026-10-25', 20);
+    expect(top.map((r) => r.name)).toEqual(['b']);
   });
 
   it('reads the best first and drops broken rows', async () => {

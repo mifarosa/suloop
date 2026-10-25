@@ -72,15 +72,23 @@ service cloud.firestore {
     }
 
     // The daily puzzle's scores: anyone can read them, and a player adds their own once a day,
-    // under the username they chose. Nobody changes or deletes a score from the game (a score
-    // that does not hold up is removed by the server that checks them).
+    // under the username they chose. A score is never changed from the game, except the one of
+    // the day the puzzle got rules, which is replaced once (a score that does not hold up is
+    // removed by the server that checks them).
     match /daily/{day}/scores/{uid} {
       allow read: if true;
-      allow create: if isOwner(uid)
+      allow create: if validScore(uid, day);
+      // The score of the day's puzzle before it had rules is replaced once, by version 2.
+      allow update: if resource.data.get('v', 1) < 2 && validScore(uid, day);
+    }
+
+    function validScore(uid, day) {
+      return isOwner(uid)
         && day.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
         && isNearDay(day)
         && request.resource.data.keys().hasOnly(
-          ['username', 'moves', 'seconds', 'stars', 'score', 'rank', 'createdAt'])
+          ['username', 'moves', 'seconds', 'stars', 'score', 'rank', 'createdAt', 'v'])
+        && request.resource.data.v == 2
         && request.resource.data.username
           == get(/databases/$(database)/documents/profiles/$(uid)).data.username
         && request.resource.data.moves is int
@@ -103,10 +111,16 @@ service cloud.firestore {
     // The moves behind a daily score, for checking it later. Written once, and read only by
     // the server that checks them (the Admin SDK is not bound by these rules).
     match /dailyMoves/{id} {
-      allow create: if signedIn()
+      allow create: if validMoves(id);
+      allow update: if resource.data.get('v', 1) < 2 && validMoves(id);
+    }
+
+    function validMoves(id) {
+      return signedIn()
         && id == request.resource.data.day + '_' + request.auth.uid
         && request.resource.data.day.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
-        && request.resource.data.keys().hasOnly(['day', 'moves', 'hints', 'createdAt'])
+        && request.resource.data.keys().hasOnly(['day', 'moves', 'hints', 'createdAt', 'v'])
+        && request.resource.data.v == 2
         && request.resource.data.moves is list
         && request.resource.data.moves.size() >= 1
         && request.resource.data.moves.size() <= 400
