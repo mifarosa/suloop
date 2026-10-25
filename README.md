@@ -43,7 +43,7 @@ Renkli suları tüplere ayırdığın bulmaca oyunu. Tarayıcıda çalışır, k
 
 - Seviyeler ekranı: çözülen seviyeler aşamanın rengiyle dolar, sıradaki seviye açık, ötesi kilitli.
   Çözülmüş bir seviyeye dönüp tekrar oynanabilir
-- Günün bulmacası: herkes aynı gün aynı bulmacayı oynar
+- Günün bulmacası: herkes aynı gün aynı bulmacayı oynar; her gün tarihe göre 1-2 özel kural (tek yön, uzun tüp, gizli renk, çatlak, kilitli, yarım tüp, yağ) çıkar
 - Her seviye üretilirken çözücüyle denenir; çözülemeyen seviye çıkmaz
 - **Yıldızlar:** her bulmacanın en az hamlesi arka planda (Web Worker) A\* aramasıyla bulunur.
   En az hamleyle (10 ve üzeri hamlelik bulmacalarda bir fazlasıyla) çözen 3, birkaç hamle fazlasıyla (en az + beşte biri, en az 2) çözen 2, daha

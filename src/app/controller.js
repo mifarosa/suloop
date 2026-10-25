@@ -1,7 +1,7 @@
 import {
   createDailyPuzzle,
   createLevelPuzzle,
-  DAILY_SETTINGS,
+  dailySettings,
   levelCountOf,
   levelSettings,
   MASTER_STAGE,
@@ -808,7 +808,9 @@ export class GameController {
       const { hidden, undoLimit, capacity } = this.#custom.puzzle;
       return { hiddenColors: hidden, undoLimit, capacity };
     }
-    return this.#isDaily() ? DAILY_SETTINGS : levelSettings(this.#level);
+    return this.#isDaily()
+      ? dailySettings(localDateKey(this.#puzzleDay))
+      : levelSettings(this.#level);
   }
 
   /** The stage, then the rules the level adds to the stage's own, then the moves. */

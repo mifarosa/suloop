@@ -151,6 +151,8 @@ export const tr = {
   fewestMoves: (proven) => (proven ? 'En az' : 'En kısa bulunan'),
   stageOpened: (stageId) => `Yeni aşama açıldı: ${stageNames[stageId]}!`,
   earnedUndo: '+1 ekstra geri alma',
+  newsDailyRules:
+    'Yenilik: günün bulmacasında artık özel kurallar da var. Bugünün bulmacası da değişti, eski sonuçların duruyor.',
   earnedHint: 'Günün bulmacası: +1 ipucu!',
   attemptsTitle: 'Son denemeler',
   attemptMoves: (moves) => `${moves} hamle`,

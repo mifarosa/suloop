@@ -219,7 +219,7 @@ describe('GameController', () => {
     it('is not offered on the daily puzzle', async () => {
       const controller = createController({ mode: 'daily' });
       for (let i = 0; i < WATCH_AFTER_SOLVES; i++) {
-        await playSolution(controller, createDailyPuzzle('2026-10-09').tubes);
+        await playSolution(controller, createDailyPuzzle('2026-10-09'));
         expect(lastWin().watch).toBe(false);
         controller.replay();
       }
@@ -346,7 +346,7 @@ describe('GameController', () => {
     const controller = createController({ mode: 'daily', solved: 3, current: 4 });
     expect(lastRender().title).toBe('Günün bulmacası · 9 Ekim');
 
-    await playSolution(controller, scene.showPuzzle.mock.lastCall[0]);
+    await playSolution(controller, createDailyPuzzle('2026-10-09'));
     expect(saved.at(-1)).toEqual({
       ...INITIAL_PROGRESS,
       mode: 'daily',
@@ -364,7 +364,7 @@ describe('GameController', () => {
     });
 
     controller.replay();
-    await playSolution(controller, scene.showPuzzle.mock.lastCall[0]);
+    await playSolution(controller, createDailyPuzzle('2026-10-09'));
     expect(lastWin().notes).toEqual([]);
     expect(saved.at(-1).hints).toBe(3);
 
@@ -376,7 +376,7 @@ describe('GameController', () => {
   it('shows the streak after a daily puzzle, and the leaderboard only when scores are shared', async () => {
     const getDailySummary = () => ({ today: { moves: 20, seconds: 75, stars: 2 }, streak: 4 });
     let controller = createController({ mode: 'daily' }, { getDailySummary });
-    await playSolution(controller, scene.showPuzzle.mock.lastCall[0]);
+    await playSolution(controller, createDailyPuzzle('2026-10-09'));
     expect(lastWin()).toMatchObject({
       notes: expect.arrayContaining(['🔥 4 gün üst üste çözdün!']),
       leaderboard: false
@@ -389,7 +389,7 @@ describe('GameController', () => {
     });
 
     controller = createController({ mode: 'daily' }, { getDailySummary, leaderboardOnline: true });
-    await playSolution(controller, scene.showPuzzle.mock.lastCall[0]);
+    await playSolution(controller, createDailyPuzzle('2026-10-09'));
     expect(lastWin().leaderboard).toBe(true);
   });
 
@@ -406,7 +406,7 @@ describe('GameController', () => {
       { clock: () => new Date(time), onDailySolved }
     );
     time += 95_400;
-    const moves = await playSolution(controller, scene.showPuzzle.mock.lastCall[0]);
+    const moves = await playSolution(controller, createDailyPuzzle('2026-10-09'));
 
     expect(onDailySolved).toHaveBeenCalledWith('2026-10-09', {
       moves: moves.length,
@@ -644,7 +644,7 @@ describe('GameController', () => {
 
     const getDailySummary = () => ({ today: null, streak: 3 });
     controller = createController({ mode: 'daily' }, { getDailySummary });
-    await playSolution(controller, scene.showPuzzle.mock.lastCall[0]);
+    await playSolution(controller, createDailyPuzzle('2026-10-09'));
     expect(lastWin().shareText).toMatch(
       /^suloop · Günün bulmacası, 9 Ekim [⭐☆]{3}\n\d+ hamle · \d+:\d\d · 🔥 3 gün$/u
     );
