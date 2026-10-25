@@ -1,6 +1,7 @@
 import './styles.css';
 import { GameController } from './app/controller.js';
 import { DailyBoard } from './app/dailyBoard.js';
+import { FinishDialog } from './app/finishDialog.js';
 import { EditorDialog } from './app/editorDialog.js';
 import { loadDailyRecord, saveDailyRecord } from './app/dailyResults.js';
 import { Feedback } from './app/feedback.js';
@@ -35,11 +36,12 @@ if (settings.language === 'en') {
   applyStaticTexts(document);
 }
 
+const confetti = new Confetti(document.querySelector('#confetti'));
 const scene = new TubeScene(document.querySelector('#scene'), {
   getTopInset: () => document.querySelector('.hud').getBoundingClientRect().bottom,
   getBottomInset: () =>
     innerHeight - document.querySelector('.toolbar').getBoundingClientRect().top,
-  confetti: new Confetti(document.querySelector('#confetti')),
+  confetti,
   layered: true
 });
 const feedback = new Feedback();
@@ -49,6 +51,7 @@ const menu = new LevelMenu(document);
 const rules = new RulesDialog(document, { getLook: () => themer.look() });
 const settingsDialog = new SettingsDialog(document);
 const leaderboardDialog = new LeaderboardDialog(document);
+const finishDialog = new FinishDialog(document);
 // The daily leaderboard is shared when the build has a Firebase project (see cloud/dailyStore.js).
 // The account keeps progress in the cloud; it hears about every change made on this device.
 let cloudSync = null;
@@ -80,6 +83,7 @@ const controller = new GameController({
   getDailySummary: (today) => dailyBoard.summary(today),
   leaderboardOnline: dailyBoard.online,
   onEditPuzzle: (puzzle) => editor.show(puzzle),
+  onFinished: (summary) => finishDialog.show(summary),
   progress: loadProgress(),
   saveProgress: (progress) => {
     saveProgress(progress);
@@ -112,6 +116,10 @@ menu.bindActions({
     controller.closeLevels();
     editor.show();
   },
+  onFinished: () => {
+    controller.closeLevels();
+    controller.showFinish();
+  },
   onClose: () => controller.closeLevels()
 });
 rules.bindActions({ onClose: () => controller.closeRules() });
@@ -123,6 +131,33 @@ editor.bindActions({
   },
   onClose: () => editor.hide()
 });
+
+finishDialog.bindActions({
+  onShare: (text) => shareText(text),
+  onLevels: () => {
+    finishDialog.hide();
+    controller.showLevels();
+  },
+  onClose: () => finishDialog.hide(),
+  onCelebrate: () => {
+    feedback.win();
+    confetti.burst();
+  }
+});
+
+/** Sends text with the share sheet where there is one, and copies it otherwise. */
+async function shareText(text) {
+  const url = `${location.origin}${location.pathname}`;
+  try {
+    if (typeof navigator.share === 'function') await navigator.share({ text, url });
+    else {
+      await navigator.clipboard.writeText(`${text}\n${url}`);
+      hud.showToast(texts.shareCopied);
+    }
+  } catch (error) {
+    if (error?.name !== 'AbortError') hud.showToast(texts.copyFailed);
+  }
+}
 
 // Without a shared leaderboard there is nothing to rank; the daily card shows the streak.
 document.querySelector('#leaderboard-open').hidden = !dailyBoard.online;

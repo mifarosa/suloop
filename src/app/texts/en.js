@@ -11,7 +11,7 @@ const stageNames = {
   locked: 'Locked Tube',
   half: 'Half Tube',
   oil: 'Oil',
-  master: 'Master'
+  master: 'Mixed'
 };
 const stageRules = {
   easy: 'Plain tubes',
@@ -22,7 +22,7 @@ const stageRules = {
   locked: 'Icy tube with a key color',
   half: 'Half tube of 2 units',
   oil: 'Oil that always floats on top',
-  master: 'Endless · 3–4 rules in every level'
+  master: '3–4 mixed rules in every level'
 };
 const plural = (count, one, many) => `${count} ${count === 1 ? one : many}`;
 const moves = (count) => plural(count, 'move', 'moves');
@@ -194,7 +194,6 @@ export const en = {
   stageDetail: (stageId, undoLimit) =>
     `${stageRules[stageId]} · ${undoLimit === null ? 'unlimited' : undoLimit} undo`,
   chapterProgress: (solved, total) => `${solved}/${total}`,
-  masterProgress: (solved) => `${solved} solved`,
   // Copying a result
   copyFailed: 'Could not copy. Write the code down.',
 
@@ -226,6 +225,20 @@ export const en = {
   accountDeleteConfirm:
     'Delete your account and everything kept in it? The progress on this device stays.',
   cloudProgressLoaded: (solved) => `Progress loaded from your account: ${solved} levels solved.`,
+
+  // The end of the game
+  coffee: '☕ Buy me a coffee',
+  finishGame: 'Finish',
+  shareFinishText: (stars, max) => `Wasorty · I finished all 300 levels! ⭐ ${stars}/${max}`,
+  finishTitle: 'You did it!',
+  finishText: (total) => `You finished all ${total} levels.`,
+  finishStars: 'Stars',
+  finishPerfect: 'Perfect levels',
+  finishShare: 'Share',
+  finishLevels: 'Levels',
+  finishedCardTitle: 'Completed',
+  finishedCardText: 'You finished all 300 levels',
+  finishedCardAction: 'Open',
 
   // Sharing a result
   shareResult: 'Share result',

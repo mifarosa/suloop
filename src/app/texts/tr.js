@@ -11,7 +11,7 @@ const stageNames = {
   locked: 'Kilitli Tüp',
   half: 'Yarım Tüp',
   oil: 'Yağ',
-  master: 'Usta'
+  master: 'Karışık'
 };
 const stageRules = {
   easy: 'Düz tüpler',
@@ -22,7 +22,7 @@ const stageRules = {
   locked: 'Anahtar renkli buzlu tüp',
   half: '2 birimlik yarım tüp',
   oil: 'Hep üstte duran yağ',
-  master: 'Sonsuz · her seviyede 3–4 kural'
+  master: 'Her seviyede 3–4 karışık kural'
 };
 const moves = (count) => `${count} hamle`;
 /** Seconds as m:ss, or h:mm:ss past an hour. */
@@ -193,7 +193,6 @@ export const tr = {
   stageDetail: (stageId, undoLimit) =>
     `${stageRules[stageId]} · ${undoLimit === null ? 'sınırsız' : undoLimit} geri alma`,
   chapterProgress: (solved, total) => `${solved}/${total}`,
-  masterProgress: (solved) => `${solved} çözüldü`,
   // Copying a result
   copyFailed: 'Kopyalanamadı. Kodu bir yere not al.',
 
@@ -226,6 +225,20 @@ export const tr = {
   accountDeleteConfirm:
     'Hesabın ve hesapta saklanan her şey silinsin mi? Bu cihazdaki ilerlemen kalır.',
   cloudProgressLoaded: (solved) => `Hesabından ilerleme yüklendi: ${solved} seviye çözülmüş.`,
+
+  // The end of the game
+  coffee: '☕ Bana bir kahve ısmarla',
+  finishGame: 'Bitir',
+  shareFinishText: (stars, max) => `Wasorty · 300 seviyenin hepsini bitirdim! ⭐ ${stars}/${max}`,
+  finishTitle: 'Başardın!',
+  finishText: (total) => `${total} seviyenin hepsini bitirdin.`,
+  finishStars: 'Yıldız',
+  finishPerfect: 'Tam yıldızlı seviye',
+  finishShare: 'Paylaş',
+  finishLevels: 'Seviyeler',
+  finishedCardTitle: 'Tamamlandı',
+  finishedCardText: '300 seviyenin hepsini bitirdin',
+  finishedCardAction: 'Aç',
 
   // Sharing a result
   shareResult: 'Sonucu paylaş',

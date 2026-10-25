@@ -69,7 +69,14 @@ describe('GameController', () => {
 
   function createController(
     progress = {},
-    { clock = () => TODAY, onDailySolved, onEditPuzzle, getDailySummary, leaderboardOnline } = {}
+    {
+      clock = () => TODAY,
+      onDailySolved,
+      onEditPuzzle,
+      onFinished,
+      getDailySummary,
+      leaderboardOnline
+    } = {}
   ) {
     const controller = new GameController({
       scene,
@@ -83,6 +90,7 @@ describe('GameController', () => {
       },
       onDailySolved,
       onEditPuzzle,
+      onFinished,
       getDailySummary,
       leaderboardOnline,
       progress: { ...INITIAL_PROGRESS, ...progress },
@@ -441,23 +449,41 @@ describe('GameController', () => {
     await playSolution(controller, createLevelPuzzle(260));
 
     expect(lastWin()).toMatchObject({
-      notes: expect.arrayContaining(['Yeni aşama açıldı: Usta!']),
+      notes: expect.arrayContaining(['Yeni aşama açıldı: Karışık!']),
       continueLabel: 'Sonraki seviye'
     });
     controller.continueAfterWin();
     expect(lastRender()).toMatchObject({
       title: 'Seviye 261',
-      subtitle: expect.stringMatching(/^Usta · .+ · 0 hamle$/),
+      subtitle: expect.stringMatching(/^Karışık · .+ · 0 hamle$/),
       undoCount: '3'
     });
   });
 
-  it('does not announce anything at the end of a block of master levels', async () => {
-    const controller = createController({ solved: 269, current: 270 });
-    await playSolution(controller, createLevelPuzzle(270));
+  it('ends the game at the last level, with a page of its own', async () => {
+    const onFinished = vi.fn();
+    const controller = createController({ solved: 299, current: 300 }, { onFinished });
+    await playSolution(controller, createLevelPuzzle(300));
 
-    expect(lastWin().notes.some((note) => note.startsWith('Yeni aşama'))).toBe(false);
-    expect(saved.at(-1)).toMatchObject({ solved: 270, current: 271 });
+    expect(lastWin()).toMatchObject({ continueLabel: 'Bitir' });
+    expect(saved.at(-1)).toMatchObject({ solved: 300, current: 300 });
+    controller.continueAfterWin();
+    expect(onFinished).toHaveBeenCalledWith(
+      expect.objectContaining({ total: 300, maxStars: 900, stars: expect.any(Number) })
+    );
+    expect(lastRender().title).toBe('Seviye 300');
+
+    controller.showLevels();
+    expect(lastMenu().finished).toMatchObject({ title: 'Tamamlandı' });
+  });
+
+  it('shows no finish page before every level is solved', () => {
+    const onFinished = vi.fn();
+    const controller = createController({ solved: 299, current: 300 }, { onFinished });
+    controller.showFinish();
+    expect(onFinished).not.toHaveBeenCalled();
+    controller.showLevels();
+    expect(lastMenu().finished).toBeNull();
   });
 
   it('ignores restart once the puzzle is solved', async () => {
@@ -711,7 +737,7 @@ describe('GameController', () => {
       'Kilitli Tüp',
       'Yarım Tüp',
       'Yağ',
-      'Usta'
+      'Karışık'
     ]);
     expect(lastMenu().chapters[0]).toMatchObject({
       detail: 'Düz tüpler · sınırsız geri alma',
@@ -733,22 +759,21 @@ describe('GameController', () => {
     expect(lastMenu().daily).toMatchObject({ solved: false, playing: false, action: 'Oyna' });
   });
 
-  it('shows the master levels ten at a time, up to the furthest open level', () => {
+  it('shows all 40 master levels, which end the list', () => {
     const masterLevels = () =>
       lastMenu()
         .chapters.at(-1)
         .levels.map((tile) => tile.level);
     const controller = createController({ solved: 3, current: 4 });
     controller.showLevels();
-    expect(masterLevels()).toEqual(range(261, 270));
+    expect(masterLevels()).toEqual(range(261, 300));
     expect(lastMenu().chapters.at(-1)).toMatchObject({
-      detail: 'Sonsuz · her seviyede 3–4 kural · 3 geri alma',
-      progress: '0 çözüldü'
+      detail: 'Her seviyede 3–4 karışık kural · 3 geri alma',
+      progress: '0/40'
     });
 
     createController({ solved: 275, current: 276 }).showLevels();
-    expect(masterLevels()).toEqual(range(261, 280));
-    expect(lastMenu().chapters.at(-1).progress).toBe('15 çözüldü');
+    expect(lastMenu().chapters.at(-1).progress).toBe('15/40');
     expect(tile(276).state).toBe('open');
     expect(tile(277).state).toBe('locked');
   });
@@ -994,7 +1019,7 @@ describe('GameController', () => {
       expect(lastRender().subtitle).toBe('Gizli Renk · Tek yönlü · Uzun tüp · 0 hamle');
       // Past two, the subtitle only counts them; the info button lists them.
       createController({ solved: 275, current: 270 });
-      expect(lastRender().subtitle).toBe('Usta · 4 kural · 0 hamle');
+      expect(lastRender().subtitle).toBe('Karışık · 4 kural · 0 hamle');
     });
 
     it('explains a rule at the first level of its stage, and only there', () => {

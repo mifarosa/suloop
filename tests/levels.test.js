@@ -6,7 +6,10 @@ import {
   createLevelPuzzle,
   dailySettings,
   dealPuzzle,
+  isMasterLevel,
+  levelCountOf,
   levelSettings,
+  LEVEL_COUNT,
   MASTER_STAGE,
   MAX_COLOR_COUNT,
   rulesFirstUsedAt,
@@ -135,8 +138,15 @@ describe('stages', () => {
     }
   });
 
+  it('has 300 levels, the last 40 of them master levels', () => {
+    expect(LEVEL_COUNT).toBe(300);
+    expect(levelCountOf(MASTER_STAGE)).toBe(40);
+    expect(isMasterLevel(260)).toBe(false);
+    expect(isMasterLevel(300)).toBe(true);
+  });
+
   it('mix three or four rules into every master level, the same for everyone', () => {
-    for (let level = 261; level <= 400; level++) {
+    for (let level = 261; level <= LEVEL_COUNT; level++) {
       const count = rulesOf(level).filter((rule) => rule !== 'limitedUndo').length;
       expect(count).toBeGreaterThanOrEqual(3);
       expect(count).toBeLessThanOrEqual(4);
@@ -145,7 +155,7 @@ describe('stages', () => {
   });
 
   it('keep two spare tubes, and one plain empty tube next to a lock or oil', () => {
-    for (let level = 1; level <= 400; level++) {
+    for (let level = 1; level <= LEVEL_COUNT; level++) {
       const s = levelSettings(level);
       const spare = s.emptyTubeCount + s.oneWayTubeCount + s.crackedTubeCount + s.halfTubeCount;
       expect(spare).toBeGreaterThanOrEqual(2);
@@ -156,7 +166,7 @@ describe('stages', () => {
   });
 
   it('never need more colors than the maximum', () => {
-    for (let level = 1; level <= 400; level++) {
+    for (let level = 1; level <= LEVEL_COUNT; level++) {
       expect(levelSettings(level).colorCount).toBeLessThanOrEqual(MAX_COLOR_COUNT);
     }
   });

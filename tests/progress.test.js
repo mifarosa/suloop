@@ -88,11 +88,12 @@ describe('normalizeProgress', () => {
     expect(normalizeProgress({ solved: 4, current: 0 }).current).toBe(1);
   });
 
-  it('has no last level', () => {
+  it('ends at level 300', () => {
     expect(normalizeProgress({ solved: 900, current: 901 })).toMatchObject({
-      solved: 900,
-      current: 901
+      solved: 300,
+      current: 300
     });
+    expect(lastOpenLevel({ solved: 300 })).toBe(300);
   });
 
   it('reads saves from before the level list, which kept only the next level', () => {
