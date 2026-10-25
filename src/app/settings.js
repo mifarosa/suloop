@@ -10,7 +10,7 @@
  * @property {'tr' | 'en'} language
  */
 
-import { browserLanguage, LANGUAGES } from './i18n.js';
+import { LANGUAGES } from './i18n.js';
 
 const STORAGE_KEY = 'suloop:settings:v1';
 export const THEME_IDS = Object.freeze(['classic', 'neon', 'cocktail']);
@@ -21,7 +21,7 @@ export const DEFAULT_SETTINGS = Object.freeze({
   sound: true,
   haptics: true,
   symbols: false,
-  language: 'tr'
+  language: 'en'
 });
 
 /** Turns whatever was stored into valid settings, field by field. */
@@ -32,8 +32,7 @@ export function normalizeSettings(saved) {
     sound: typeof data.sound === 'boolean' ? data.sound : DEFAULT_SETTINGS.sound,
     haptics: typeof data.haptics === 'boolean' ? data.haptics : DEFAULT_SETTINGS.haptics,
     symbols: typeof data.symbols === 'boolean' ? data.symbols : DEFAULT_SETTINGS.symbols,
-    // Until the player picks one, the language of the browser.
-    language: LANGUAGES.includes(data.language) ? data.language : browserLanguage()
+    language: LANGUAGES.includes(data.language) ? data.language : DEFAULT_SETTINGS.language
   };
 }
 

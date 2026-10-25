@@ -1,7 +1,8 @@
+import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it } from 'vitest';
-import { browserLanguage, getLanguage, LANGUAGES, setLanguage } from '../src/app/i18n.js';
+import { getLanguage, LANGUAGES, setLanguage } from '../src/app/i18n.js';
 import { normalizeSettings } from '../src/app/settings.js';
-import { ENGLISH_STATIC } from '../src/app/staticTexts.js';
+import { TURKISH_STATIC } from '../src/app/staticTexts.js';
 import { texts } from '../src/app/texts.js';
 import { en } from '../src/app/texts/en.js';
 import { tr } from '../src/app/texts/tr.js';
@@ -39,7 +40,7 @@ describe('texts', () => {
     expect(texts.moves(1)).toBe('1 move');
     expect(texts.moves(3)).toBe('3 moves');
     setLanguage('de');
-    expect(getLanguage()).toBe('tr');
+    expect(getLanguage()).toBe('en');
   });
 
   it('write English dates and Turkish dates in their own style', () => {
@@ -50,26 +51,36 @@ describe('texts', () => {
 });
 
 describe('the language setting', () => {
-  it('follows the browser until the player picks one', () => {
-    expect(browserLanguage({ language: 'tr-TR' })).toBe('tr');
-    expect(browserLanguage({ language: 'en-US' })).toBe('en');
-    expect(browserLanguage({ language: 'de' })).toBe('en');
-    expect(browserLanguage(undefined)).toBe('en');
+  it('is English until the player picks one, whatever the browser says', () => {
     expect(LANGUAGES).toEqual(['tr', 'en']);
+    expect(normalizeSettings(undefined).language).toBe('en');
+    expect(normalizeSettings({ language: 'xx' }).language).toBe('en');
     expect(normalizeSettings({ language: 'tr' }).language).toBe('tr');
     expect(normalizeSettings({ language: 'en' }).language).toBe('en');
-    expect(normalizeSettings({ language: 'xx' }).language).toBe(
-      browserLanguage(globalThis.navigator)
-    );
   });
 });
 
-describe('the English of the page', () => {
+describe('the Turkish of the page', () => {
+  const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+
   it('has a selector and a text for every entry', () => {
-    const selectors = ENGLISH_STATIC.map(([selector]) => selector);
+    const selectors = TURKISH_STATIC.map(([selector]) => selector);
     expect(new Set(selectors).size).toBe(selectors.length);
-    for (const [, translation] of ENGLISH_STATIC) {
+    for (const [, translation] of TURKISH_STATIC) {
       expect(Object.keys(translation).length).toBeGreaterThan(0);
     }
+  });
+
+  it('names elements the page has', () => {
+    for (const [selector] of TURKISH_STATIC) {
+      const id = /^#([\w-]+)/.exec(selector)?.[1];
+      if (id) expect(html, selector).toContain(`id="${id}"`);
+    }
+  });
+
+  it('is written in English', () => {
+    expect(html).toContain('<html lang="en"');
+    // The name of the language is the one place that stays Turkish.
+    expect(html.replace('Türkçe', '')).not.toMatch(/[çğıöşüÇĞİÖŞÜ]/u);
   });
 });
