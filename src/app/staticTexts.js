@@ -1,112 +1,111 @@
 /**
- * The English of the texts that sit in index.html (which is written in Turkish): for each
+ * The Turkish of the texts that sit in index.html (which is written in English): for each
  * element, picked by a CSS selector, its text and/or the labels it carries. The dynamic texts
  * come from the dictionaries in texts/; these are only what the page starts out with.
  *
  * @typedef {{ text?: string, label?: string, title?: string, placeholder?: string }} Translation
  * @type {Array<[string, Translation]>}
  */
-export const ENGLISH_STATIC = [
-  // The top bar and the toolbar
-  ['#scene', { label: 'Game board' }],
-  ['#settings-open', { label: 'Settings' }],
-  ['.coffee-icon', { label: 'Buy me a coffee', title: 'Buy me a coffee' }],
-  ['#info', { label: 'Rules of this level' }],
-  ['.toolbar', { label: 'Moves' }],
-  ['#undo span:not(.count)', { text: 'Undo' }],
-  ['#hint span:not(.count)', { text: 'Hint' }],
-  ['#restart span', { text: 'Restart' }],
-
-  // The win dialog
-  ['.win-stats div:first-child dt', { text: 'Your moves' }],
-  ['#win-attempts-section h3', { text: 'Recent attempts' }],
-  ['#replay', { text: 'Play again' }],
-  ['#win-leaderboard', { text: 'Leaderboard' }],
-  ['#win-levels', { text: 'Levels' }],
-
-  // The level list
-  ['#levels-title', { text: 'Levels' }],
-  ['#levels-close', { label: 'Close' }],
-  ['#leaderboard-open', { label: 'Daily leaderboard' }],
-  ['.level-menu-footer .coffee', { text: '☕ Buy me a coffee' }],
-
-  // The daily leaderboard
-  ['#leaderboard-title', { text: 'Daily leaderboard' }],
-  ['#leaderboard-close', { label: 'Close' }],
-
-  // The puzzle editor
-  ['#editor-title', { text: 'Puzzle workshop' }],
-  ['#editor-close', { label: 'Close' }],
-  ['#editor-board', { label: 'The board you are making' }],
-  ['.editor-tools', { label: 'When tapping a tube' }],
-  ['[data-tool="add"]', { text: 'Add color' }],
-  ['[data-tool="remove"]', { text: 'Take from top' }],
-  ['[data-tool="lock"]', { text: 'Lock' }],
-  ['[data-tool="delete"]', { text: 'Delete tube' }],
-  ['#editor-palette', { label: 'Color' }],
-  ['label:has(#editor-oil) > span', { text: 'Make the selected color oil' }],
-  ['.editor-section:nth-of-type(1) h3', { text: 'Add a tube' }],
-  ['[data-add="plain"]', { text: 'Tube' }],
-  ['[data-add="half"]', { text: 'Half' }],
-  ['[data-add="oneWay"]', { text: 'One-way' }],
-  ['[data-add="cracked"]', { text: 'Cracked' }],
-  ['.editor-section:nth-of-type(2) h3', { text: 'Rules' }],
-  ['label:has(#editor-tall) > span', { text: 'Tall tubes (5 units)' }],
-  ['label:has(#editor-hidden) > span', { text: 'Hidden colors' }],
-  ['label:has(#editor-undo) > span', { text: 'Undo allowance' }],
-  ['.editor-section:nth-of-type(3) h3', { text: 'Quick start' }],
-  ['#editor-colors', { label: 'Number of colors' }],
-  ['#editor-random', { text: 'Fill randomly' }],
-  ['#editor-clear', { text: 'Empty' }],
-  ['.editor-section:nth-of-type(4) h3', { text: 'Share' }],
-  ['#editor-code', { label: 'Puzzle code' }],
-  ['#editor-share', { text: 'Copy link' }],
-  ['#editor-import-input', { placeholder: 'Code, link or JSON', label: 'Load a puzzle code' }],
-  ['#editor-import button', { text: 'Load' }],
-  ['#editor-play', { text: 'Try ▶' }],
-
-  // The settings
-  ['#settings-title', { text: 'Settings' }],
-  ['#settings-close', { label: 'Close' }],
-  ['.language-picker legend', { text: 'Language' }],
-  ['.theme-picker:not(.language-picker) legend', { text: 'Theme' }],
+export const TURKISH_STATIC = [
+  ['#scene', { label: 'Oyun alanı' }],
+  ['#settings-open', { label: 'Ayarlar' }],
+  ['.coffee-icon', { label: 'Bana bir kahve ısmarla', title: 'Bana bir kahve ısmarla' }],
+  ['#info', { label: 'Bu seviyenin kuralları' }],
+  ['.toolbar', { label: 'Hamleler' }],
+  ['#undo span:not(.count)', { text: 'Geri al' }],
+  ['#hint span:not(.count)', { text: 'İpucu' }],
+  ['#restart span', { text: 'Baştan' }],
+  ['.win-stats div:first-child dt', { text: 'Hamlen' }],
+  ['#win-attempts-section h3', { text: 'Son denemeler' }],
+  ['#replay', { text: 'Tekrar et' }],
+  ['#win-leaderboard', { text: 'Sıralama' }],
+  ['#win-levels', { text: 'Seviyeler' }],
+  ['#levels-title', { text: 'Seviyeler' }],
+  ['#levels-close', { label: 'Kapat' }],
+  ['#leaderboard-open', { label: 'Günlük sıralama' }],
+  ['.level-menu-footer .coffee', { text: '☕ Kahve ısmarla' }],
+  ['#leaderboard-title', { text: 'Günlük sıralama' }],
+  ['#leaderboard-close', { label: 'Kapat' }],
+  ['#editor-title', { text: 'Bulmaca atölyesi' }],
+  ['#editor-close', { label: 'Kapat' }],
+  ['#editor-board', { label: 'Tasarladığın tahta' }],
+  ['.editor-tools', { label: 'Tüpe dokununca' }],
+  ['[data-tool="add"]', { text: 'Renk koy' }],
+  ['[data-tool="remove"]', { text: 'Üstten al' }],
+  ['[data-tool="lock"]', { text: 'Kilit' }],
+  ['[data-tool="delete"]', { text: 'Tüpü sil' }],
+  ['#editor-palette', { label: 'Renk' }],
+  ['label:has(#editor-oil) > span', { text: 'Seçili renk yağ olsun' }],
+  ['.editor-section:nth-of-type(1) h3', { text: 'Tüp ekle' }],
+  ['[data-add="plain"]', { text: 'Tüp' }],
+  ['[data-add="half"]', { text: 'Yarım' }],
+  ['[data-add="oneWay"]', { text: 'Tek yönlü' }],
+  ['[data-add="cracked"]', { text: 'Çatlak' }],
+  ['.editor-section:nth-of-type(2) h3', { text: 'Kurallar' }],
+  ['label:has(#editor-tall) > span', { text: 'Uzun tüpler (5 birim)' }],
+  ['label:has(#editor-hidden) > span', { text: 'Gizli renkler' }],
+  ['label:has(#editor-undo) > span', { text: 'Geri alma hakkı' }],
+  ['.editor-section:nth-of-type(3) h3', { text: 'Hızlı başla' }],
+  ['#editor-colors', { label: 'Renk sayısı' }],
+  ['#editor-random', { text: 'Rastgele doldur' }],
+  ['#editor-clear', { text: 'Boşalt' }],
+  ['.editor-section:nth-of-type(4) h3', { text: 'Paylaş' }],
+  ['#editor-code', { label: 'Bulmaca kodu' }],
+  ['#editor-share', { text: 'Bağlantıyı kopyala' }],
+  [
+    '#editor-import-input',
+    { label: 'Bulmaca kodu yükle', placeholder: 'Kod, bağlantı ya da JSON' }
+  ],
+  ['#editor-import button', { text: 'Yükle' }],
+  ['#editor-play', { text: 'Dene ▶' }],
+  ['#settings-title', { text: 'Ayarlar' }],
+  ['#settings-close', { label: 'Kapat' }],
+  ['.language-picker legend', { text: 'Dil' }],
+  ['.theme-picker:not(.language-picker) legend', { text: 'Tema' }],
   [
     '.theme-picker:not(.language-picker) .theme-option:nth-of-type(1) > span:last-child',
-    { text: 'Classic Lab' }
+    { text: 'Klasik Laboratuvar' }
   ],
   [
     '.theme-picker:not(.language-picker) .theme-option:nth-of-type(2) > span:last-child',
-    { text: 'Neon Night' }
+    { text: 'Neon Gece' }
   ],
   [
     '.theme-picker:not(.language-picker) .theme-option:nth-of-type(3) > span:last-child',
-    { text: 'Cocktail Bar' }
+    { text: 'Kokteyl Bar' }
   ],
-  ['label:has(#setting-sound) > span', { text: 'Sounds' }],
-  ['label:has(#setting-haptics) > span', { text: 'Vibration' }],
-  ['#haptics-note', { text: 'This device does not support vibration.' }],
-  ['label:has(#setting-symbols) > span', { text: 'Add symbols to colors' }],
-  ['#symbols-note', { text: 'Draws a shape on every color, if they are hard to tell apart.' }],
-  ['#account-title', { text: 'Account' }],
-  ['#account-signin span', { text: 'Sign in with Google' }],
-  ['#account-name-input', { label: 'Username' }],
-  ['#account-name-form button', { text: 'Save' }],
-  ['#account-signout', { text: 'Sign out' }],
-  ['#account-delete', { text: 'Delete my account' }],
-  ['#install-app', { text: 'Install as an app' }],
-  ['#settings .coffee', { text: '☕ Buy me a coffee' }],
-
-  // The rules dialog
-  ['#rules-close', { label: 'Close' }]
+  ['label:has(#setting-sound) > span', { text: 'Sesler' }],
+  ['label:has(#setting-haptics) > span', { text: 'Titreşim' }],
+  ['#haptics-note', { text: 'Bu cihaz titreşimi desteklemiyor.' }],
+  ['label:has(#setting-symbols) > span', { text: 'Renklere sembol ekle' }],
+  ['#symbols-note', { text: 'Renkleri ayırt etmek zorsa her rengin üstüne bir şekil çizer.' }],
+  ['#account-title', { text: 'Hesap' }],
+  ['#account-signin span', { text: 'Google ile giriş yap' }],
+  ['#account-name-input', { label: 'Kullanıcı adı' }],
+  ['#account-name-form button', { text: 'Kaydet' }],
+  ['#account-signout', { text: 'Çıkış yap' }],
+  ['#account-delete', { text: 'Hesabımı sil' }],
+  ['#install-app', { text: 'Uygulama olarak yükle' }],
+  ['#settings .coffee', { text: '☕ Kahve ısmarla' }],
+  ['#rules-close', { label: 'Kapat' }],
+  ['#title', { text: 'Seviye 1' }],
+  ['#subtitle', { text: 'Kolay · 0 hamle' }],
+  ['#levels-open', { text: 'Seviyeler' }],
+  ['#share-result', { text: 'Sonucu paylaş' }],
+  ['#watch-solution', { text: 'Çözümü izle' }],
+  ['#rules-action', { text: 'Anladım' }],
+  [
+    '#account-note',
+    {
+      text: 'İlerlemen bu cihazda duruyor. Giriş yaparsan hesabında saklanır, diğer cihazlarında da gelir.'
+    }
+  ],
+  ['.splash-tagline', { text: 'Su sıralama bulmaca oyunu' }]
 ];
-
-/**
- * Puts the English texts on the page.
- * @param {ParentNode} root
- * @param {Array<[string, Translation]>} [translations]
- * @returns {string[]} the selectors that matched nothing, so a test can catch a stale list
- */
-export function applyStaticTexts(root, translations = ENGLISH_STATIC) {
+/** * Puts the Turkish texts on the page. * @param {ParentNode} root * @param {Array<[string, Translation]>} [translations] * @returns {string[]} the selectors that matched nothing, so a test can catch a stale list */ export function applyStaticTexts(
+  root,
+  translations = TURKISH_STATIC
+) {
   const missing = [];
   for (const [selector, { text, label, title, placeholder }] of translations) {
     const element = root.querySelector(selector);

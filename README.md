@@ -69,9 +69,9 @@ Renkli suları tüplere ayırdığın bulmaca oyunu. Tarayıcıda çalışır, k
   oyundaki tüpün aynısıyla çizilmiş bir kartla anlatılır. **(i) butonu** o seviyedeki bütün
   kuralları, yıldız sınırlarını, haklarını ve son 5 denemeni gösterir
 - Geri al, ipucu ve baştan butonları başparmağın yetiştiği alt çubukta, kalan haklarıyla
-- **Dil:** Türkçe ve İngilizce. İlk açılışta tarayıcının diline bakar, ayarlardan değişir (sayfa yeni
-  dille yeniden yüklenir). Metinler `src/app/texts/` altında iki sözlükte durur; bir test anahtarların
-  eşleştiğini kontrol eder. Bağlantı önizlemesi (Open Graph) tek dillidir (Türkçe)
+- **Dil:** İngilizce varsayılandır (sayfa İngilizce yazılıdır); Türkçe ayarlardan seçilir ve sayfa yeni
+  dille yeniden yüklenir. Metinler `src/app/texts/` altında iki sözlükte durur; bir test anahtarların
+  eşleştiğini kontrol eder. Bağlantı önizlemesi (Open Graph) tek dillidir (İngilizce)
 - **Renk körlüğü desteği:** ayarlardan "Renklere sembol ekle": her rengin üstüne ayrı bir şekil
   çizilir (tahtada ve atölyede)
 - **Sonucu paylaş:** bitiş ekranında; seviye ya da günün bulmacası için "⭐⭐⭐ 21 hamle · 🔥 3 gün"

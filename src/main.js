@@ -31,8 +31,9 @@ import { TubeScene } from './scene/tubeScene.js';
 let settings = loadSettings();
 setLanguage(settings.language);
 document.documentElement.lang = settings.language;
-if (settings.language === 'en') {
-  document.title = 'Wasorty · Water sort puzzle';
+// The page is written in English; Turkish is put over it.
+if (settings.language === 'tr') {
+  document.title = 'Wasorty · Su sıralama oyunu';
   applyStaticTexts(document);
 }
 
@@ -302,9 +303,6 @@ announceNews();
 function showSplash() {
   const splash = document.querySelector('#splash');
   if (!splash) return;
-  if (settings.language === 'en') {
-    splash.querySelector('.splash-tagline').textContent = 'Water sort puzzle';
-  }
   const close = () => {
     splash.classList.add('leaving');
     setTimeout(() => splash.remove(), 500);
@@ -318,8 +316,11 @@ function announceNews() {
   const key = 'suloop.news';
   const current = 'daily-rules';
   try {
-    if (globalThis.localStorage?.getItem(key) === current) return;
-    globalThis.localStorage?.setItem(key, current);
+    const storage = globalThis.localStorage;
+    if (storage?.getItem(key) === current) return;
+    storage?.setItem(key, current);
+    // A new player has nothing to compare with.
+    if (storage?.getItem('suloop:progress:v1') === null) return;
   } catch {
     // Without storage the note would come every time; leave it out.
     return;
