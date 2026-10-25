@@ -292,7 +292,7 @@ function announceNews() {
   setTimeout(() => hud.showToast(texts.newsDailyRules, { long: true }), 2600);
 }
 
-/** Takes a puzzle someone shared, as in "…/suloop/#bulmaca=…"; it works for links opened here or pasted in. */
+/** Takes a puzzle someone shared, as in "…/wasorty/#bulmaca=…"; it works for links opened here or pasted in. */
 function openLink() {
   if (!/#bulmaca=/.test(location.hash)) return;
 

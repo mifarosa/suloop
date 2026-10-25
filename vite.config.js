@@ -27,7 +27,7 @@ function stampServiceWorker() {
 }
 
 export default defineConfig({
-  // Set VITE_BASE (e.g. "/suloop/") when the game is served from a sub path such as GitHub Pages.
+  // Set VITE_BASE (e.g. "/wasorty/") when the game is served from a sub path such as GitHub Pages.
   base: process.env.VITE_BASE || '/',
   build: {
     rolldownOptions: {

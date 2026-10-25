@@ -159,7 +159,7 @@ describe('puzzle codes', () => {
 
   it('reads a code from a link or as plain JSON', () => {
     const code = encodePuzzle(sample());
-    expect(decodePuzzle(`https://mifarosa.com/suloop/#bulmaca=${code}`)).toEqual(sample());
+    expect(decodePuzzle(`https://mifarosa.com/wasorty/#bulmaca=${code}`)).toEqual(sample());
     const json = JSON.stringify({ v: 1, c: 4, t: ['0101', '1010', ''], k: 'ppp' });
     expect(decodePuzzle(json).tubes.map((tube) => tube.colors)).toEqual([
       [0, 1, 0, 1],

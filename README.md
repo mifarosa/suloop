@@ -2,7 +2,7 @@
 
 Renkli suları tüplere ayırdığın bulmaca oyunu. Tarayıcıda çalışır, kurulum ya da hesap gerektirmez.
 
-**Oyna:** https://mifarosa.com/suloop/
+**Oyna:** https://mifarosa.com/wasorty/
 
 ## Nasıl oynanır
 
