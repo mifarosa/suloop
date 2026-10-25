@@ -336,7 +336,22 @@ export function createLevelPuzzle(level) {
  * @returns {{ tubes: number[][], board: import('./rules.js').Board }}
  */
 export function createDailyPuzzle(dateKey) {
-  return dealPuzzle(`daily-${dateKey}`, DAILY_SETTINGS);
+  return dealPuzzle(`daily-${dateKey}`, dailySettings(dateKey));
+}
+
+/**
+ * How the daily puzzle of a date is dealt and played: one or two board rules drawn from the
+ * date, with a color less for each rule after the first, and for oil or a lock.
+ * @param {string} dateKey "YYYY-MM-DD"
+ * @returns {Readonly<PuzzleSettings>}
+ */
+export function dailySettings(dateKey) {
+  // Rules come from a seed of their own, so they never change the deal of a date.
+  const random = createRandom(hashString(`daily-rules-${dateKey}`));
+  const rules = drawRules(random, { from: BOARD_RULES, count: [1, 2] });
+  const heavy = rules.includes('oil') || rules.includes('lockedTube');
+  const colorCount = Math.max(5, DAILY_COLOR_COUNT - (rules.length - 1) - (heavy ? 1 : 0));
+  return buildSettings({ colorCount, rules, undoLimit: null });
 }
 
 /**

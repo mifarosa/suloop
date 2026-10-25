@@ -152,6 +152,8 @@ export const en = {
   fewestMoves: (proven) => (proven ? 'Fewest' : 'Shortest found'),
   stageOpened: (stageId) => `New stage unlocked: ${stageNames[stageId]}!`,
   earnedUndo: '+1 spare undo',
+  newsDailyRules:
+    "What's new: the daily puzzle now has special rules too. Today's puzzle changed as well; your earlier results stay.",
   earnedHint: 'Daily puzzle: +1 hint!',
   attemptsTitle: 'Recent attempts',
   attemptMoves: (count) => moves(count),

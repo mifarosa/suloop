@@ -4,7 +4,7 @@ import {
   BOARD_RULES,
   createDailyPuzzle,
   createLevelPuzzle,
-  DAILY_COLOR_COUNT,
+  dailySettings,
   dealPuzzle,
   levelSettings,
   MASTER_STAGE,
@@ -238,20 +238,29 @@ describe('level and daily puzzles', () => {
   });
 
   it('keeps daily layouts stable across releases', () => {
+    // The daily puzzle has dealt with rules since 2026-10-25; this one is a tall-tube day.
     expect(createDailyPuzzle('2026-10-09').tubes).toEqual([
-      [4, 0, 6, 5],
-      [2, 2, 3, 3],
-      [0, 2, 1, 3],
-      [1, 6, 5, 4],
-      [4, 6, 5, 1],
-      [0, 3, 4, 0],
-      [6, 2, 1, 5],
+      [2, 4, 0, 3, 2],
+      [1, 4, 2, 5, 2],
+      [0, 1, 3, 4, 3],
+      [3, 0, 4, 5, 5],
+      [5, 1, 0, 2, 3],
+      [0, 5, 1, 1, 4],
       [],
       []
     ]);
   });
 
-  it('uses a fixed number of colors for the daily puzzle', () => {
-    expect(countUnits(createDailyPuzzle('2026-01-01').tubes).size).toBe(DAILY_COLOR_COUNT);
+  it('deals every daily puzzle with one or two rules, the same on every device', () => {
+    for (let day = 0; day < 400; day++) {
+      const key = new Date(Date.UTC(2026, 9, 25 + day)).toISOString().slice(0, 10);
+      const rules = specialRules(dailySettings(key)).filter((rule) => rule !== 'limitedUndo');
+      expect(rules.length).toBeGreaterThanOrEqual(1);
+      expect(rules.length).toBeLessThanOrEqual(2);
+      expect(dailySettings(key).colorCount).toBeGreaterThanOrEqual(5);
+      const { tubes } = createDailyPuzzle(key);
+      expect(countUnits(tubes).size).toBe(dailySettings(key).colorCount);
+      expect(createDailyPuzzle(key).tubes).toEqual(tubes);
+    }
   });
 });

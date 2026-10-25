@@ -260,6 +260,21 @@ settingsDialog.bindActions({
 });
 applySettings();
 controller.start();
+announceNews();
+
+/** Tells the player once about what is new since they last played. */
+function announceNews() {
+  const key = 'suloop.news';
+  const current = 'daily-rules';
+  try {
+    if (globalThis.localStorage?.getItem(key) === current) return;
+    globalThis.localStorage?.setItem(key, current);
+  } catch {
+    // Without storage the note would come every time; leave it out.
+    return;
+  }
+  setTimeout(() => hud.showToast(texts.newsDailyRules, { long: true }), 800);
+}
 
 /** Takes a puzzle someone shared, as in "…/suloop/#bulmaca=…"; it works for links opened here or pasted in. */
 function openLink() {
