@@ -206,3 +206,7 @@ hamle / kullanılan hamle oranından en çok 1000 puan, her dolu dakika için 5 
 kimse başkasınınkini değiştiremez. Güvenlik kuralları (`firestore.rules`) değer aralıklarını
 denetler; hamle kaydı (`dailyMoves`) ileride bir doğrulama işçisinin hileli skorları ayıklaması
 için ayrıca saklanır. Kuralları değiştirince Firebase konsolunda Firestore → Rules'tan yayınla.
+
+## Lisans
+
+Kaynak kod okunabilsin diye herkese açıktır; tüm hakları saklıdır, izinsiz kopyalanamaz ya da yayınlanamaz ([LICENSE](LICENSE)). Repoya girmeyecek gizli bilgiler için [SECURITY.md](SECURITY.md).

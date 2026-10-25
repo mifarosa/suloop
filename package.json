@@ -2,6 +2,7 @@
   "name": "suloop",
   "version": "1.0.0",
   "private": true,
+  "license": "UNLICENSED",
   "description": "Renkli suları tüplere ayırdığın bulmaca oyunu.",
   "type": "module",
   "scripts": {
