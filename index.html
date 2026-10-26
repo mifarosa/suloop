@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="tr" data-theme="classic">
+<html lang="en" data-theme="classic">
   <head>
     <meta charset="utf-8" />
     <meta
@@ -9,21 +9,21 @@
     <meta name="color-scheme" content="dark light" />
     <meta name="theme-color" content="#0b0e1d" media="(prefers-color-scheme: dark)" />
     <meta name="theme-color" content="#d6deef" media="(prefers-color-scheme: light)" />
-    <meta name="description" content="Renkli suları tüplere ayırdığın bulmaca oyunu." />
+    <meta name="description" content="A colorful water sort puzzle: sort the liquids into tubes." />
     <!-- How a shared link looks: LinkedIn, WhatsApp, X and others read these. -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Wasorty" />
-    <meta property="og:title" content="Wasorty · Su sıralama oyunu" />
+    <meta property="og:title" content="Wasorty · Water sort puzzle" />
     <meta
       property="og:description"
-      content="Her aşamada yeni bir kural, günlük bulmaca ve kendi bulmacanı yapma. Tarayıcıda oyna."
+      content="A new rule in every stage, a daily puzzle and a workshop for your own puzzles. Play in your browser."
     />
     <meta property="og:url" content="https://mifarosa.com/wasorty/" />
     <meta property="og:image" content="https://mifarosa.com/wasorty/og.png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta name="twitter:card" content="summary_large_image" />
-    <title>Wasorty · Su sıralama oyunu</title>
+    <title>Wasorty · Water sort puzzle</title>
     <script>
       // The saved theme, before the first paint, so the page never flashes another one.
       try {
@@ -49,7 +49,7 @@
     />
   </head>
   <body>
-    <canvas id="scene" aria-label="Oyun alanı"></canvas>
+    <canvas id="scene" aria-label="Game board"></canvas>
 
     <div id="splash" class="splash" aria-hidden="true">
       <div class="wordmark" aria-label="Wasorty">
@@ -58,16 +58,16 @@
         ><span style="--c: #38bdf8">r</span><span style="--c: #6366f1">t</span
         ><span style="--c: #d946ef">y</span>
       </div>
-      <p class="splash-tagline">Su sıralama bulmaca oyunu</p>
+      <p class="splash-tagline">Water sort puzzle</p>
     </div>
 
     <header class="hud">
       <div class="hud-info">
-        <strong id="title">Seviye 1</strong>
-        <span id="subtitle">Kolay · 0 hamle</span>
+        <strong id="title">Level 1</strong>
+        <span id="subtitle">Easy · 0 moves</span>
       </div>
       <nav class="hud-actions">
-        <button id="settings-open" type="button" class="icon" aria-label="Ayarlar">
+        <button id="settings-open" type="button" class="icon" aria-label="Settings">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <circle cx="12" cy="12" r="3" />
             <path
@@ -80,8 +80,8 @@
           href="https://buymeacoffee.com/mifarosa"
           target="_blank"
           rel="noopener"
-          aria-label="Bana bir kahve ısmarla"
-          title="Bana bir kahve ısmarla"
+          aria-label="Buy me a coffee"
+          title="Buy me a coffee"
         >
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="M5 9h11v5a5 5 0 0 1-5 5h-1a5 5 0 0 1-5-5V9Z" />
@@ -90,23 +90,23 @@
             <path d="M5 21h11" />
           </svg>
         </a>
-        <button id="info" type="button" class="icon" aria-label="Bu seviyenin kuralları">
+        <button id="info" type="button" class="icon" aria-label="Rules of this level">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <circle cx="12" cy="12" r="9.5" />
             <path d="M12 11v6M12 7.2v.1" />
           </svg>
         </button>
-        <button id="levels-open" type="button" class="primary">Seviyeler</button>
+        <button id="levels-open" type="button" class="primary">Levels</button>
       </nav>
     </header>
 
-    <nav class="toolbar" aria-label="Hamleler">
+    <nav class="toolbar" aria-label="Moves">
       <button id="undo" type="button" class="tool">
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <path d="M9 7 4 12l5 5" />
           <path d="M4.5 12H14a5.5 5.5 0 0 1 0 11h-2" />
         </svg>
-        <span>Geri al</span>
+        <span>Undo</span>
         <span class="count" hidden></span>
       </button>
       <button id="hint" type="button" class="tool">
@@ -116,7 +116,7 @@
             d="M12 2.5a6.5 6.5 0 0 0-3.8 11.8c.5.4.8 1 .8 1.7h6c0-.7.3-1.3.8-1.7A6.5 6.5 0 0 0 12 2.5Z"
           />
         </svg>
-        <span>İpucu</span>
+        <span>Hint</span>
         <span class="count"></span>
       </button>
       <button id="restart" type="button" class="tool">
@@ -124,7 +124,7 @@
           <path d="M20 12a8 8 0 1 1-2.3-5.6" />
           <path d="M20 4v5h-5" />
         </svg>
-        <span>Baştan</span>
+        <span>Restart</span>
       </button>
     </nav>
 
@@ -136,7 +136,7 @@
         <h2 id="win-title">Tebrikler!</h2>
         <dl class="win-stats">
           <div>
-            <dt>Hamlen</dt>
+            <dt>Your moves</dt>
             <dd id="win-moves"></dd>
           </div>
           <div>
@@ -146,17 +146,17 @@
         </dl>
         <ul id="win-notes" class="win-notes"></ul>
         <section id="win-attempts-section" class="attempts-section">
-          <h3>Son denemeler</h3>
+          <h3>Recent attempts</h3>
           <ol id="win-attempts" class="attempts"></ol>
         </section>
-        <button id="share-result" type="button" hidden>Sonucu paylaş</button>
-        <button id="watch-solution" type="button" hidden>Çözümü izle</button>
+        <button id="share-result" type="button" hidden>Share result</button>
+        <button id="watch-solution" type="button" hidden>Watch the solution</button>
         <div class="card-actions">
-          <button id="replay" type="button">Tekrar et</button>
+          <button id="replay" type="button">Play again</button>
           <button id="next" type="button" class="primary">Sonraki seviye</button>
         </div>
-        <button id="win-leaderboard" type="button" hidden>Sıralama</button>
-        <button id="win-levels" type="button" class="link">Seviyeler</button>
+        <button id="win-leaderboard" type="button" hidden>Leaderboard</button>
+        <button id="win-levels" type="button" class="link">Levels</button>
       </div>
     </div>
 
@@ -168,8 +168,8 @@
         aria-labelledby="leaderboard-title"
       >
         <header class="dialog-header">
-          <h2 id="leaderboard-title">Günlük sıralama</h2>
-          <button id="leaderboard-close" type="button" class="icon" aria-label="Kapat">✕</button>
+          <h2 id="leaderboard-title">Daily leaderboard</h2>
+          <button id="leaderboard-close" type="button" class="icon" aria-label="Close">✕</button>
         </header>
         <div id="leaderboard-body" class="leaderboard-body"></div>
       </div>
@@ -178,85 +178,89 @@
     <div id="editor" class="overlay" hidden>
       <div class="card editor" role="dialog" aria-modal="true" aria-labelledby="editor-title">
         <header class="dialog-header">
-          <h2 id="editor-title">Bulmaca atölyesi</h2>
-          <button id="editor-close" type="button" class="icon" aria-label="Kapat">✕</button>
+          <h2 id="editor-title">Puzzle workshop</h2>
+          <button id="editor-close" type="button" class="icon" aria-label="Close">✕</button>
         </header>
-        <canvas id="editor-board" class="editor-board" aria-label="Tasarladığın tahta"></canvas>
+        <canvas
+          id="editor-board"
+          class="editor-board"
+          aria-label="The board you are making"
+        ></canvas>
         <p id="editor-status" class="editor-status" role="status"></p>
         <div class="editor-controls">
-          <div class="editor-tools" role="group" aria-label="Tüpe dokununca">
-            <button type="button" data-tool="add" aria-pressed="true">Renk koy</button>
-            <button type="button" data-tool="remove" aria-pressed="false">Üstten al</button>
-            <button type="button" data-tool="lock" aria-pressed="false">Kilit</button>
-            <button type="button" data-tool="delete" aria-pressed="false">Tüpü sil</button>
+          <div class="editor-tools" role="group" aria-label="When tapping a tube">
+            <button type="button" data-tool="add" aria-pressed="true">Add color</button>
+            <button type="button" data-tool="remove" aria-pressed="false">Take from top</button>
+            <button type="button" data-tool="lock" aria-pressed="false">Lock</button>
+            <button type="button" data-tool="delete" aria-pressed="false">Delete tube</button>
           </div>
-          <div id="editor-palette" class="editor-palette" role="group" aria-label="Renk"></div>
+          <div id="editor-palette" class="editor-palette" role="group" aria-label="Color"></div>
           <label class="switch">
-            <span>Seçili renk yağ olsun</span>
+            <span>Make the selected color oil</span>
             <input id="editor-oil" type="checkbox" role="switch" />
           </label>
 
           <section class="editor-section">
-            <h3>Tüp ekle</h3>
+            <h3>Add a tube</h3>
             <div class="editor-row">
-              <button type="button" data-add="plain">Tüp</button>
-              <button type="button" data-add="half">Yarım</button>
-              <button type="button" data-add="oneWay">Tek yönlü</button>
-              <button type="button" data-add="cracked">Çatlak</button>
+              <button type="button" data-add="plain">Tube</button>
+              <button type="button" data-add="half">Half</button>
+              <button type="button" data-add="oneWay">One-way</button>
+              <button type="button" data-add="cracked">Cracked</button>
             </div>
           </section>
 
           <section class="editor-section">
-            <h3>Kurallar</h3>
+            <h3>Rules</h3>
             <label class="switch">
-              <span>Uzun tüpler (5 birim)</span>
+              <span>Tall tubes (5 units)</span>
               <input id="editor-tall" type="checkbox" role="switch" />
             </label>
             <label class="switch">
-              <span>Gizli renkler</span>
+              <span>Hidden colors</span>
               <input id="editor-hidden" type="checkbox" role="switch" />
             </label>
             <label class="switch">
-              <span>Geri alma hakkı</span>
+              <span>Undo allowance</span>
               <select id="editor-undo"></select>
             </label>
           </section>
 
           <section class="editor-section">
-            <h3>Hızlı başla</h3>
+            <h3>Quick start</h3>
             <div class="editor-row">
-              <select id="editor-colors" aria-label="Renk sayısı"></select>
-              <button type="button" id="editor-random">Rastgele doldur</button>
-              <button type="button" id="editor-clear">Boşalt</button>
+              <select id="editor-colors" aria-label="Number of colors"></select>
+              <button type="button" id="editor-random">Fill randomly</button>
+              <button type="button" id="editor-clear">Empty</button>
             </div>
           </section>
 
           <section class="editor-section">
-            <h3>Paylaş</h3>
+            <h3>Share</h3>
             <textarea
               id="editor-code"
               class="editor-code"
               rows="2"
               readonly
-              aria-label="Bulmaca kodu"
+              aria-label="Puzzle code"
             ></textarea>
-            <button type="button" id="editor-share">Bağlantıyı kopyala</button>
+            <button type="button" id="editor-share">Copy link</button>
             <form id="editor-import" class="transfer-row">
               <input
                 id="editor-import-input"
                 type="text"
                 autocomplete="off"
                 spellcheck="false"
-                placeholder="Kod, bağlantı ya da JSON"
-                aria-label="Bulmaca kodu yükle"
+                placeholder="Code, link or JSON"
+                aria-label="Load a puzzle code"
               />
-              <button type="submit">Yükle</button>
+              <button type="submit">Load</button>
             </form>
             <p id="editor-message" class="note" role="alert" hidden></p>
           </section>
         </div>
         <footer class="editor-footer">
-          <button type="button" id="editor-play" class="primary">Dene ▶</button>
+          <button type="button" id="editor-play" class="primary">Try ▶</button>
         </footer>
       </div>
     </div>
@@ -264,68 +268,68 @@
     <div id="settings" class="overlay" hidden>
       <div class="card settings" role="dialog" aria-modal="true" aria-labelledby="settings-title">
         <header class="dialog-header">
-          <h2 id="settings-title">Ayarlar</h2>
-          <button id="settings-close" type="button" class="icon" aria-label="Kapat">✕</button>
+          <h2 id="settings-title">Settings</h2>
+          <button id="settings-close" type="button" class="icon" aria-label="Close">✕</button>
         </header>
         <fieldset class="theme-picker language-picker">
-          <legend>Dil</legend>
-          <label class="theme-option">
-            <input type="radio" name="language" value="tr" />
-            <span>Türkçe</span>
-          </label>
+          <legend>Language</legend>
           <label class="theme-option">
             <input type="radio" name="language" value="en" />
             <span>English</span>
           </label>
+          <label class="theme-option">
+            <input type="radio" name="language" value="tr" />
+            <span>Türkçe</span>
+          </label>
         </fieldset>
         <fieldset class="theme-picker">
-          <legend>Tema</legend>
+          <legend>Theme</legend>
           <label class="theme-option">
             <input type="radio" name="theme" value="classic" />
             <span class="theme-swatch" data-swatch="classic" aria-hidden="true"
               ><i></i><i></i><i></i
             ></span>
-            <span>Klasik Laboratuvar</span>
+            <span>Classic Lab</span>
           </label>
           <label class="theme-option">
             <input type="radio" name="theme" value="neon" />
             <span class="theme-swatch" data-swatch="neon" aria-hidden="true"
               ><i></i><i></i><i></i
             ></span>
-            <span>Neon Gece</span>
+            <span>Neon Night</span>
           </label>
           <label class="theme-option">
             <input type="radio" name="theme" value="cocktail" />
             <span class="theme-swatch" data-swatch="cocktail" aria-hidden="true"
               ><i></i><i></i><i></i
             ></span>
-            <span>Kokteyl Bar</span>
+            <span>Cocktail Bar</span>
           </label>
         </fieldset>
         <div class="switches">
           <label class="switch">
-            <span>Sesler</span>
+            <span>Sounds</span>
             <input id="setting-sound" type="checkbox" role="switch" />
           </label>
           <label class="switch">
-            <span>Titreşim</span>
+            <span>Vibration</span>
             <input id="setting-haptics" type="checkbox" role="switch" />
           </label>
-          <p id="haptics-note" class="note" hidden>Bu cihaz titreşimi desteklemiyor.</p>
+          <p id="haptics-note" class="note" hidden>This device does not support vibration.</p>
           <label class="switch">
-            <span>Renklere sembol ekle</span>
+            <span>Add symbols to colors</span>
             <input id="setting-symbols" type="checkbox" role="switch" />
           </label>
           <p id="symbols-note" class="note">
-            Renkleri ayırt etmek zorsa her rengin üstüne bir şekil çizer.
+            Draws a shape on every color, if they are hard to tell apart.
           </p>
         </div>
         <section id="account" class="account" aria-labelledby="account-title" hidden>
-          <h3 id="account-title">Hesap</h3>
+          <h3 id="account-title">Account</h3>
           <div id="account-out">
             <p id="account-note" class="note">
-              İlerlemen bu cihazda duruyor. Giriş yaparsan hesabında saklanır, diğer cihazlarında da
-              gelir.
+              Your progress stays on this device. Sign in to keep it in your account and get it on
+              your other devices too.
             </p>
             <button id="account-signin" type="button" class="google">
               <svg viewBox="0 0 48 48" width="18" height="18" aria-hidden="true">
@@ -346,7 +350,7 @@
                   d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"
                 />
               </svg>
-              <span>Google ile giriş yap</span>
+              <span>Sign in with Google</span>
             </button>
           </div>
           <div id="account-in" hidden>
@@ -360,25 +364,25 @@
                 spellcheck="false"
                 maxlength="20"
                 placeholder="kullanici_adi"
-                aria-label="Kullanıcı adı"
+                aria-label="Username"
               />
-              <button type="submit">Kaydet</button>
+              <button type="submit">Save</button>
             </form>
             <p id="account-status" class="note" role="status"></p>
             <div class="card-actions">
-              <button id="account-signout" type="button">Çıkış yap</button>
-              <button id="account-delete" type="button" class="link">Hesabımı sil</button>
+              <button id="account-signout" type="button">Sign out</button>
+              <button id="account-delete" type="button" class="link">Delete my account</button>
             </div>
           </div>
           <p id="account-error" class="note account-error" role="alert" hidden></p>
         </section>
-        <button id="install-app" type="button" hidden>Uygulama olarak yükle</button>
+        <button id="install-app" type="button" hidden>Install as an app</button>
         <a
           class="button coffee"
           href="https://buymeacoffee.com/mifarosa"
           target="_blank"
           rel="noopener"
-          >☕ Kahve ısmarla</a
+          >☕ Buy me a coffee</a
         >
       </div>
     </div>
@@ -387,25 +391,29 @@
       <div class="card rules" role="dialog" aria-modal="true" aria-labelledby="rules-title">
         <header class="dialog-header">
           <h2 id="rules-title">Kurallar</h2>
-          <button id="rules-close" type="button" class="icon" aria-label="Kapat">✕</button>
+          <button id="rules-close" type="button" class="icon" aria-label="Close">✕</button>
         </header>
         <div id="rules-body" class="rules-body"></div>
-        <button id="rules-action" type="button" class="primary">Anladım</button>
+        <button id="rules-action" type="button" class="primary">Got it</button>
       </div>
+    </div>
+
+    <div id="finish" class="overlay" hidden>
+      <div class="card finish-card" role="dialog" aria-modal="true"></div>
     </div>
 
     <div id="levels" class="overlay" hidden>
       <div class="card level-menu" role="dialog" aria-modal="true" aria-labelledby="levels-title">
         <header class="level-menu-header">
-          <h2 id="levels-title">Seviyeler</h2>
+          <h2 id="levels-title">Levels</h2>
           <div class="header-actions">
-            <button id="leaderboard-open" type="button" class="icon" aria-label="Günlük sıralama">
+            <button id="leaderboard-open" type="button" class="icon" aria-label="Daily leaderboard">
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4Z" />
                 <path d="M7 6H4v1a3 3 0 0 0 3 3M17 6h3v1a3 3 0 0 1-3 3" />
               </svg>
             </button>
-            <button id="levels-close" type="button" class="icon" aria-label="Kapat">✕</button>
+            <button id="levels-close" type="button" class="icon" aria-label="Close">✕</button>
           </div>
         </header>
         <div id="levels-body" class="level-menu-body"></div>
@@ -415,7 +423,7 @@
             href="https://buymeacoffee.com/mifarosa"
             target="_blank"
             rel="noopener"
-            >☕ Kahve ısmarla</a
+            >☕ Buy me a coffee</a
           >
         </footer>
       </div>

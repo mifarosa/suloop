@@ -10,6 +10,8 @@
  *   streak: string | null
  * }} daily today's result and the streak, when there are any
  * @property {{ title: string, text: string, action: string }} editor
+ * @property {{ title: string, text: string, action: string } | null} finished a card that opens
+ *   the finish page, once every level is solved
  * @property {Array<{
  *   id: string,
  *   name: string,
@@ -44,6 +46,7 @@ export class LevelMenu {
     onPickDaily: () => {},
     onLeaderboard: () => {},
     onEditor: () => {},
+    onFinished: () => {},
     onClose: () => {}
   };
 
@@ -66,6 +69,7 @@ export class LevelMenu {
    * @param {() => void} actions.onPickDaily
    * @param {() => void} actions.onLeaderboard opens the daily leaderboard
    * @param {() => void} actions.onEditor opens the puzzle editor
+   * @param {() => void} actions.onFinished opens the page for finishing the game
    * @param {() => void} actions.onClose
    */
   bindActions(actions) {
@@ -75,6 +79,7 @@ export class LevelMenu {
   /** @param {LevelMenuModel} model */
   show(model) {
     this.#body.replaceChildren(
+      ...(model.finished ? [finishedCard(model.finished)] : []),
       dailyCard(model.daily),
       editorCard(model.editor),
       ...model.chapters.map(chapterSection)
@@ -95,6 +100,7 @@ export class LevelMenu {
 
     if (button.dataset.daily !== undefined) this.#actions.onPickDaily();
     else if (button.dataset.editor !== undefined) this.#actions.onEditor();
+    else if (button.dataset.finished !== undefined) this.#actions.onFinished();
     else this.#actions.onPickLevel(Number(button.dataset.level));
   }
 }
@@ -122,6 +128,16 @@ function editorCard({ title, text, action }) {
   const card = element('button', 'daily-card editor-card');
   card.type = 'button';
   card.dataset.editor = '';
+  const words = element('span', 'daily-text');
+  words.append(element('strong', '', title), element('span', 'daily-date', text));
+  card.append(words, element('span', 'daily-action', action));
+  return card;
+}
+
+function finishedCard({ title, text, action }) {
+  const card = element('button', 'daily-card finished-card');
+  card.type = 'button';
+  card.dataset.finished = '';
   const words = element('span', 'daily-text');
   words.append(element('strong', '', title), element('span', 'daily-date', text));
   card.append(words, element('span', 'daily-action', action));

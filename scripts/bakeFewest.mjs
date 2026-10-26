@@ -1,15 +1,15 @@
 /**
- * Works out the fewest moves of every ready-made level (1 to STAGE_LEVEL_COUNT) and writes
+ * Works out the fewest moves of every ready-made level (1 to LEVEL_COUNT) and writes
  * them to src/game/fewestTable.js, so every player sees the same numbers and none of them
  * waits for a search. Run it with `npm run bake` whenever the levels change; a test fails
  * until the table matches the levels again.
  */
 import { writeFileSync } from 'node:fs';
-import { createLevelPuzzle, STAGE_LEVEL_COUNT } from '../src/game/levels.js';
+import { createLevelPuzzle, LEVEL_COUNT } from '../src/game/levels.js';
 import { solveShortest } from '../src/game/shortest.js';
 
 const moves = [];
-for (let level = 1; level <= STAGE_LEVEL_COUNT; level++) {
+for (let level = 1; level <= LEVEL_COUNT; level++) {
   const { tubes, board } = createLevelPuzzle(level);
   const shortest = solveShortest(tubes, { board, maxNodes: 2_000_000 });
   if (!shortest) throw new Error(`No shortest solution found for level ${level}`);

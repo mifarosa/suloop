@@ -3,6 +3,7 @@ import {
   createLevelPuzzle,
   dailySettings,
   levelCountOf,
+  LEVEL_COUNT,
   levelSettings,
   MASTER_STAGE,
   rulesFirstUsedAt,
@@ -31,6 +32,12 @@ import { texts } from './texts.js';
 /**
  * @typedef {{ moves: number, proven: boolean } | null} Fewest the fewest moves of a puzzle
  *   (see fewestMoves in shortest.js)
+ */
+
+/**
+ * What the finish page shows.
+ * @typedef {{ stars: number, maxStars: number, perfect: number, total: number,
+ *   shareText: string }} FinishSummary
  */
 
 /** After this many solutions in a row of one level without every star, the player may watch it. */
@@ -65,6 +72,7 @@ export class GameController {
   #getDailySummary;
   #leaderboardOnline;
   #onEditPuzzle;
+  #onFinished;
   #findFewestMoves;
   #findSolution;
   #progress;
@@ -123,6 +131,8 @@ export class GameController {
    * @param {(today: Date) => { today: { moves: number, seconds: number, stars: number } | null,
    *   streak: number }} [deps.getDailySummary] the player's daily result and streak
    * @param {boolean} [deps.leaderboardOnline] whether daily scores are shared with others
+   * @param {(summary: FinishSummary) => void} [deps.onFinished] shows the page for a player who
+   *   has finished the last level
    * @param {(puzzle: import('../game/customPuzzle.js').CustomPuzzle) => void} [deps.onEditPuzzle]
    *   takes a custom puzzle back to the editor after a test play
    * @param {import('./progress.js').Progress} deps.progress
@@ -141,6 +151,7 @@ export class GameController {
     getDailySummary = () => ({ today: null, streak: 0 }),
     leaderboardOnline = false,
     onEditPuzzle = () => {},
+    onFinished = () => {},
     progress,
     saveProgress,
     now = () => new Date()
@@ -154,6 +165,7 @@ export class GameController {
     this.#getDailySummary = getDailySummary;
     this.#leaderboardOnline = leaderboardOnline;
     this.#onEditPuzzle = onEditPuzzle;
+    this.#onFinished = onFinished;
     this.#findFewestMoves = findFewestMoves;
     this.#findSolution = findSolution;
     this.#progress = { ...progress };
@@ -472,11 +484,33 @@ export class GameController {
    * shared puzzle, or back to the editor after testing a custom one.
    */
   continueAfterWin() {
+    const finished = this.#level === LEVEL_COUNT && !this.#custom && !this.#isDaily();
+    this.#leaveWin();
+    if (finished) this.showFinish();
+  }
+
+  #leaveWin() {
     const custom = this.#custom;
     this.#custom = null;
     if (this.#isDaily()) this.#updateProgress({ mode: 'level' });
     this.start();
     if (custom?.fromEditor) this.#onEditPuzzle(custom.puzzle);
+  }
+
+  /** Opens the page for a player who has finished every level. */
+  showFinish() {
+    if (this.#progress.solved < LEVEL_COUNT) return;
+    const { records } = this.#progress;
+    const best = Object.values(records).map((record) => record.best);
+    const stars = best.reduce((sum, value) => sum + value, 0);
+    const perfect = best.filter((value) => value === MAX_STARS).length;
+    this.#onFinished({
+      stars,
+      maxStars: LEVEL_COUNT * MAX_STARS,
+      perfect,
+      total: LEVEL_COUNT,
+      shareText: texts.shareFinishText(stars, LEVEL_COUNT * MAX_STARS)
+    });
   }
 
   /** Plays the puzzle just solved once more, e.g. to try for more stars. */
@@ -565,7 +599,7 @@ export class GameController {
 
   /** Moves on as after a win, but lets the player pick from the level list first. */
   continueToLevels() {
-    this.continueAfterWin();
+    this.#leaveWin();
     this.showLevels();
   }
 
@@ -675,7 +709,9 @@ export class GameController {
         ? texts.backToEditor
         : this.#level === null
           ? texts.backToLevels
-          : texts.nextLevel,
+          : this.#level === LEVEL_COUNT
+            ? texts.finishGame
+            : texts.nextLevel,
       leaderboard: this.#isDaily() && this.#leaderboardOnline,
       watch: offerWatch,
       shareText
@@ -688,7 +724,10 @@ export class GameController {
    */
   #recordSolvedLevel(level) {
     const firstSolve = level > this.#progress.solved;
-    this.#updateProgress({ solved: Math.max(this.#progress.solved, level), current: level + 1 });
+    this.#updateProgress({
+      solved: Math.max(this.#progress.solved, level),
+      current: Math.min(level + 1, LEVEL_COUNT)
+    });
 
     const next = level + 1;
     const opensStage =
@@ -735,16 +774,12 @@ export class GameController {
       };
     });
 
-    // The master levels never end, so the list shows them a block at a time: up to the end of
-    // the block holding the furthest open level, and at least the first block.
-    const openMasterLevels = lastOpenLevel(this.#progress) - STAGE_LEVEL_COUNT;
-    const shownBlocks = Math.max(1, Math.ceil(openMasterLevels / MASTER_BLOCK));
-    const masterLevels = this.#levelTiles(STAGE_LEVEL_COUNT + 1, shownBlocks * MASTER_BLOCK);
+    const masterLevels = this.#levelTiles(STAGE_LEVEL_COUNT + 1, MASTER_STAGE.count);
     chapters.push({
       id: MASTER_STAGE.id,
       name: texts.stageName(MASTER_STAGE.id),
       detail: texts.stageDetail(MASTER_STAGE.id, MASTER_STAGE.undoLimit),
-      progress: texts.masterProgress(countSolved(masterLevels)),
+      progress: texts.chapterProgress(countSolved(masterLevels), MASTER_STAGE.count),
       difficulty: 4,
       levels: masterLevels
     });
@@ -763,7 +798,15 @@ export class GameController {
         playing: this.#isDaily(),
         ...this.#dailyCardStats(today)
       },
-      chapters
+      chapters,
+      finished:
+        this.#progress.solved >= LEVEL_COUNT
+          ? {
+              title: texts.finishedCardTitle,
+              text: texts.finishedCardText,
+              action: texts.finishedCardAction
+            }
+          : null
     };
   }
 
@@ -864,9 +907,6 @@ export class GameController {
     });
   }
 }
-
-/** How many master levels the level list adds at a time. */
-const MASTER_BLOCK = 10;
 
 function countSolved(levels) {
   return levels.filter((level) => level.state === 'solved').length;

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { FEWEST_MOVES } from '../src/game/fewestTable.js';
-import { createDailyPuzzle, createLevelPuzzle, STAGE_LEVEL_COUNT } from '../src/game/levels.js';
+import { createDailyPuzzle, createLevelPuzzle, LEVEL_COUNT } from '../src/game/levels.js';
 import { fewestMovesOfPuzzle } from '../src/game/puzzleFewest.js';
 import {
   bestOfTries,
@@ -13,13 +13,13 @@ import { solve } from '../src/game/solver.js';
 
 describe('the table of fewest moves', () => {
   it('has a number for every ready-made level', () => {
-    expect(FEWEST_MOVES).toHaveLength(STAGE_LEVEL_COUNT);
+    expect(FEWEST_MOVES).toHaveLength(LEVEL_COUNT);
     expect(FEWEST_MOVES.every((moves) => Number.isInteger(moves) && moves > 0)).toBe(true);
   });
 
   // If this fails, the levels changed: run `npm run bake` and commit the new table.
   it('matches what the search finds, level by level', () => {
-    for (let level = 1; level <= STAGE_LEVEL_COUNT; level++) {
+    for (let level = 1; level <= LEVEL_COUNT; level++) {
       const { tubes, board } = createLevelPuzzle(level);
       expect(solveShortest(tubes, { board, maxNodes: 2_000_000 })?.length, `level ${level}`).toBe(
         FEWEST_MOVES[level - 1]
