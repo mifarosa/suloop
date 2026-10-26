@@ -6,4 +6,18 @@ dist/
 .idea/
 .env
 .env.local
+.env.*
 !.env.example
+
+# Keys, certificates and service files stay out of the repository (see SECURITY.md)
+*.jks
+*.keystore
+*.p8
+*.p12
+*.mobileprovision
+google-services.json
+GoogleService-Info.plist
+serviceAccount*.json
+*-service-account*.json
+app/ios/
+app/android/
