@@ -1,6 +1,7 @@
 import './styles.css';
 import { GameController } from './app/controller.js';
 import { DailyBoard } from './app/dailyBoard.js';
+import { FinishDialog } from './app/finishDialog.js';
 import { EditorDialog } from './app/editorDialog.js';
 import { loadDailyRecord, saveDailyRecord } from './app/dailyResults.js';
 import { Feedback } from './app/feedback.js';
@@ -30,16 +31,18 @@ import { TubeScene } from './scene/tubeScene.js';
 let settings = loadSettings();
 setLanguage(settings.language);
 document.documentElement.lang = settings.language;
-if (settings.language === 'en') {
-  document.title = 'suloop · Water sort puzzle';
+// The page is written in English; Turkish is put over it.
+if (settings.language === 'tr') {
+  document.title = 'Wasorty · Su sıralama oyunu';
   applyStaticTexts(document);
 }
 
+const confetti = new Confetti(document.querySelector('#confetti'));
 const scene = new TubeScene(document.querySelector('#scene'), {
   getTopInset: () => document.querySelector('.hud').getBoundingClientRect().bottom,
   getBottomInset: () =>
     innerHeight - document.querySelector('.toolbar').getBoundingClientRect().top,
-  confetti: new Confetti(document.querySelector('#confetti')),
+  confetti,
   layered: true
 });
 const feedback = new Feedback();
@@ -49,6 +52,7 @@ const menu = new LevelMenu(document);
 const rules = new RulesDialog(document, { getLook: () => themer.look() });
 const settingsDialog = new SettingsDialog(document);
 const leaderboardDialog = new LeaderboardDialog(document);
+const finishDialog = new FinishDialog(document);
 // The daily leaderboard is shared when the build has a Firebase project (see cloud/dailyStore.js).
 // The account keeps progress in the cloud; it hears about every change made on this device.
 let cloudSync = null;
@@ -80,6 +84,7 @@ const controller = new GameController({
   getDailySummary: (today) => dailyBoard.summary(today),
   leaderboardOnline: dailyBoard.online,
   onEditPuzzle: (puzzle) => editor.show(puzzle),
+  onFinished: (summary) => finishDialog.show(summary),
   progress: loadProgress(),
   saveProgress: (progress) => {
     saveProgress(progress);
@@ -112,6 +117,10 @@ menu.bindActions({
     controller.closeLevels();
     editor.show();
   },
+  onFinished: () => {
+    controller.closeLevels();
+    controller.showFinish();
+  },
   onClose: () => controller.closeLevels()
 });
 rules.bindActions({ onClose: () => controller.closeRules() });
@@ -123,6 +132,33 @@ editor.bindActions({
   },
   onClose: () => editor.hide()
 });
+
+finishDialog.bindActions({
+  onShare: (text) => shareText(text),
+  onLevels: () => {
+    finishDialog.hide();
+    controller.showLevels();
+  },
+  onClose: () => finishDialog.hide(),
+  onCelebrate: () => {
+    feedback.win();
+    confetti.burst();
+  }
+});
+
+/** Sends text with the share sheet where there is one, and copies it otherwise. */
+async function shareText(text) {
+  const url = `${location.origin}${location.pathname}`;
+  try {
+    if (typeof navigator.share === 'function') await navigator.share({ text, url });
+    else {
+      await navigator.clipboard.writeText(`${text}\n${url}`);
+      hud.showToast(texts.shareCopied);
+    }
+  } catch (error) {
+    if (error?.name !== 'AbortError') hud.showToast(texts.copyFailed);
+  }
+}
 
 // Without a shared leaderboard there is nothing to rank; the daily card shows the streak.
 document.querySelector('#leaderboard-open').hidden = !dailyBoard.online;
@@ -260,23 +296,39 @@ settingsDialog.bindActions({
 });
 applySettings();
 controller.start();
+showSplash();
 announceNews();
+
+/** The name in bright colors while the first board settles; a tap or a moment closes it. */
+function showSplash() {
+  const splash = document.querySelector('#splash');
+  if (!splash) return;
+  const close = () => {
+    splash.classList.add('leaving');
+    setTimeout(() => splash.remove(), 500);
+  };
+  splash.addEventListener('pointerdown', close, { once: true });
+  setTimeout(close, 1900);
+}
 
 /** Tells the player once about what is new since they last played. */
 function announceNews() {
   const key = 'suloop.news';
   const current = 'daily-rules';
   try {
-    if (globalThis.localStorage?.getItem(key) === current) return;
-    globalThis.localStorage?.setItem(key, current);
+    const storage = globalThis.localStorage;
+    if (storage?.getItem(key) === current) return;
+    storage?.setItem(key, current);
+    // A new player has nothing to compare with.
+    if (storage?.getItem('suloop:progress:v1') === null) return;
   } catch {
     // Without storage the note would come every time; leave it out.
     return;
   }
-  setTimeout(() => hud.showToast(texts.newsDailyRules, { long: true }), 800);
+  setTimeout(() => hud.showToast(texts.newsDailyRules, { long: true }), 2600);
 }
 
-/** Takes a puzzle someone shared, as in "…/suloop/#bulmaca=…"; it works for links opened here or pasted in. */
+/** Takes a puzzle someone shared, as in "…/wasorty/#bulmaca=…"; it works for links opened here or pasted in. */
 function openLink() {
   if (!/#bulmaca=/.test(location.hash)) return;
 

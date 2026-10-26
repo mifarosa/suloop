@@ -47,7 +47,7 @@ service cloud.firestore {
           ['solved', 'current', 'hints', 'spareUndos', 'records', 'dailyDone', 'daily', 'updatedAt'])
         && request.resource.data.solved is int
         && request.resource.data.solved >= 0
-        && request.resource.data.solved <= 100000
+        && request.resource.data.solved <= 300
         && request.resource.data.current is int
         && request.resource.data.current >= 1
         && request.resource.data.hints is int

@@ -11,7 +11,7 @@ const stageNames = {
   locked: 'Kilitli Tüp',
   half: 'Yarım Tüp',
   oil: 'Yağ',
-  master: 'Usta'
+  master: 'Karışık'
 };
 const stageRules = {
   easy: 'Düz tüpler',
@@ -22,7 +22,7 @@ const stageRules = {
   locked: 'Anahtar renkli buzlu tüp',
   half: '2 birimlik yarım tüp',
   oil: 'Hep üstte duran yağ',
-  master: 'Sonsuz · her seviyede 3–4 kural'
+  master: 'Her seviyede 3–4 karışık kural'
 };
 const moves = (count) => `${count} hamle`;
 /** Seconds as m:ss, or h:mm:ss past an hour. */
@@ -115,7 +115,7 @@ export const tr = {
       ? `Çözülebilir · en az ${moves} hamle`
       : `Çözülebilir · bulunan en kısa çözüm ${moves} hamle`,
   editorUnsolvable: 'Çözüm bulunamadı. Boş tüp eklemeyi ya da renkleri değiştirmeyi dene.',
-  editorShareTitle: 'suloop bulmacam',
+  editorShareTitle: 'Wasorty bulmacam',
   editorLinkCopied: 'Bağlantı kopyalandı ✓',
   editorImportFailed: 'Bu bir bulmaca kodu değil. Kodu ya da bağlantıyı kontrol et.',
   editorImported: 'Bulmaca yüklendi.',
@@ -193,7 +193,6 @@ export const tr = {
   stageDetail: (stageId, undoLimit) =>
     `${stageRules[stageId]} · ${undoLimit === null ? 'sınırsız' : undoLimit} geri alma`,
   chapterProgress: (solved, total) => `${solved}/${total}`,
-  masterProgress: (solved) => `${solved} çözüldü`,
   // Copying a result
   copyFailed: 'Kopyalanamadı. Kodu bir yere not al.',
 
@@ -227,14 +226,28 @@ export const tr = {
     'Hesabın ve hesapta saklanan her şey silinsin mi? Bu cihazdaki ilerlemen kalır.',
   cloudProgressLoaded: (solved) => `Hesabından ilerleme yüklendi: ${solved} seviye çözülmüş.`,
 
+  // The end of the game
+  coffee: '☕ Bana bir kahve ısmarla',
+  finishGame: 'Bitir',
+  shareFinishText: (stars, max) => `Wasorty · 300 seviyenin hepsini bitirdim! ⭐ ${stars}/${max}`,
+  finishTitle: 'Başardın!',
+  finishText: (total) => `${total} seviyenin hepsini bitirdin.`,
+  finishStars: 'Yıldız',
+  finishPerfect: 'Tam yıldızlı seviye',
+  finishShare: 'Paylaş',
+  finishLevels: 'Seviyeler',
+  finishedCardTitle: 'Tamamlandı',
+  finishedCardText: '300 seviyenin hepsini bitirdin',
+  finishedCardAction: 'Aç',
+
   // Sharing a result
   shareResult: 'Sonucu paylaş',
   shareCopied: 'Kopyalandı ✓',
   shareStars: (stars) => '⭐'.repeat(stars) + '☆'.repeat(3 - stars),
   shareLevelText: (level, stars, moves, fewest) =>
-    `suloop · Seviye ${level} ${tr.shareStars(stars)}\n${moves} hamle (en az ${fewest})`,
+    `Wasorty · Seviye ${level} ${tr.shareStars(stars)}\n${moves} hamle (en az ${fewest})`,
   shareDailyText: (date, stars, moves, seconds, streak) =>
-    `suloop · Günün bulmacası, ${dayAndMonth.format(date)} ${tr.shareStars(stars)}\n` +
+    `Wasorty · Günün bulmacası, ${dayAndMonth.format(date)} ${tr.shareStars(stars)}\n` +
     `${moves} hamle · ${duration(seconds)}` +
     (streak >= 2 ? ` · 🔥 ${streak} gün` : ''),
 

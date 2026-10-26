@@ -166,9 +166,10 @@ export const STAGES = Object.freeze([
   }
 ]);
 
-/** Master levels go on forever, each with a few rules drawn from all of them. */
+/** The last 40 levels, each with a few rules drawn from all of them; the game ends there. */
 export const MASTER_STAGE = Object.freeze({
   id: 'master',
+  count: 40,
   rule: null,
   undoLimit: 3,
   pick: { from: BOARD_RULES, count: [3, 4] },
@@ -179,6 +180,9 @@ const stageLevelCount = (stage) => stage.parts.reduce((sum, part) => sum + part.
 
 /** Levels in the stages; every level after them is a master level. */
 export const STAGE_LEVEL_COUNT = STAGES.reduce((sum, stage) => sum + stageLevelCount(stage), 0);
+
+/** Every level of the game: the stages, then the master levels. */
+export const LEVEL_COUNT = STAGE_LEVEL_COUNT + MASTER_STAGE.count;
 
 /** The first level of each stage, by stage index. */
 export const STAGE_STARTS = Object.freeze(
@@ -205,9 +209,9 @@ export function stageOfLevel(level) {
   return isMasterLevel(level) ? MASTER_STAGE : STAGES[stageIndexOfLevel(level)];
 }
 
-/** How many levels a stage has; master levels never end. */
+/** How many levels a stage has. */
 export function levelCountOf(stage) {
-  return stage === MASTER_STAGE ? Infinity : stageLevelCount(stage);
+  return stage === MASTER_STAGE ? MASTER_STAGE.count : stageLevelCount(stage);
 }
 
 function stageIndexOfLevel(level) {

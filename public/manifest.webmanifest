@@ -1,9 +1,9 @@
 {
   "id": "./",
-  "name": "suloop · Su sıralama oyunu",
-  "short_name": "suloop",
-  "description": "Renkli suları tüplere ayırdığın bulmaca oyunu.",
-  "lang": "tr",
+  "name": "Wasorty · Water sort puzzle",
+  "short_name": "Wasorty",
+  "description": "A colorful water sort puzzle: sort the liquids into tubes.",
+  "lang": "en",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

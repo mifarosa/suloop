@@ -1,4 +1,5 @@
 import { ATTEMPTS_KEPT, INITIAL_HINTS, MAX_SPARE_UNDOS } from './economy.js';
+import { LEVEL_COUNT } from '../game/levels.js';
 import { MAX_STARS } from '../game/stars.js';
 
 /**
@@ -39,7 +40,7 @@ export const INITIAL_PROGRESS = Object.freeze({
 
 /** The highest level the player may open. */
 export function lastOpenLevel({ solved }) {
-  return solved + 1;
+  return Math.min(solved + 1, LEVEL_COUNT);
 }
 
 /**
@@ -53,7 +54,7 @@ export function normalizeProgress(saved) {
   const legacyLevel = Number.isInteger(data.level) && data.level > 0 ? data.level : null;
 
   const solvedValue = Number.isInteger(data.solved) ? data.solved : (legacyLevel ?? 1) - 1;
-  const solved = Math.max(solvedValue, 0);
+  const solved = Math.min(Math.max(solvedValue, 0), LEVEL_COUNT);
   const currentValue = Number.isInteger(data.current) ? data.current : (legacyLevel ?? 1);
   return {
     mode: data.mode === 'daily' ? 'daily' : 'level',
@@ -75,7 +76,14 @@ function normalizeRecords(saved) {
   const records = {};
   for (const [key, record] of Object.entries(saved)) {
     const level = Number(key);
-    if (!Number.isInteger(level) || level < 1 || !record || typeof record !== 'object') continue;
+    if (
+      !Number.isInteger(level) ||
+      level < 1 ||
+      level > LEVEL_COUNT ||
+      !record ||
+      typeof record !== 'object'
+    )
+      continue;
 
     const attempts = Array.isArray(record.attempts)
       ? record.attempts

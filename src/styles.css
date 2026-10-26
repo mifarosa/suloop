@@ -1616,3 +1616,114 @@ button.google:hover:not(:disabled) {
   justify-content: space-between;
   margin-top: 0;
 }
+
+/* The opening screen: the name, a letter at a time, each in a color of the water. */
+.splash {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 14px;
+  background:
+    radial-gradient(ellipse 70% 45% at 50% 50%, var(--glow), transparent 70%),
+    linear-gradient(var(--bg-top), var(--bg-bottom));
+  transition: opacity 0.45s ease;
+}
+
+.splash.leaving {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.wordmark {
+  display: flex;
+  font-family: var(--font-display);
+  font-size: clamp(3rem, 18vw, 6rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.wordmark span {
+  color: var(--c);
+  text-shadow:
+    0 0 24px color-mix(in srgb, var(--c) 55%, transparent),
+    0 4px 0 color-mix(in srgb, var(--c) 45%, black);
+  animation: letter-drop 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+}
+
+.wordmark span:nth-child(2) {
+  animation-delay: 0.06s;
+}
+.wordmark span:nth-child(3) {
+  animation-delay: 0.12s;
+}
+.wordmark span:nth-child(4) {
+  animation-delay: 0.18s;
+}
+.wordmark span:nth-child(5) {
+  animation-delay: 0.24s;
+}
+.wordmark span:nth-child(6) {
+  animation-delay: 0.3s;
+}
+.wordmark span:nth-child(7) {
+  animation-delay: 0.36s;
+}
+
+.splash-tagline {
+  margin: 0;
+  color: var(--muted);
+  font-size: 1rem;
+  animation: letter-drop 0.7s ease 0.5s backwards;
+}
+
+@keyframes letter-drop {
+  from {
+    opacity: 0;
+    transform: translateY(-40px) scale(0.8);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wordmark span,
+  .splash-tagline {
+    animation: none;
+  }
+}
+
+/* The page for finishing every level. */
+#finish {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.card.finish-card {
+  box-sizing: border-box;
+  justify-self: center;
+  width: min(380px, 100%);
+  gap: 14px;
+  text-align: center;
+}
+
+.finish-card .wordmark {
+  font-size: clamp(2.6rem, 14vw, 4rem);
+}
+
+.finish-card h2 {
+  margin: 0;
+}
+
+.finish-card .win-stats dd {
+  font-size: 1.3rem;
+}
+
+.finish-card .finish-text {
+  margin: 0;
+  color: var(--muted);
+}
+
+.finished-card {
+  border: 1px solid var(--accent);
+}
