@@ -21,10 +21,13 @@
       "autoIncrement": true,
       "android": {
         "buildType": "app-bundle"
-      }
+      },
+      "ios": {}
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "ios": {}
+    }
   }
 }
