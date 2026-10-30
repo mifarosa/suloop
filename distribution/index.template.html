@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Wasorty</title>
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-content: center;
+        justify-items: center;
+        gap: 18px;
+        padding: 24px;
+        box-sizing: border-box;
+        background: #0f0b2a;
+        color: #e8e6ff;
+        font-family: system-ui, sans-serif;
+        text-align: center;
+      }
+      h1 {
+        margin: 0;
+        font-size: clamp(3rem, 16vw, 5rem);
+        font-weight: 800;
+        letter-spacing: -0.02em;
+      }
+      h1 span {
+        color: var(--c);
+      }
+      p {
+        margin: 0;
+        color: #a9a5d6;
+      }
+      a.button {
+        display: block;
+        min-width: 220px;
+        padding: 14px 22px;
+        border-radius: 28px;
+        background: #7dd3fc;
+        color: #0b1030;
+        font-weight: 700;
+        text-decoration: none;
+      }
+      a.button.second {
+        background: transparent;
+        border: 1px solid #5b57a0;
+        color: #e8e6ff;
+      }
+      .hint {
+        font-size: 0.85rem;
+        max-width: 320px;
+      }
+      [hidden] {
+        display: none !important;
+      }
+    </style>
+  </head>
+  <body>
+    <h1 aria-label="Wasorty">
+      <span style="--c: #ef4444">W</span><span style="--c: #fb923c">a</span
+      ><span style="--c: #fde047">s</span><span style="--c: #22c55e">o</span
+      ><span style="--c: #38bdf8">r</span><span style="--c: #6366f1">t</span
+      ><span style="--c: #d946ef">y</span>
+    </h1>
+    <p>Build __VERSION__ · __DATE__</p>
+    <a
+      id="ios"
+      class="button"
+      href="itms-services://?action=download-manifest&url=https://__DOMAIN__/manifest.plist"
+      __IOS_HIDDEN__
+      >Install on iPhone</a
+    >
+    <a id="android" class="button" href="wasorty.apk" __ANDROID_HIDDEN__>Download for Android</a>
+    <p id="ios-note" class="hint" hidden>
+      Open this page in Safari. First time: Settings → Privacy &amp; Security → Developer Mode, then
+      Settings → General → VPN &amp; Device Management → trust the profile.
+    </p>
+    <p id="android-note" class="hint" hidden>
+      Allow installing from this browser when Android asks.
+    </p>
+    <script>
+      // The button of the phone in the hand comes first; the other one stays below it.
+      var ua = navigator.userAgent;
+      var ios = /iPhone|iPad|iPod/.test(ua);
+      var android = /Android/.test(ua);
+      var iosButton = document.getElementById('ios');
+      var androidButton = document.getElementById('android');
+      if (ios) {
+        androidButton.classList.add('second');
+        document.getElementById('ios-note').hidden = false;
+      } else if (android) {
+        iosButton.classList.add('second');
+        iosButton.parentNode.insertBefore(androidButton, iosButton);
+        document.getElementById('android-note').hidden = false;
+      }
+    </script>
+  </body>
+</html>

@@ -1,0 +1,16 @@
+# The install page: Caddy serves ./site over HTTPS (it gets the certificate by itself).
+services:
+  web:
+    image: caddy:2
+    restart: always
+    env_file: .env
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./site:/srv:ro
+      - caddy-data:/data
+
+volumes:
+  caddy-data:

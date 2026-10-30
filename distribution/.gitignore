@@ -1,0 +1,5 @@
+.env
+site/*.apk
+site/*.ipa
+site/*.plist
+site/index.html
