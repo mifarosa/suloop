@@ -5,57 +5,7 @@ import { drawScene } from '../src/scene/renderer.js';
 import { TubeView } from '../src/scene/tubeView.js';
 import { arrangeTubes, fitToView } from '../src/scene/layout.js';
 import { HIDDEN } from '../src/game/rules.js';
-
-/** A stand-in for React Native Skia that writes down what it is asked to draw. */
-function fakeSkia() {
-  const log = [];
-  const canvas = {
-    save: () => log.push(['save']),
-    restore: () => log.push(['restore']),
-    translate: (x, y) => log.push(['translate', x, y]),
-    scale: (x, y) => log.push(['scale', x, y]),
-    rotate: (degrees) => log.push(['rotate', degrees]),
-    drawPath: (path, paint) => log.push(['drawPath', path.ops.length, paint.style, paint.color]),
-    drawRect: (rect, paint) => log.push(['drawRect', rect, paint.style, paint.color]),
-    clipPath: () => log.push(['clip']),
-    drawText: (text) => log.push(['text', text])
-  };
-  const skia = {
-    Skia: {
-      PictureRecorder: () => ({
-        beginRecording: () => canvas,
-        finishRecordingAsPicture: () => ({ log: log.splice(0) })
-      }),
-      XYWHRect: (x, y, width, height) => ({ x, y, width, height }),
-      Path: {
-        Make: () => {
-          const ops = [];
-          const path = { ops };
-          for (const name of ['moveTo', 'lineTo', 'cubicTo', 'close']) {
-            path[name] = (...args) => ops.push([name, ...args]);
-          }
-          return path;
-        }
-      },
-      Paint: () => {
-        const paint = {};
-        paint.setAntiAlias = () => {};
-        paint.setColor = (color) => (paint.color = color);
-        paint.setStyle = (style) => (paint.style = style);
-        paint.setStrokeWidth = (width) => (paint.width = width);
-        paint.setStrokeCap = () => {};
-        paint.setStrokeJoin = () => {};
-        return paint;
-      },
-      Color: (css) => css
-    },
-    PaintStyle: { Fill: 'fill', Stroke: 'stroke' },
-    StrokeCap: { Round: 'round', Butt: 'butt' },
-    StrokeJoin: { Round: 'round', Miter: 'miter' },
-    ClipOp: { Intersect: 'intersect' }
-  };
-  return skia;
-}
+import { fakeSkia } from './helpers/fakeSkia.js';
 
 function drawOnce(setUp) {
   const skia = fakeSkia();
@@ -114,9 +64,9 @@ describe('the Skia context', () => {
     expect(kinds).toContain('drawPath');
     expect(kinds).toContain('clip');
     expect(kinds).toContain('text');
-    // Every save has its restore.
+    // Every save has its restore, but the one that marks the base of the frame.
     expect(kinds.filter((kind) => kind === 'save')).toHaveLength(
-      kinds.filter((kind) => kind === 'restore').length
+      kinds.filter((kind) => kind === 'restore').length + 1
     );
     // Strokes and fills both appear, with their alpha.
     const styles = new Set(picture.log.filter((e) => e[0] === 'drawPath').map((e) => e[2]));

@@ -12,8 +12,9 @@ import { SkiaContext2D } from './skiaContext.js';
  *
  * @param {object} props
  * @param {(scene: TubeScene) => void} props.onScene called once the scene is ready
+ * @param {{ burst: () => void, setColors: (colors: string[]) => void }} [props.confetti] thrown at a win
  */
-export function NativeBoard({ onScene }) {
+export function NativeBoard({ onScene, confetti = null }) {
   const [picture, setPicture] = useState(null);
   const size = useRef({ width: 0, height: 0 });
   const host = useMemo(() => {
@@ -63,7 +64,7 @@ export function NativeBoard({ onScene }) {
         host.resize(width, height);
         // The scene needs a size to lay the tubes out, so it starts with the first one.
         if (!scene.current && width > 0 && height > 0) {
-          scene.current = new TubeScene(host);
+          scene.current = new TubeScene(host, { confetti });
           onScene(scene.current);
         }
       }}
