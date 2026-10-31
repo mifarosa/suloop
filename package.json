@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "license": "UNLICENSED",
-  "description": "Renkli suları tüplere ayırdığın bulmaca oyunu.",
+  "description": "Renkli sular\u0131 t\u00fcplere ay\u0131rd\u0131\u011f\u0131n bulmaca oyunu.",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -13,7 +13,8 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "bake": "node scripts/bakeFewest.mjs && prettier --write src/game/fewestTable.js"
+    "bake": "node scripts/bakeFewest.mjs && prettier --write src/game/fewestTable.js",
+    "sounds": "node scripts/renderSounds.mjs"
   },
   "engines": {
     "node": ">=22.13"

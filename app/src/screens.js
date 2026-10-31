@@ -1,5 +1,6 @@
 import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
-import { THEMES, THEME_IDS } from './themes.js';
+import { RuleIcon } from './RuleIcon.js';
+import { THEMES, THEME_IDS, lookOf } from './themes.js';
 import { texts } from '../../src/app/texts.js';
 
 const stars = (count, total = 3) => '★'.repeat(count) + '☆'.repeat(total - count);
@@ -103,9 +104,12 @@ export function RulesModal({ model, theme, onClose }) {
         <Text style={[styles.dialogTitle, { color: t.ink }]}>{model.title}</Text>
         <ScrollView style={{ maxHeight: 420 }}>
           {model.rules.map((rule) => (
-            <View key={rule.id} style={styles.rule}>
-              <Text style={[styles.ruleName, { color: t.ink }]}>{rule.name}</Text>
-              <Text style={[styles.ruleText, { color: t.muted }]}>{rule.text}</Text>
+            <View key={rule.id} style={styles.ruleRow}>
+              <RuleIcon rule={rule.id} look={lookOf(theme)} />
+              <View style={[styles.rule, { flex: 1 }]}>
+                <Text style={[styles.ruleName, { color: t.ink }]}>{rule.name}</Text>
+                <Text style={[styles.ruleText, { color: t.muted }]}>{rule.text}</Text>
+              </View>
             </View>
           ))}
           {model.info && model.stars ? (
@@ -310,6 +314,7 @@ const styles = StyleSheet.create({
   dialog: { width: '100%', maxWidth: 420, borderRadius: 24, padding: 22, gap: 14 },
   dialogTitle: { fontSize: 24, fontWeight: '800' },
   rule: { gap: 4, marginBottom: 12 },
+  ruleRow: { flexDirection: 'row', gap: 14, alignItems: 'center' },
   ruleName: { fontSize: 17, fontWeight: '800' },
   ruleText: { fontSize: 15, lineHeight: 21 },
   primary: { paddingVertical: 14, borderRadius: 22, alignItems: 'center' },
