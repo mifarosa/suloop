@@ -1,4 +1,5 @@
-import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { RuleIcon } from './RuleIcon.js';
 import { THEMES, THEME_IDS, lookOf } from './themes.js';
 import { texts } from '../../src/app/texts.js';
@@ -6,7 +7,15 @@ import { texts } from '../../src/app/texts.js';
 const stars = (count, total = 3) => '★'.repeat(count) + '☆'.repeat(total - count);
 
 /** The level list: today's puzzle, then every stage with its levels. */
-export function LevelsScreen({ model, theme, onPickLevel, onPickDaily, onClose, onSettings }) {
+export function LevelsScreen({
+  model,
+  theme,
+  onPickLevel,
+  onPickDaily,
+  onClose,
+  onSettings,
+  onLeaderboard
+}) {
   const t = THEMES[theme];
   return (
     <View style={[styles.full, { backgroundColor: t.bottom }]}>
@@ -15,9 +24,20 @@ export function LevelsScreen({ model, theme, onPickLevel, onPickDaily, onClose, 
         theme={t}
         onClose={onClose}
         extra={
-          <Pressable onPress={onSettings} hitSlop={10} accessibilityLabel="Settings">
-            <Text style={[styles.headerIcon, { color: t.ink }]}>⚙</Text>
-          </Pressable>
+          <>
+            {onLeaderboard ? (
+              <Pressable
+                onPress={onLeaderboard}
+                hitSlop={10}
+                accessibilityLabel={texts.leaderboardTitle}
+              >
+                <Text style={[styles.headerIcon, { color: t.ink }]}>🏆</Text>
+              </Pressable>
+            ) : null}
+            <Pressable onPress={onSettings} hitSlop={10} accessibilityLabel="Settings">
+              <Text style={[styles.headerIcon, { color: t.ink }]}>⚙</Text>
+            </Pressable>
+          </>
         }
       />
       <ScrollView contentContainerStyle={styles.scroll}>
@@ -140,7 +160,7 @@ export function RulesModal({ model, theme, onClose }) {
 }
 
 /** Theme, sounds, vibration, symbols and language. */
-export function SettingsScreen({ settings, theme, onChange, onClose }) {
+export function SettingsScreen({ settings, theme, onChange, onClose, account }) {
   const t = THEMES[theme];
   return (
     <View style={[styles.full, { backgroundColor: t.bottom }]}>
@@ -188,6 +208,7 @@ export function SettingsScreen({ settings, theme, onChange, onClose }) {
           theme={t}
           onValueChange={(haptics) => onChange({ haptics })}
         />
+        {account ? <AccountSection account={account} theme={t} /> : null}
         <SwitchRow
           label="Add symbols to colors"
           note="Draws a shape on every color, if they are hard to tell apart."
@@ -260,6 +281,35 @@ function SwitchRow({ label, note, value, theme, onValueChange }) {
 }
 
 const styles = StyleSheet.create({
+  account: { gap: 10, padding: 16, borderRadius: 16, borderWidth: 1 },
+  accountActions: { flexDirection: 'row', justifyContent: 'space-between' },
+  accountLink: { fontWeight: '700' },
+  accountError: { color: '#ef4444', fontSize: 13 },
+  google: {
+    backgroundColor: '#ffffff',
+    paddingVertical: 12,
+    borderRadius: 22,
+    alignItems: 'center'
+  },
+  googleText: { color: '#1f1f1f', fontWeight: '700' },
+  input: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 16
+  },
+  scoreRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    padding: 12,
+    borderRadius: 14,
+    borderWidth: 1
+  },
+  rank: { width: 22, fontWeight: '800' },
+  who: { flex: 1, fontWeight: '700' },
+  points: { fontWeight: '800' },
   full: { ...StyleSheet.absoluteFillObject },
   scroll: { padding: 16, gap: 18, paddingBottom: 48 },
   header: {
@@ -339,3 +389,206 @@ const styles = StyleSheet.create({
     paddingVertical: 6
   }
 });
+
+/** Sign in with Google, pick a username, and see how the sync is doing. */
+function AccountSection({ account, theme }) {
+  const [name, setName] = useState('');
+  const { state, sync, message } = account;
+  const signedIn = state.user !== null;
+  const needsName = state.status === 'needsName';
+  return (
+    <Group title={texts.accountTitle ?? 'Account'} theme={theme}>
+      <View style={[styles.account, { backgroundColor: theme.panel, borderColor: theme.line }]}>
+        {!signedIn ? (
+          <>
+            <Text style={[styles.cardNote, { color: theme.muted }]}>{texts.accountSignedOut}</Text>
+            <Pressable
+              disabled={state.status === 'signingIn' || !account.available}
+              style={[
+                styles.google,
+                (state.status === 'signingIn' || !account.available) && { opacity: 0.5 }
+              ]}
+              onPress={account.onSignIn}
+            >
+              <Text style={styles.googleText}>
+                {account.available
+                  ? 'Sign in with Google'
+                  : 'Google sign-in is not set up in this build'}
+              </Text>
+            </Pressable>
+          </>
+        ) : (
+          <>
+            <Text style={[styles.choiceLabel, { color: theme.ink }]}>
+              {state.username
+                ? texts.accountSignedInAs(`@${state.username}`)
+                : texts.accountSignedIn}
+            </Text>
+            <Pressable onPress={account.onRetry}>
+              <Text
+                style={[styles.cardNote, { color: sync === 'failed' ? '#ef4444' : theme.muted }]}
+              >
+                {needsName ? texts.accountNeedsName : texts.accountSyncStatus(sync)}
+              </Text>
+            </Pressable>
+            {needsName ? (
+              <View style={{ gap: 8 }}>
+                <TextInput
+                  value={name}
+                  onChangeText={setName}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  maxLength={20}
+                  placeholder="username"
+                  placeholderTextColor={theme.muted}
+                  style={[styles.input, { color: theme.ink, borderColor: theme.line }]}
+                />
+                <Pressable
+                  style={[styles.primary, { backgroundColor: theme.accent }]}
+                  onPress={() => account.onSaveName(name)}
+                >
+                  <Text style={[styles.primaryText, { color: theme.accentInk }]}>Save</Text>
+                </Pressable>
+              </View>
+            ) : null}
+            <View style={styles.accountActions}>
+              <Pressable onPress={account.onSignOut}>
+                <Text style={[styles.accountLink, { color: theme.ink }]}>Sign out</Text>
+              </Pressable>
+              <Pressable onPress={account.onDelete}>
+                <Text style={[styles.accountLink, { color: '#ef4444' }]}>Delete my account</Text>
+              </Pressable>
+            </View>
+          </>
+        )}
+        {message || state.error ? (
+          <Text style={styles.accountError}>{message ?? texts.accountError(state.error)}</Text>
+        ) : null}
+      </View>
+    </Group>
+  );
+}
+
+/** Today's result and the day's ranking, or the player's own days without an account. */
+export function LeaderboardScreen({ data, theme, onPlayDaily, onSignIn, onClose }) {
+  const t = THEMES[theme];
+  const view = data?.view;
+  return (
+    <View style={[styles.full, { backgroundColor: t.bottom }]}>
+      <Header title={texts.leaderboardTitle} theme={t} onClose={onClose} />
+      <ScrollView contentContainerStyle={styles.scroll}>
+        {!view ? (
+          <Text style={[styles.cardNote, { color: t.muted }]}>…</Text>
+        ) : (
+          <>
+            <View style={[styles.account, { backgroundColor: t.panel, borderColor: t.line }]}>
+              {view.today ? (
+                <Text style={[styles.choiceLabel, { color: t.ink }]}>
+                  {texts.dailyToday(view.today.moves, view.today.seconds, view.today.score)}{' '}
+                  {stars(view.today.stars)}
+                </Text>
+              ) : (
+                <>
+                  <Text style={[styles.cardNote, { color: t.muted }]}>{texts.dailyNotSolved}</Text>
+                  <Pressable
+                    style={[styles.primary, { backgroundColor: t.accent }]}
+                    onPress={onPlayDaily}
+                  >
+                    <Text style={[styles.primaryText, { color: t.accentInk }]}>
+                      {texts.playDaily}
+                    </Text>
+                  </Pressable>
+                </>
+              )}
+              {view.streak > 0 ? (
+                <Text style={[styles.cardNote, { color: t.muted }]}>
+                  {texts.dailyStreak(view.streak)}
+                </Text>
+              ) : null}
+            </View>
+
+            {view.online && !data.username ? (
+              <View style={[styles.account, { backgroundColor: t.panel, borderColor: t.line }]}>
+                <Text style={[styles.cardNote, { color: t.muted }]}>
+                  {data.signedIn ? texts.leaderboardNeedsName : texts.leaderboardSignIn}
+                </Text>
+                <Pressable
+                  style={[styles.primary, { backgroundColor: t.accent }]}
+                  onPress={onSignIn}
+                >
+                  <Text style={[styles.primaryText, { color: t.accentInk }]}>
+                    {data.signedIn ? texts.pickUsername : texts.signInToRank}
+                  </Text>
+                </Pressable>
+              </View>
+            ) : null}
+
+            {view.online ? (
+              <Group title={texts.leaderboardTop} theme={t}>
+                {view.failed ? (
+                  <Text style={[styles.cardNote, { color: t.muted }]}>
+                    {texts.leaderboardFailed}
+                  </Text>
+                ) : view.top.length === 0 ? (
+                  <Text style={[styles.cardNote, { color: t.muted }]}>
+                    {texts.leaderboardEmpty}
+                  </Text>
+                ) : (
+                  <>
+                    {view.rank !== null ? (
+                      <Text style={[styles.choiceLabel, { color: t.accent }]}>
+                        {texts.leaderboardMyRank(view.rank)}
+                      </Text>
+                    ) : null}
+                    {view.top.map((row, index) => (
+                      <View
+                        key={`${row.name}-${index}`}
+                        style={[styles.scoreRow, { backgroundColor: t.panel, borderColor: t.line }]}
+                      >
+                        <Text style={[styles.rank, { color: t.muted }]}>{index + 1}</Text>
+                        <Text style={[styles.who, { color: t.ink }]} numberOfLines={1}>
+                          {row.name}
+                        </Text>
+                        <Text style={[styles.cardNote, { color: t.muted }]}>
+                          {texts.attemptMoves(row.moves)} · {texts.duration(row.seconds)}
+                        </Text>
+                        <Text style={[styles.points, { color: t.accent }]}>
+                          {texts.points(row.score)}
+                        </Text>
+                      </View>
+                    ))}
+                    <Text style={[styles.cardNote, { color: t.muted }]}>
+                      {texts.leaderboardHow}
+                    </Text>
+                  </>
+                )}
+              </Group>
+            ) : (
+              <Group title={texts.dailyHistory} theme={t}>
+                {view.history.length === 0 ? (
+                  <Text style={[styles.cardNote, { color: t.muted }]}>{texts.dailyNoHistory}</Text>
+                ) : (
+                  view.history.map((row) => (
+                    <View
+                      key={row.day}
+                      style={[styles.scoreRow, { backgroundColor: t.panel, borderColor: t.line }]}
+                    >
+                      <Text style={[styles.who, { color: t.ink }]}>{texts.dailyDate(row.day)}</Text>
+                      <Text style={[styles.cardNote, { color: t.muted }]}>
+                        {texts.attemptMoves(row.moves)} · {texts.duration(row.seconds)}
+                      </Text>
+                      <Text style={{ color: t.star }}>{stars(row.stars)}</Text>
+                    </View>
+                  ))
+                )}
+                <Text style={[styles.cardNote, { color: t.muted }]}>
+                  {texts.leaderboardLocalOnly}
+                </Text>
+              </Group>
+            )}
+          </>
+        )}
+      </ScrollView>
+    </View>
+  );
+}
