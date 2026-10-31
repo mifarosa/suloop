@@ -1,26 +1,9 @@
 import { useMemo, useRef, useState } from 'react';
-import { Platform, View } from 'react-native';
+import { View } from 'react-native';
 import * as Skia from '@shopify/react-native-skia';
 import { TubeScene } from '../../src/scene/tubeScene.js';
+import { fontFor } from './fonts.js';
 import { SkiaContext2D } from './skiaContext.js';
-
-const fonts = new Map();
-
-/** A Skia font for the "?" of a hidden color; the system's own, one per size. */
-function fontFor(size, bold) {
-  const key = `${size}-${bold}`;
-  if (!fonts.has(key)) {
-    fonts.set(
-      key,
-      Skia.matchFont({
-        fontFamily: Platform.select({ ios: 'Helvetica', default: 'sans-serif' }),
-        fontSize: size,
-        fontWeight: bold ? 'bold' : 'normal'
-      })
-    );
-  }
-  return fonts.get(key);
-}
 
 /**
  * The board. The web scene (src/scene/tubeScene.js) runs here as it is: it is handed a small

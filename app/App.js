@@ -12,6 +12,7 @@ import { NativeBoard } from './src/NativeBoard.js';
 import { NativeHud } from './src/NativeHud.js';
 import { createFeedback } from './src/feedback.js';
 import { LevelsScreen, RulesModal, SettingsScreen } from './src/screens.js';
+import { Splash } from './src/Splash.js';
 import { storage } from './src/storage.js';
 import { THEMES, lookOf } from './src/themes.js';
 
@@ -48,12 +49,12 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <Game key={epoch} settings={settings} onSettings={change} />
+      <Game key={epoch} settings={settings} onSettings={change} showSplash={epoch === 0} />
     </SafeAreaProvider>
   );
 }
 
-function Game({ settings, onSettings }) {
+function Game({ settings, onSettings, showSplash }) {
   const theme = THEMES[settings.theme] ?? THEMES.classic;
   const hud = useRef(new NativeHud()).current;
   const feedback = useMemo(() => createFeedback(), []);
@@ -61,6 +62,8 @@ function Game({ settings, onSettings }) {
   const scene = useRef(null);
   const [state, setState] = useState(hud.state);
   const [showSettings, setShowSettings] = useState(false);
+  const [splash, setSplash] = useState(showSplash);
+  const endSplash = useCallback(() => setSplash(false), []);
   useEffect(() => hud.subscribe(setState), [hud]);
 
   useEffect(() => {
@@ -84,6 +87,7 @@ function Game({ settings, onSettings }) {
         saveProgress: (progress) => saveProgress(progress, storage)
       });
       board.onTubeTap((index) => game.tapTube(index));
+      board.onCue((cue) => feedback.cue(cue));
       controller.current = game;
       game.start();
     },
@@ -203,6 +207,8 @@ function Game({ settings, onSettings }) {
           onSettings={() => setShowSettings(true)}
         />
       ) : null}
+
+      {splash ? <Splash background={theme.bottom} onDone={endSplash} /> : null}
 
       {showSettings ? (
         <SettingsScreen
