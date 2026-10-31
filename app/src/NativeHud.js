@@ -1,12 +1,32 @@
 /**
- * What the game tells the screen: the title bar, a short message and the win dialog. It keeps
- * the latest of each and tells the React side, which draws them. It has the methods of the
- * website's Hud (src/app/hud.js) that the game controller calls.
+ * What the game tells the screen: the title bar, a short message, the win dialog, the level
+ * list and the rules. It keeps the latest of each and tells the React side, which draws them.
+ * It has the methods of the website's Hud, LevelMenu and RulesDialog that the game controller
+ * calls, so the controller needs no change.
  */
 export class NativeHud {
   #listeners = new Set();
   #toastTimer = null;
-  state = { view: null, toast: null, win: null };
+  state = { view: null, toast: null, win: null, menu: null, rules: null };
+
+  /** The level list, as the controller gives it. */
+  menu = {
+    show: (menu) => this.#set({ menu }),
+    hide: () => this.#set({ menu: null })
+  };
+
+  /** The rules of a level, or everything about it from the info button. */
+  rules = {
+    show: (rules) => this.#set({ rules }),
+    hide: () => this.#set({ rules: null }),
+    isShowingInfo: false
+  };
+
+  constructor() {
+    Object.defineProperty(this.rules, 'isShowingInfo', {
+      get: () => Boolean(this.state.rules?.info)
+    });
+  }
 
   /** @param {(state: NativeHud['state']) => void} listener @returns {() => void} */
   subscribe(listener) {
