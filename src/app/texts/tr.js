@@ -270,6 +270,8 @@ export const tr = {
   dailyStreak: (days) => `🔥 ${days} gün üst üste`,
   dailyStreakNote: (days) => `🔥 ${days} gün üst üste çözdün!`,
   dailyResult: (moves, seconds) => `${moves} hamle · ${duration(seconds)}`,
+  leaderboardTitle: 'Günlük sıralama',
+  accountTitle: 'Hesap',
   leaderboardTop: 'Bugünün en iyileri',
   leaderboardFailed: 'Sıralama yüklenemedi. Bağlantını kontrol et.',
   leaderboardSignIn: 'Sıralamaya girmek için Google ile giriş yap.',

@@ -37,3 +37,23 @@ ekranları, Google girişi ve gizlilik politikası hazır olunca:
 - Gizlilik politikası adresi (ör. `https://mifarosa.com/wasorty/privacy.html`)
 - App Privacy formu (hesap/Firebase, ileride reklam verileri)
 - Ekran görüntüleri, açıklama, yaş derecesi, inceleme notu
+
+## Google ile giriş (eski ilerlemeni getirmek için)
+
+Aynı Google hesabıyla girince web'de kaydettiğin ilerleme, günlük sonuçların ve kullanıcı adın
+buluttan gelir; telefondakiyle birleşir, hiçbir şey azalmaz.
+
+Bir kerelik kurulum:
+
+1. Firebase konsolu (proje **suloop-8ee05**) → Project settings → **Add app → iOS**, Bundle ID
+   `com.mifarosa.wasorty` → **GoogleService-Info.plist** dosyasını indir. (Authentication'da Google
+   sağlayıcısı zaten açık.)
+2. Dosyayı repoya koyma; EAS'a gizli dosya olarak ver:
+   ```bash
+   cd app
+   npx eas-cli env:create --name GOOGLE_SERVICES_PLIST --type file \
+     --value ./GoogleService-Info.plist --environment production --visibility secret
+   ```
+3. Yeniden derle ve gönder (`eas build -p ios --profile production`, `eas submit -p ios --latest`).
+   Dosya yoksa uygulama yine derlenir; Ayarlar'daki Google düğmesi "bu derlemede kurulu değil"
+   der.

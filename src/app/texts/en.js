@@ -270,6 +270,8 @@ export const en = {
   dailyStreak: (days) => `🔥 ${days} days in a row`,
   dailyStreakNote: (days) => `🔥 ${days} days in a row!`,
   dailyResult: (moves, seconds) => `${en.moves(moves)} · ${duration(seconds)}`,
+  leaderboardTitle: 'Daily leaderboard',
+  accountTitle: 'Account',
   leaderboardTop: 'Today’s best',
   leaderboardFailed: 'Could not load the leaderboard. Check your connection.',
   leaderboardSignIn: 'Sign in with Google to join the leaderboard.',

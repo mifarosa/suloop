@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, Share, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, Share, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { GameController } from '../src/app/controller.js';
@@ -13,7 +13,11 @@ import { fewestMovesOfPuzzle } from '../src/game/puzzleFewest.js';
 import { NativeBoard } from './src/NativeBoard.js';
 import { NativeHud } from './src/NativeHud.js';
 import { createFeedback } from './src/feedback.js';
-import { LevelsScreen, RulesModal, SettingsScreen } from './src/screens.js';
+import { Account } from '../src/cloud/account.js';
+import { CloudSync } from '../src/cloud/cloudSync.js';
+import { createDailyStore } from '../src/cloud/dailyStore.js';
+import { GOOGLE_IOS_CLIENT_ID, createNativeBackend, loadNativeFirebase } from './src/firebase.js';
+import { LeaderboardScreen, LevelsScreen, RulesModal, SettingsScreen } from './src/screens.js';
 import { Splash } from './src/Splash.js';
 import { storage } from './src/storage.js';
 import { THEMES, lookOf } from './src/themes.js';
@@ -64,6 +68,9 @@ function Game({ settings, onSettings, showSplash }) {
   const scene = useRef(null);
   const [state, setState] = useState(hud.state);
   const [showSettings, setShowSettings] = useState(false);
+  const [account, setAccount] = useState(null);
+  const [leaderboard, setLeaderboard] = useState(null);
+  const cloud = useRef(null);
   const [splash, setSplash] = useState(showSplash);
   const endSplash = useCallback(() => setSplash(false), []);
   useEffect(() => hud.subscribe(setState), [hud]);
@@ -78,11 +85,15 @@ function Game({ settings, onSettings, showSplash }) {
     (board) => {
       scene.current = board;
       board.setLook(lookOf(settings.theme, settings.symbols));
-      // The daily results stay on the phone until an account takes them to the cloud.
+      // The daily results stay on the phone, and go to the leaderboard for a player with a name.
+      let cloudSync = null;
       const dailyBoard = new DailyBoard({
         record: loadDailyRecord(storage),
-        save: (record) => saveDailyRecord(record, storage),
-        service: null
+        save: (record) => {
+          saveDailyRecord(record, storage);
+          cloudSync?.schedule();
+        },
+        service: createDailyStore({ load: loadNativeFirebase })
       });
       const game = new GameController({
         scene: board,
@@ -96,17 +107,99 @@ function Game({ settings, onSettings, showSplash }) {
         onDailySolved: (day, result) => dailyBoard.record(day, result),
         getDailySummary: (today) => dailyBoard.summary(today),
         progress: loadProgress(storage),
-        saveProgress: (progress) => saveProgress(progress, storage)
+        leaderboardOnline: dailyBoard.online,
+        saveProgress: (progress) => {
+          saveProgress(progress, storage);
+          cloudSync?.schedule();
+        }
       });
       board.onTubeTap((index) => game.tapTube(index));
       board.onCue((cue) => feedback.cue(cue));
       controller.current = game;
       game.start();
+
+      // The account: signing in with Google, and progress kept with it (see src/cloud/).
+      const backend = createNativeBackend();
+      const accountService = new Account(backend, storage);
+      cloudSync = new CloudSync({
+        account: accountService,
+        backend,
+        getLocal: () => ({ progress: game.progress(), daily: dailyBoard.results() }),
+        apply: ({ progress, daily }) => {
+          dailyBoard.mergeResults(daily);
+          game.applyProgress(progress);
+        }
+      });
+      let message = null;
+      const publish = () =>
+        setAccount({ state: accountService.state, sync: cloudSync.status, message });
+      accountService.onChange(() => {
+        const { status, username } = accountService.state;
+        // A username is the next thing a new player has to do.
+        if (status === 'needsName') setShowSettings(true);
+        // The username is the name on the leaderboard; what waited for one is shared now.
+        if (status === 'ready' && username) dailyBoard.setName(username, new Date());
+        publish();
+      });
+      cloudSync.onStatus(publish);
+      cloud.current = {
+        account: accountService,
+        cloudSync,
+        dailyBoard,
+        setMessage: (m) => {
+          message = m;
+          publish();
+        }
+      };
+      publish();
+      // An earlier session is picked up once the board has been drawn.
+      setTimeout(() => accountService.restore().catch(() => {}), 1500);
     },
     // The look is kept up to date by the effect above.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [hud, feedback]
   );
+
+  const showLeaderboard = useCallback(async () => {
+    const parts = cloud.current;
+    if (!parts) return;
+    setLeaderboard({ view: null });
+    const view = await parts.dailyBoard.view(new Date());
+    const { status, username } = parts.account.state;
+    setLeaderboard({ view, signedIn: status === 'ready' && Boolean(username), username });
+  }, []);
+
+  const accountProps = account && {
+    ...account,
+    available: Boolean(GOOGLE_IOS_CLIENT_ID),
+    onSignIn: () => {
+      cloud.current.setMessage(null);
+      cloud.current.account.signIn();
+    },
+    onSignOut: () => cloud.current.account.signOut(),
+    onRetry: () => account.sync === 'failed' && cloud.current.cloudSync.syncNow(),
+    onSaveName: async (name) => {
+      const result = await cloud.current.account.claimUsername(name);
+      cloud.current.setMessage(
+        result === 'ok'
+          ? null
+          : {
+              invalid: texts.usernameInvalid,
+              taken: texts.usernameTaken,
+              failed: texts.usernameFailed
+            }[result]
+      );
+    },
+    onDelete: () =>
+      Alert.alert(texts.accountDeleteConfirm, undefined, [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => cloud.current.account.deleteAccount()
+        }
+      ])
+  };
 
   const { view, toast, win, menu, rules } = state;
   return (
@@ -203,6 +296,17 @@ function Game({ settings, onSettings, showSplash }) {
                 <Text style={[styles.link, { color: theme.accent }]}>{texts.shareResult}</Text>
               </Pressable>
             ) : null}
+            {win.leaderboard ? (
+              <Pressable
+                onPress={() => {
+                  controller.current?.continueToLevels();
+                  controller.current?.closeLevels();
+                  showLeaderboard();
+                }}
+              >
+                <Text style={[styles.link, { color: theme.accent }]}>{texts.leaderboardTitle}</Text>
+              </Pressable>
+            ) : null}
             <Pressable onPress={() => controller.current?.continueToLevels()}>
               <Text style={[styles.link, { color: theme.muted }]}>{texts.levelsButton}</Text>
             </Pressable>
@@ -226,6 +330,23 @@ function Game({ settings, onSettings, showSplash }) {
           onPickDaily={() => controller.current?.playDaily()}
           onClose={() => controller.current?.closeLevels()}
           onSettings={() => setShowSettings(true)}
+          onLeaderboard={showLeaderboard}
+        />
+      ) : null}
+
+      {leaderboard ? (
+        <LeaderboardScreen
+          data={leaderboard}
+          theme={settings.theme}
+          onPlayDaily={() => {
+            setLeaderboard(null);
+            controller.current?.playDaily();
+          }}
+          onSignIn={() => {
+            setLeaderboard(null);
+            setShowSettings(true);
+          }}
+          onClose={() => setLeaderboard(null)}
         />
       ) : null}
 
@@ -236,6 +357,7 @@ function Game({ settings, onSettings, showSplash }) {
           settings={settings}
           theme={settings.theme}
           onChange={onSettings}
+          account={accountProps}
           onClose={() => setShowSettings(false)}
         />
       ) : null}
