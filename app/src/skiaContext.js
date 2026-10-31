@@ -46,8 +46,22 @@ export class SkiaContext2D {
     this.#fontFor = fontFor;
   }
 
-  // The board is drawn in dp, which Skia uses too, so the pixel ratio needs no scaling.
-  setTransform() {}
+  /**
+   * Puts the whole transform of the frame in place at once. The board only ever sets the
+   * pixel ratio, which dp make unnecessary; the confetti moves and turns each piece, which
+   * a move, a turn and a stretch of Skia's can do (it never shears).
+   */
+  setTransform(a, b, c, d, e, f) {
+    if (!this.#canvas) return;
+    this.#canvas.restore();
+    this.#canvas.save();
+    const stretch = Math.hypot(a, b);
+    if (stretch === 0) return;
+    const turn = (a * d - b * c) / stretch;
+    if (e !== 0 || f !== 0) this.#canvas.translate(e, f);
+    if (b !== 0) this.#canvas.rotate((Math.atan2(b, a) * 180) / Math.PI, 0, 0);
+    if (stretch !== 1 || turn !== 1) this.#canvas.scale(stretch, turn);
+  }
 
   clearRect(x, y, width, height) {
     const size = this.#size();
@@ -57,6 +71,8 @@ export class SkiaContext2D {
       this.#skia.Skia.XYWHRect(0, 0, size.width, size.height)
     );
     this.#stack = [];
+    // The base of the frame, which setTransform goes back to.
+    this.#canvas.save();
     this.#queueFlush();
   }
 

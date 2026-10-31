@@ -11,13 +11,21 @@ import { loadSettings, saveSettings } from '../src/app/settings.js';
 import { texts } from '../src/app/texts.js';
 import { fewestMovesOfPuzzle } from '../src/game/puzzleFewest.js';
 import { NativeBoard } from './src/NativeBoard.js';
+import { NativeConfetti } from './src/NativeConfetti.js';
+import { NativeEditor } from './src/NativeEditor.js';
 import { NativeHud } from './src/NativeHud.js';
 import { createFeedback } from './src/feedback.js';
 import { Account } from '../src/cloud/account.js';
 import { CloudSync } from '../src/cloud/cloudSync.js';
 import { createDailyStore } from '../src/cloud/dailyStore.js';
 import { GOOGLE_IOS_CLIENT_ID, createNativeBackend, loadNativeFirebase } from './src/firebase.js';
-import { LeaderboardScreen, LevelsScreen, RulesModal, SettingsScreen } from './src/screens.js';
+import {
+  FinishScreen,
+  LeaderboardScreen,
+  LevelsScreen,
+  RulesModal,
+  SettingsScreen
+} from './src/screens.js';
 import { Splash } from './src/Splash.js';
 import { storage } from './src/storage.js';
 import { THEMES, lookOf } from './src/themes.js';
@@ -71,6 +79,15 @@ function Game({ settings, onSettings, showSplash }) {
   const [account, setAccount] = useState(null);
   const [leaderboard, setLeaderboard] = useState(null);
   const cloud = useRef(null);
+  const [editor, setEditor] = useState(null);
+  const [finish, setFinish] = useState(null);
+  // The scene throws the confetti through this, once the confetti layer is ready.
+  const realConfetti = useRef(null);
+  const confetti = useRef({
+    burst: () => realConfetti.current?.burst(),
+    setColors: (colors) => realConfetti.current?.setColors(colors)
+  }).current;
+  const onConfettiReady = useCallback((made) => (realConfetti.current = made), []);
   const [splash, setSplash] = useState(showSplash);
   const endSplash = useCallback(() => setSplash(false), []);
   useEffect(() => hud.subscribe(setState), [hud]);
@@ -108,6 +125,12 @@ function Game({ settings, onSettings, showSplash }) {
         getDailySummary: (today) => dailyBoard.summary(today),
         progress: loadProgress(storage),
         leaderboardOnline: dailyBoard.online,
+        onEditPuzzle: (puzzle) => setEditor({ initial: puzzle }),
+        onFinished: (summary) => {
+          setFinish(summary);
+          feedback.win();
+          confetti.burst();
+        },
         saveProgress: (progress) => {
           saveProgress(progress, storage);
           cloudSync?.schedule();
@@ -157,7 +180,7 @@ function Game({ settings, onSettings, showSplash }) {
     },
     // The look is kept up to date by the effect above.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [hud, feedback]
+    [hud, feedback, confetti]
   );
 
   const showLeaderboard = useCallback(async () => {
@@ -231,7 +254,7 @@ function Game({ settings, onSettings, showSplash }) {
         </View>
       </View>
 
-      <NativeBoard onScene={onScene} />
+      <NativeBoard onScene={onScene} confetti={confetti} />
 
       <View style={styles.toolbar}>
         <ToolButton
@@ -331,6 +354,14 @@ function Game({ settings, onSettings, showSplash }) {
           onClose={() => controller.current?.closeLevels()}
           onSettings={() => setShowSettings(true)}
           onLeaderboard={showLeaderboard}
+          onEditor={() => {
+            controller.current?.closeLevels();
+            setEditor({});
+          }}
+          onFinished={() => {
+            controller.current?.closeLevels();
+            controller.current?.showFinish();
+          }}
         />
       ) : null}
 
@@ -349,6 +380,36 @@ function Game({ settings, onSettings, showSplash }) {
           onClose={() => setLeaderboard(null)}
         />
       ) : null}
+
+      {editor ? (
+        <NativeEditor
+          theme={settings.theme}
+          symbols={settings.symbols}
+          initial={editor.initial}
+          onPlay={(puzzle) => {
+            setEditor(null);
+            controller.current?.playCustom(puzzle, { fromEditor: true });
+          }}
+          onClose={() => setEditor(null)}
+        />
+      ) : null}
+
+      {finish ? (
+        <FinishScreen
+          summary={finish}
+          theme={settings.theme}
+          onShare={() =>
+            Share.share({ message: `${finish.shareText}\nhttps://mifarosa.com/wasorty/` })
+          }
+          onLevels={() => {
+            setFinish(null);
+            controller.current?.showLevels();
+          }}
+          onClose={() => setFinish(null)}
+        />
+      ) : null}
+
+      <NativeConfetti onReady={onConfettiReady} />
 
       {splash ? <Splash background={theme.bottom} onDone={endSplash} /> : null}
 

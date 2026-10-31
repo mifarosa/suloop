@@ -14,7 +14,9 @@ export function LevelsScreen({
   onPickDaily,
   onClose,
   onSettings,
-  onLeaderboard
+  onLeaderboard,
+  onEditor,
+  onFinished
 }) {
   const t = THEMES[theme];
   return (
@@ -64,6 +66,11 @@ export function LevelsScreen({
           </Pressable>
         ) : null}
 
+        {model.finished ? <ModelCard card={model.finished} theme={t} onPress={onFinished} /> : null}
+        {model.editor && onEditor ? (
+          <ModelCard card={model.editor} theme={t} onPress={onEditor} />
+        ) : null}
+
         {model.chapters.map((chapter) => (
           <View key={chapter.id} style={styles.chapter}>
             <View style={styles.chapterHead}>
@@ -86,6 +93,23 @@ export function LevelsScreen({
         ))}
       </ScrollView>
     </View>
+  );
+}
+
+function ModelCard({ card, theme, onPress }) {
+  return (
+    <Pressable
+      style={[styles.card, { backgroundColor: theme.panel, borderColor: theme.line }]}
+      onPress={onPress}
+    >
+      <View style={{ flex: 1 }}>
+        <Text style={[styles.cardTitle, { color: theme.ink }]}>{card.title}</Text>
+        <Text style={[styles.cardNote, { color: theme.muted }]}>{card.text}</Text>
+      </View>
+      <Text style={[styles.pill, { backgroundColor: theme.accent, color: theme.accentInk }]}>
+        {card.action}
+      </Text>
+    </Pressable>
   );
 }
 
@@ -281,6 +305,9 @@ function SwitchRow({ label, note, value, theme, onValueChange }) {
 }
 
 const styles = StyleSheet.create({
+  finishMark: { fontSize: 52, fontWeight: '800' },
+  finishStats: { flexDirection: 'row', gap: 32, marginVertical: 8 },
+  finishNumber: { fontSize: 22, fontWeight: '800' },
   account: { gap: 10, padding: 16, borderRadius: 16, borderWidth: 1 },
   accountActions: { flexDirection: 'row', justifyContent: 'space-between' },
   accountLink: { fontWeight: '700' },
@@ -589,6 +616,60 @@ export function LeaderboardScreen({ data, theme, onPlayDaily, onSignIn, onClose 
           </>
         )}
       </ScrollView>
+    </View>
+  );
+}
+
+/** What a player gets for finishing every level. */
+export function FinishScreen({ summary, theme, onShare, onLevels, onClose }) {
+  const t = THEMES[theme];
+  return (
+    <View style={styles.overlay}>
+      <View style={[styles.dialog, { backgroundColor: t.panel, alignItems: 'center' }]}>
+        <Text style={styles.finishMark}>
+          {[
+            ['W', '#ef4444'],
+            ['a', '#fb923c'],
+            ['s', '#fde047'],
+            ['o', '#22c55e'],
+            ['r', '#38bdf8'],
+            ['t', '#6366f1'],
+            ['y', '#d946ef']
+          ].map(([letter, color]) => (
+            <Text key={letter + color} style={{ color }}>
+              {letter}
+            </Text>
+          ))}
+        </Text>
+        <Text style={[styles.dialogTitle, { color: t.ink }]}>{texts.finishTitle}</Text>
+        <Text style={[styles.cardNote, { color: t.muted }]}>{texts.finishText(summary.total)}</Text>
+        <View style={styles.finishStats}>
+          <View style={{ alignItems: 'center' }}>
+            <Text style={[styles.cardNote, { color: t.muted }]}>{texts.finishStars}</Text>
+            <Text style={[styles.finishNumber, { color: t.ink }]}>
+              {summary.stars} / {summary.maxStars}
+            </Text>
+          </View>
+          <View style={{ alignItems: 'center' }}>
+            <Text style={[styles.cardNote, { color: t.muted }]}>{texts.finishPerfect}</Text>
+            <Text style={[styles.finishNumber, { color: t.ink }]}>
+              {summary.perfect} / {summary.total}
+            </Text>
+          </View>
+        </View>
+        <Pressable
+          style={[styles.primary, { backgroundColor: t.accent, alignSelf: 'stretch' }]}
+          onPress={onShare}
+        >
+          <Text style={[styles.primaryText, { color: t.accentInk }]}>{texts.finishShare}</Text>
+        </Pressable>
+        <Pressable onPress={onLevels}>
+          <Text style={[styles.accountLink, { color: t.ink }]}>{texts.finishLevels}</Text>
+        </Pressable>
+        <Pressable onPress={onClose} hitSlop={10}>
+          <Text style={[styles.cardNote, { color: t.muted }]}>✕</Text>
+        </Pressable>
+      </View>
     </View>
   );
 }
