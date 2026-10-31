@@ -22,11 +22,11 @@ describe('the native screen state', () => {
     hud.menu.hide();
     expect(hud.state.menu).toBeNull();
     expect(hud.rules.isShowingInfo).toBe(false);
-    expect(listener).toHaveBeenCalledTimes(4);
+    expect(listener).toHaveBeenCalledTimes(5);
 
     stop();
     hud.showWin({ stars: 3 });
-    expect(listener).toHaveBeenCalledTimes(4);
+    expect(listener).toHaveBeenCalledTimes(5);
     hud.hideWin();
     expect(hud.state.win).toBeNull();
   });
