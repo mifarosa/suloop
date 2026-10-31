@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Share, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { GameController } from '../src/app/controller.js';
+import { DailyBoard } from '../src/app/dailyBoard.js';
+import { loadDailyRecord, saveDailyRecord } from '../src/app/dailyResults.js';
 import { loadProgress, saveProgress } from '../src/app/progress.js';
 import { setLanguage } from '../src/app/i18n.js';
 import { loadSettings, saveSettings } from '../src/app/settings.js';
@@ -76,13 +78,23 @@ function Game({ settings, onSettings, showSplash }) {
     (board) => {
       scene.current = board;
       board.setLook(lookOf(settings.theme, settings.symbols));
+      // The daily results stay on the phone until an account takes them to the cloud.
+      const dailyBoard = new DailyBoard({
+        record: loadDailyRecord(storage),
+        save: (record) => saveDailyRecord(record, storage),
+        service: null
+      });
       const game = new GameController({
         scene: board,
         hud,
         menu: hud.menu,
         rules: hud.rules,
         feedback,
-        findFewestMoves: (puzzle) => Promise.resolve(fewestMovesOfPuzzle(puzzle)),
+        // A puzzle without a ready answer is searched for a moment after the board is drawn.
+        findFewestMoves: (puzzle) =>
+          new Promise((resolve) => setTimeout(() => resolve(fewestMovesOfPuzzle(puzzle)), 30)),
+        onDailySolved: (day, result) => dailyBoard.record(day, result),
+        getDailySummary: (today) => dailyBoard.summary(today),
         progress: loadProgress(storage),
         saveProgress: (progress) => saveProgress(progress, storage)
       });
@@ -182,6 +194,15 @@ function Game({ settings, onSettings, showSplash }) {
                 </Text>
               </Pressable>
             </View>
+            {win.shareText ? (
+              <Pressable
+                onPress={() =>
+                  Share.share({ message: `${win.shareText}\nhttps://mifarosa.com/wasorty/` })
+                }
+              >
+                <Text style={[styles.link, { color: theme.accent }]}>{texts.shareResult}</Text>
+              </Pressable>
+            ) : null}
             <Pressable onPress={() => controller.current?.continueToLevels()}>
               <Text style={[styles.link, { color: theme.muted }]}>{texts.levelsButton}</Text>
             </Pressable>
